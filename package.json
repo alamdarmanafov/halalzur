@@ -5,6 +5,7 @@
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "^3.1.1",
+    "@supabase/supabase-js": "^2.112.4",
     "expo": "~57.0.17",
     "expo-blur": "^57.0.2",
     "expo-camera": "^57.0.4",
@@ -20,7 +21,8 @@
     "react-native": "0.86.3",
     "react-native-safe-area-context": "^5.9.1",
     "react-native-screens": "^4.27.0",
-    "react-native-svg": "^15.15.5"
+    "react-native-svg": "^15.15.5",
+    "react-native-url-polyfill": "^4.0.0"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",

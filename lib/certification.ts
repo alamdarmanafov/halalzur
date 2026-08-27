@@ -1,16 +1,13 @@
-import { CertificationResult } from './types';
+import { CertificationResult, Certifier } from './types';
 import { getCertifier } from './certifiers';
+import { supabase, isSupabaseConfigured } from './supabase';
 
 /**
- * Demo/offline dataset standing in for the real lookup.
- *
- * Production integration point: replace `lookupBarcode` with calls to each
- * certifier's verification API/registry (GIMDES, HAK, SMIIC member bodies,
- * JAKIM, ...). None of these currently expose a public real-time API, so
- * shipping this for real requires either (a) a data-sharing agreement with
- * each certifier, or (b) building Halalzur's own crowdsourced + manually
- * verified database seeded from their published certificate lists (most
- * publish PDFs/registries on their sites that can be scraped/imported).
+ * Local demo/offline dataset — used only as a dev fallback while the
+ * Supabase project (supabase/schema.sql) isn't configured yet, or if a
+ * request to it fails. Once EXPO_PUBLIC_SUPABASE_URL / _ANON_KEY are set,
+ * `lookupBarcode` and `searchProducts` query the real `certified_entries`
+ * table (synced from GIMDES + JAKIM) first.
  */
 const MOCK_DB: Record<string, CertificationResult> = {
   '8690504048068': {
@@ -67,37 +64,134 @@ const MOCK_DB: Record<string, CertificationResult> = {
   },
 };
 
-export async function lookupBarcode(barcode: string): Promise<CertificationResult> {
-  await new Promise((resolve) => setTimeout(resolve, 900));
+const CATEGORY_EMOJI: Record<string, string> = {
+  şirniyyat: '🍬',
+  çörək: '🍞',
+  içki: '🥤',
+  ət: '🥩',
+  süd: '🥛',
+  qənnadı: '🍫',
+};
 
-  const hit = MOCK_DB[barcode];
-  if (hit) return hit;
+function emojiForCategory(category: string | null): string {
+  if (!category) return '🛒';
+  return CATEGORY_EMOJI[category.trim().toLowerCase()] ?? '🛒';
+}
+
+type CertifiedEntryRow = {
+  barcode: string | null;
+  product_name: string | null;
+  brand: string;
+  category: string | null;
+  status: CertificationResult['status'];
+  certificate_number: string | null;
+  verified_at: string | null;
+  ingredients: string[] | null;
+  notes: string | null;
+  certifiers: {
+    id: string;
+    name: string;
+    short_name: string;
+    country: string;
+  } | null;
+};
+
+function mapRowToResult(row: CertifiedEntryRow, fallbackBarcode: string): CertificationResult {
+  const certifier: Certifier | null = row.certifiers
+    ? {
+        id: row.certifiers.id,
+        name: row.certifiers.name,
+        shortName: row.certifiers.short_name,
+        country: row.certifiers.country,
+      }
+    : null;
 
   return {
-    barcode,
-    productName: 'Naməlum məhsul',
-    brand: '—',
-    category: '—',
-    status: 'unknown',
-    certifier: null,
-    certificateNumber: null,
-    verifiedAt: null,
-    ingredients: [],
-    notes: 'Bu barkod hələ bazamızda yoxdur. Sertifikat orqanları ilə əlaqə yaradılır.',
-    imageEmoji: '❓',
+    barcode: row.barcode ?? fallbackBarcode,
+    productName: row.product_name ?? row.brand,
+    brand: row.brand,
+    category: row.category ?? '—',
+    status: row.status,
+    certifier,
+    certificateNumber: row.certificate_number,
+    verifiedAt: row.verified_at,
+    ingredients: row.ingredients ?? [],
+    notes: row.notes,
+    imageEmoji: emojiForCategory(row.category),
   };
 }
 
+const UNKNOWN_RESULT = (barcode: string): CertificationResult => ({
+  barcode,
+  productName: 'Naməlum məhsul',
+  brand: '—',
+  category: '—',
+  status: 'unknown',
+  certifier: null,
+  certificateNumber: null,
+  verifiedAt: null,
+  ingredients: [],
+  notes: 'Bu barkod hələ bazamızda yoxdur. Sertifikat orqanları ilə əlaqə yaradılır.',
+  imageEmoji: '❓',
+});
+
+export async function lookupBarcode(barcode: string): Promise<CertificationResult> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from('certified_entries')
+      .select(
+        'barcode, product_name, brand, category, status, certificate_number, verified_at, ingredients, notes, certifiers(id, name, short_name, country)'
+      )
+      .eq('barcode', barcode)
+      .eq('entry_type', 'product')
+      .limit(1)
+      .maybeSingle<CertifiedEntryRow>();
+
+    if (!error) {
+      return data ? mapRowToResult(data, barcode) : UNKNOWN_RESULT(barcode);
+    }
+    console.warn('Supabase lookupBarcode failed, falling back to local data:', error.message);
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 900));
+  return MOCK_DB[barcode] ?? UNKNOWN_RESULT(barcode);
+}
+
 export async function searchProducts(query: string): Promise<CertificationResult[]> {
+  const q = query.trim();
+
+  if (isSupabaseConfigured && supabase) {
+    let request = supabase
+      .from('certified_entries')
+      .select(
+        'barcode, product_name, brand, category, status, certificate_number, verified_at, ingredients, notes, certifiers(id, name, short_name, country)'
+      )
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    if (q) {
+      const safe = q.replace(/[,()%]/g, '');
+      request = request.or(
+        `brand.ilike.%${safe}%,product_name.ilike.%${safe}%,category.ilike.%${safe}%`
+      );
+    }
+
+    const { data, error } = await request.returns<CertifiedEntryRow[]>();
+    if (!error) {
+      return (data ?? []).map((row) => mapRowToResult(row, row.barcode ?? ''));
+    }
+    console.warn('Supabase searchProducts failed, falling back to local data:', error.message);
+  }
+
   await new Promise((resolve) => setTimeout(resolve, 300));
-  const q = query.trim().toLowerCase();
+  const lower = q.toLowerCase();
   const all = Object.values(MOCK_DB);
-  if (!q) return all;
+  if (!lower) return all;
   return all.filter(
     (p) =>
-      p.productName.toLowerCase().includes(q) ||
-      p.brand.toLowerCase().includes(q) ||
-      p.category.toLowerCase().includes(q)
+      p.productName.toLowerCase().includes(lower) ||
+      p.brand.toLowerCase().includes(lower) ||
+      p.category.toLowerCase().includes(lower)
   );
 }
 

@@ -10,9 +10,12 @@ və JAKIM kimi tanınan sertifikat orqanları ilə çarpaz yoxlayır.
 - `app/(tabs)` — 3 əsas tab: **Skan et**, **Məhsullar**, **Profil**
 - `app/subscription.tsx` — Premium abunəlik (paywall)
 - `app/product/[id].tsx` — Məhsul detalları / sertifikat nəticəsi
-- `lib/certification.ts` — Barkod → sertifikat nəticəsi axtarışı (hazırda demo
-  data ilə işləyir, real inteqrasiya üçün qeydlərə bax)
+- `lib/certification.ts` — Barkod → sertifikat nəticəsi axtarışı. Supabase
+  konfiqurasiya olunubsa `certified_entries` cədvəlini sorğulayır, olmasa
+  yerli demo data-ya keçir.
 - `lib/certifiers.ts` — Tanınan sertifikat orqanlarının siyahısı
+- `lib/supabase.ts` — Supabase client (yalnız açıq "anon" açarla)
+- `supabase/schema.sql` — Supabase-də bir dəfə işlədiləcək SQL sxemi
 - `components/Logo.tsx` — Brend loqosu (SVG)
 
 ## İşə salmaq
@@ -26,14 +29,37 @@ npm run start    # Expo Go ilə test etmək üçün
 Demo skan üçün "Skan et" tabında ekranın altındakı nümunə barkod düymələrindən
 istifadə edin (kamera olmadan test etmək üçün).
 
+## Supabase-i qoşmaq (real GIMDES/JAKIM data üçün)
+
+1. [supabase.com](https://supabase.com)-da pulsuz hesab açıb yeni layihə yaradın.
+2. Layihədə **SQL Editor** → **New query** açıb `supabase/schema.sql`
+   faylının tam məzmununu yapışdırıb işə salın (cədvəlləri və oxuma
+   siyasətlərini yaradır).
+3. **Project Settings → API**-dən `Project URL` və `anon public` açarını
+   götürün.
+4. Kök qovluqda `.env.example`-i `.env` adı ilə kopyalayın və dəyərləri
+   doldurun:
+   ```
+   EXPO_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+   EXPO_PUBLIC_SUPABASE_ANON_KEY=xxxx
+   ```
+5. `npx expo start`-u yenidən başladın. Tətbiq artıq mövcud olduqda
+   Supabase-dən oxuyacaq, cədvəl boşdursa "Naməlum məhsul" göstərəcək —
+   məlumatı doldurmaq (GIMDES PDF-i və JAKIM MyeHalal-ı içəri idxal edən
+   ayrıca bir sync skripti) növbəti addımdır.
+
+**Vacib:** `.env`-ə yalnız `anon` açarı qoyun, heç vaxt `service_role`
+açarını deyil — `anon` açar client-da açıq işlədilməyə görə təhlükəsizdir
+(oxuma hüquqları `schema.sql`-dəki RLS siyasətləri ilə məhdudlaşdırılıb).
+
 ## İstehsala keçməzdən əvvəl
 
-1. **Sertifikat məlumat mənbəyi** — `lib/certification.ts` hazırda statik
-   demo data qaytarır. Real sertifikat orqanları (GIMDES, HAK, SMIIC üzv
-   qurumları, JAKIM) hələ ki ictimai real-time API açıqlamayıb; ya onlarla
-   məlumat paylaşım sazişi bağlamaq, ya da onların dərc etdiyi
-   sertifikat siyahılarından (adətən PDF/reyestr) idxal edərək öz
-   verilənlər bazanızı qurmaq lazımdır.
+1. **GIMDES/JAKIM sync skripti** — `certified_entries` cədvəli hazırda
+   boşdur. GIMDES-in dərc etdiyi PDF siyahısını və JAKIM-ın MyeHalal
+   portalını dövri olaraq oxuyub bu cədvələ yazan ayrıca bir skript (backend
+   tərəfdə, `service_role` açarı ilə) lazımdır. HAK və SMIIC məhsul
+   sertifikatlaşdırmır (onlar sertifikat orqanlarını akkreditə edir), ona
+   görə onlardan çəkiləcək məhsul data-sı yoxdur.
 2. **Autentifikasiya** — `lib/auth-context.tsx` hazırda cihazda lokal
    saxlanılır, şifrə yoxlaması etmir. Real backend (Supabase/Firebase/öz
    API-niz) ilə əvəz edin.
