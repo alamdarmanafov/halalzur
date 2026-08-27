@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, TextInput, Image, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { lookupBarcode } from '../../lib/certification';
 import { extractECodesFromText } from '../../lib/eCodes';
+import { recognizeIngredientText } from '../../lib/ocr';
 import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
 import { ECodeCard } from '../../components/ECodeCard';
@@ -20,11 +22,49 @@ const STATUS_TINT: Record<CertificationResult['status'], string> = {
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [product, setProduct] = useState<CertificationResult | null>(null);
+  const [manualIngredients, setManualIngredients] = useState('');
+  const [ingredientPhoto, setIngredientPhoto] = useState<string | null>(null);
+  const [scanningPhoto, setScanningPhoto] = useState(false);
 
   useEffect(() => {
     if (!id) return;
     lookupBarcode(id).then(setProduct);
   }, [id]);
+
+  const hasKnownIngredients = (product?.ingredients.length ?? 0) > 0;
+  const detectedECodes = useMemo(
+    () =>
+      extractECodesFromText(
+        hasKnownIngredients ? product!.ingredients.join(', ') : manualIngredients
+      ),
+    [hasKnownIngredients, product, manualIngredients]
+  );
+
+  const captureIngredientPhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('İcazə lazımdır', 'Tərkib şəklini çəkmək üçün kameraya icazə verin.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.7,
+      allowsEditing: true,
+    });
+    if (result.canceled || !result.assets[0]) return;
+
+    const uri = result.assets[0].uri;
+    setIngredientPhoto(uri);
+    setScanningPhoto(true);
+    try {
+      const recognizedText = await recognizeIngredientText(uri);
+      if (recognizedText) {
+        setManualIngredients((prev) => (prev ? `${prev}\n${recognizedText}` : recognizedText));
+      }
+    } finally {
+      setScanningPhoto(false);
+    }
+  };
 
   if (!product) {
     return (
@@ -35,7 +75,6 @@ export default function ProductDetailScreen() {
   }
 
   const tint = STATUS_TINT[product.status];
-  const detectedECodes = extractECodesFromText(product.ingredients.join(', '));
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -94,6 +133,50 @@ export default function ProductDetailScreen() {
                 </View>
               ))}
             </View>
+          </View>
+        )}
+
+        {!hasKnownIngredients && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Tərkibi yoxlayın</Text>
+            <Text style={styles.eCodeIntro}>
+              Bu barkod bazamızda yoxdur. Məhsulun qablaşdırmasındakı tərkib hissəsinin şəklini
+              çəkin — tərkibdəki E-kodları tapıb sertifikat orqanlarının onlar haqqında dediyini
+              göstərəcəyik.
+            </Text>
+
+            <Pressable style={styles.photoBtn} onPress={captureIngredientPhoto}>
+              <Ionicons name="camera" size={18} color={colors.primaryDark} />
+              <Text style={styles.photoBtnText}>
+                {ingredientPhoto ? 'Yenidən şəkil çək' : 'Tərkib şəklini çək'}
+              </Text>
+            </Pressable>
+
+            {ingredientPhoto && (
+              <View style={styles.photoPreviewWrap}>
+                <Image source={{ uri: ingredientPhoto }} style={styles.photoPreview} />
+                {scanningPhoto && (
+                  <View style={styles.photoPreviewOverlay}>
+                    <ActivityIndicator color={colors.white} />
+                    <Text style={styles.photoPreviewOverlayText}>Mətn tanınır…</Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            <Text style={styles.manualLabel}>
+              {ingredientPhoto
+                ? 'Şəkildəki tərkibi (xüsusilə E-kodları) buraya yazın:'
+                : 'Yaxud tərkibi əl ilə yazın:'}
+            </Text>
+            <TextInput
+              value={manualIngredients}
+              onChangeText={setManualIngredients}
+              placeholder="Məs: Şəkər, Bitki yağı, E471, E120, Vanil aromatı…"
+              placeholderTextColor={colors.gray}
+              multiline
+              style={styles.manualInput}
+            />
           </View>
         )}
 
@@ -160,6 +243,46 @@ const styles = StyleSheet.create({
   section: { marginHorizontal: spacing.lg, marginTop: spacing.lg },
   sectionTitle: { ...typography.h3, color: colors.black, marginBottom: spacing.sm },
   eCodeIntro: { ...typography.small, color: colors.gray, marginBottom: spacing.sm, lineHeight: 18 },
+  photoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    height: 46,
+    marginBottom: spacing.sm,
+  },
+  photoBtnText: { ...typography.body, color: colors.primaryDark, fontWeight: '700' },
+  photoPreviewWrap: {
+    borderRadius: radius.md,
+    overflow: 'hidden',
+    marginBottom: spacing.sm,
+    position: 'relative',
+  },
+  photoPreview: { width: '100%', height: 160, backgroundColor: colors.surface },
+  photoPreviewOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(10,77,46,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+  },
+  photoPreviewOverlayText: { color: colors.white, fontWeight: '700', fontSize: typography.small.fontSize },
+  manualLabel: { ...typography.small, color: colors.primaryDark, fontWeight: '700', marginBottom: spacing.xs },
+  manualInput: {
+    minHeight: 84,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.grayLight,
+    padding: spacing.md,
+    fontSize: typography.body.fontSize,
+    color: colors.black,
+    textAlignVertical: 'top',
+    backgroundColor: colors.surface,
+  },
   ingredientWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   ingredientChip: {
     backgroundColor: colors.surface,

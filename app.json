@@ -35,6 +35,12 @@
         {
           "cameraPermission": "Halalzur məhsulun barkodunu skan edərək halallıq statusunu yoxlamaq üçün kameraya ehtiyac duyur."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Halalzur tərkib siyahısının şəklini çəkmək üçün kameraya ehtiyac duyur."
+        }
       ]
     ]
   }
