@@ -20,6 +20,10 @@ export default function RootLayout() {
             name="product/[id]"
             options={{ presentation: 'card', animation: 'slide_from_right' }}
           />
+          <Stack.Screen
+            name="ecodes"
+            options={{ presentation: 'card', animation: 'slide_from_right' }}
+          />
         </Stack>
       </HistoryProvider>
     </AuthProvider>

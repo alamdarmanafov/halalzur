@@ -4,8 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { lookupBarcode } from '../../lib/certification';
+import { extractECodesFromText } from '../../lib/eCodes';
 import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
+import { ECodeCard } from '../../components/ECodeCard';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 const STATUS_TINT: Record<CertificationResult['status'], string> = {
@@ -33,6 +35,7 @@ export default function ProductDetailScreen() {
   }
 
   const tint = STATUS_TINT[product.status];
+  const detectedECodes = extractECodesFromText(product.ingredients.join(', '));
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -94,6 +97,19 @@ export default function ProductDetailScreen() {
           </View>
         )}
 
+        {detectedECodes.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>E-kodlar üçün sertifikat orqanlarının fikri</Text>
+            <Text style={styles.eCodeIntro}>
+              Bunlar AI qərarı deyil — halal sertifikat orqanlarının öz dərc etdiyi E-kod
+              təsnifatından götürülüb.
+            </Text>
+            {detectedECodes.map((entry) => (
+              <ECodeCard key={entry.code} entry={entry} />
+            ))}
+          </View>
+        )}
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Barkod</Text>
           <Text style={styles.barcode}>{product.barcode}</Text>
@@ -143,6 +159,7 @@ const styles = StyleSheet.create({
   noteText: { flex: 1, ...typography.small, color: '#7A5B10' },
   section: { marginHorizontal: spacing.lg, marginTop: spacing.lg },
   sectionTitle: { ...typography.h3, color: colors.black, marginBottom: spacing.sm },
+  eCodeIntro: { ...typography.small, color: colors.gray, marginBottom: spacing.sm, lineHeight: 18 },
   ingredientWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   ingredientChip: {
     backgroundColor: colors.surface,

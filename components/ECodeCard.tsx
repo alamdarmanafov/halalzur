@@ -1,0 +1,44 @@
+import { View, Text, StyleSheet } from 'react-native';
+import { ECodeEntry } from '../lib/types';
+import { eCodeStatusLabel } from '../lib/eCodes';
+import { colors, radius, spacing, typography } from '../constants/theme';
+
+const STATUS_COLOR: Record<ECodeEntry['status'], string> = {
+  halal: colors.primary,
+  haram: colors.danger,
+  mushbooh: colors.warning,
+  depends: colors.gray,
+};
+
+export function ECodeCard({ entry }: { entry: ECodeEntry }) {
+  const tint = STATUS_COLOR[entry.status];
+  return (
+    <View style={[styles.card, { borderColor: tint }]}>
+      <View style={styles.headerRow}>
+        <Text style={styles.code}>{entry.code}</Text>
+        <View style={[styles.pill, { backgroundColor: tint + '22' }]}>
+          <Text style={[styles.pillText, { color: tint }]}>{eCodeStatusLabel[entry.status]}</Text>
+        </View>
+      </View>
+      <Text style={styles.name}>
+        {entry.name} · {entry.category}
+      </Text>
+      <Text style={styles.note}>{entry.note}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    borderWidth: 1.5,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  code: { ...typography.h3, color: colors.black },
+  pill: { paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.pill },
+  pillText: { fontSize: 11, fontWeight: '800' },
+  name: { ...typography.small, color: colors.gray, marginTop: 2 },
+  note: { ...typography.small, color: colors.black, marginTop: spacing.xs, lineHeight: 18 },
+});

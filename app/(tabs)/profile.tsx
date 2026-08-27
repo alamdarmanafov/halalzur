@@ -31,6 +31,11 @@ export default function ProfileScreen() {
       onPress: () => Alert.alert('Bildirişlər', 'Tezliklə əlçatan olacaq.'),
     },
     {
+      icon: 'flask-outline',
+      label: 'E-kod bələdçisi',
+      onPress: () => router.push('/ecodes'),
+    },
+    {
       icon: 'shield-checkmark-outline',
       label: 'Sertifikat orqanları haqqında',
       onPress: () =>

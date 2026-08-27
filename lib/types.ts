@@ -30,3 +30,20 @@ export type User = {
   plan: SubscriptionPlan;
   scansThisMonth: number;
 };
+
+/**
+ * E-code status is NOT an AI judgement — it is a fixed classification
+ * pulled from halal-certification bodies' own published additive guides
+ * (GIMDES-style E-code lists). 'depends' means the certifier itself says
+ * the status depends on the additive's source (animal vs. plant/synthetic)
+ * and cannot be determined from the code alone.
+ */
+export type ECodeStatus = 'halal' | 'haram' | 'mushbooh' | 'depends';
+
+export type ECodeEntry = {
+  code: string;
+  name: string;
+  category: string;
+  status: ECodeStatus;
+  note: string;
+};
