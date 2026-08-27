@@ -10,7 +10,7 @@ import { useHistory } from '../../lib/history-context';
 import { lookupBarcode } from '../../lib/certification';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
-const FREE_MONTHLY_SCAN_LIMIT = 15;
+const FREE_MONTHLY_SCAN_LIMIT = 3;
 const DEMO_BARCODES = ['8690504048068', '8690506042027', '4006381333931', '5449000000996'];
 
 export default function ScanScreen() {

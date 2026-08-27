@@ -84,7 +84,7 @@ export default function ProfileScreen() {
               <Text style={styles.planDesc}>
                 {isPremium
                   ? 'Limitsiz skan, tam sertifikat detalları'
-                  : 'Aylıq 15 skan · Premium-a keçin, limitsiz olsun'}
+                  : 'Aylıq 3 skan · Premium-a keçin, limitsiz olsun'}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={22} color={colors.white} />

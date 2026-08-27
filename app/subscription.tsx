@@ -16,16 +16,35 @@ import { colors, radius, spacing, typography } from '../constants/theme';
  * (RevenueCat) or `expo-in-app-purchases`, using product IDs configured in
  * App Store Connect, e.g.:
  *   com.halalzur.app.premium.monthly
+ *   com.halalzur.app.premium.sixmonth
  *   com.halalzur.app.premium.yearly
  * `purchasePremium()` below is a placeholder for that call.
  */
 const PLANS = {
-  monthly: { id: 'com.halalzur.app.premium.monthly', price: '4.99 AZN', period: 'ay' },
-  yearly: { id: 'com.halalzur.app.premium.yearly', price: '39.99 AZN', period: 'il', badge: 'Ən sərfəli · 33% qənaət' },
+  monthly: {
+    id: 'com.halalzur.app.premium.monthly',
+    label: 'Aylıq',
+    price: '4.99 AZN',
+    period: 'ay',
+  },
+  sixMonth: {
+    id: 'com.halalzur.app.premium.sixmonth',
+    label: '6 Aylıq',
+    price: '19.99 AZN',
+    period: '6 ay',
+    badge: '33% qənaət',
+  },
+  yearly: {
+    id: 'com.halalzur.app.premium.yearly',
+    label: 'İllik',
+    price: '39.99 AZN',
+    period: 'il',
+    badge: 'Ən sərfəli',
+  },
 } as const;
 
 const FEATURES = [
-  { icon: 'infinite-outline', free: '15 skan / ay', premium: 'Limitsiz skan' },
+  { icon: 'infinite-outline', free: '3 skan / ay', premium: 'Limitsiz skan' },
   { icon: 'document-text-outline', free: 'Əsas nəticə', premium: 'Tam sertifikat detalları' },
   { icon: 'time-outline', free: '10 tarixçə', premium: 'Limitsiz tarixçə' },
   { icon: 'notifications-outline', free: '—', premium: 'Geri çağırma bildirişləri' },
@@ -34,7 +53,7 @@ const FEATURES = [
 
 export default function SubscriptionScreen() {
   const { user, setPlan } = useAuth();
-  const [selected, setSelected] = useState<'monthly' | 'yearly'>('yearly');
+  const [selected, setSelected] = useState<keyof typeof PLANS>('yearly');
   const [purchasing, setPurchasing] = useState(false);
 
   const purchasePremium = async () => {
@@ -115,7 +134,7 @@ export default function SubscriptionScreen() {
                       <Text style={styles.planBadgeText}>{plan.badge}</Text>
                     </View>
                   )}
-                  <Text style={styles.planPeriod}>{key === 'monthly' ? 'Aylıq' : 'İllik'}</Text>
+                  <Text style={styles.planPeriod}>{plan.label}</Text>
                   <Text style={styles.planPrice}>{plan.price}</Text>
                   <Text style={styles.planPer}>/ {plan.period}</Text>
                 </Pressable>
@@ -177,13 +196,14 @@ const styles = StyleSheet.create({
   featureLabel: { ...typography.small, color: colors.black, flexShrink: 1 },
   cell: { ...typography.small, color: colors.gray, textAlign: 'center' },
   cellPremium: { color: colors.primaryDark, fontWeight: '700' },
-  planRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
+  planRow: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.lg },
   planOption: {
     flex: 1,
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     borderWidth: 2,
     borderColor: colors.grayLight,
-    padding: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
     alignItems: 'center',
   },
   planOptionSelected: { borderColor: colors.primary, backgroundColor: colors.surface },
@@ -191,14 +211,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -10,
     backgroundColor: colors.accent,
-    paddingHorizontal: spacing.sm,
+    paddingHorizontal: spacing.xs,
     paddingVertical: 2,
     borderRadius: radius.pill,
   },
-  planBadgeText: { fontSize: 10, fontWeight: '800', color: colors.primaryDark },
-  planPeriod: { ...typography.small, color: colors.gray, fontWeight: '700', marginTop: spacing.xs },
-  planPrice: { ...typography.h2, color: colors.primaryDark, marginTop: 4 },
-  planPer: { ...typography.small, color: colors.gray },
+  planBadgeText: { fontSize: 9, fontWeight: '800', color: colors.primaryDark },
+  planPeriod: { ...typography.small, fontSize: 12, color: colors.gray, fontWeight: '700', marginTop: spacing.xs },
+  planPrice: { ...typography.h3, color: colors.primaryDark, marginTop: 4 },
+  planPer: { fontSize: 11, color: colors.gray },
   restoreText: { textAlign: 'center', color: colors.primary, fontWeight: '600' },
   legal: { ...typography.small, color: colors.gray, textAlign: 'center', marginTop: spacing.lg, lineHeight: 18 },
   legalLinks: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.sm },
