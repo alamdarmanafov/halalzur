@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -8,6 +8,7 @@ import { Button } from '../../components/Button';
 import { useAuth } from '../../lib/auth-context';
 import { useHistory } from '../../lib/history-context';
 import { lookupBarcode } from '../../lib/certification';
+import { hasInternetConnection } from '../../lib/network';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 const FREE_MONTHLY_SCAN_LIMIT = 3;
@@ -33,6 +34,14 @@ export default function ScanScreen() {
       lockRef.current = true;
       setIsBusy(true);
       try {
+        const online = await hasInternetConnection();
+        if (!online) {
+          Alert.alert(
+            'İnternet yoxdur',
+            'Halallıq sertifikatını yoxlamaq üçün internetə qoşulun — nəticə heç vaxt offline keşdən göstərilmir.'
+          );
+          return;
+        }
         const result = await lookupBarcode(barcode);
         await addScan(result);
         router.push({ pathname: '/product/[id]', params: { id: result.barcode } });

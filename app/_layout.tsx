@@ -2,12 +2,14 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from '../lib/auth-context';
 import { HistoryProvider } from '../lib/history-context';
+import { OfflineBanner } from '../components/OfflineBanner';
 
 export default function RootLayout() {
   return (
     <AuthProvider>
       <HistoryProvider>
         <StatusBar style="light" />
+        <OfflineBanner />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="(auth)" />

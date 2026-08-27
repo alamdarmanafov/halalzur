@@ -7,9 +7,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { lookupBarcode } from '../../lib/certification';
 import { extractECodesFromText } from '../../lib/eCodes';
 import { recognizeIngredientText } from '../../lib/ocr';
+import { hasInternetConnection } from '../../lib/network';
 import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
 import { ECodeCard } from '../../components/ECodeCard';
+import { Button } from '../../components/Button';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 const STATUS_TINT: Record<CertificationResult['status'], string> = {
@@ -25,11 +27,27 @@ export default function ProductDetailScreen() {
   const [manualIngredients, setManualIngredients] = useState('');
   const [ingredientPhoto, setIngredientPhoto] = useState<string | null>(null);
   const [scanningPhoto, setScanningPhoto] = useState(false);
+  const [offline, setOffline] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
     if (!id) return;
-    lookupBarcode(id).then(setProduct);
-  }, [id]);
+    let cancelled = false;
+    setOffline(false);
+    hasInternetConnection().then((online) => {
+      if (cancelled) return;
+      if (!online) {
+        setOffline(true);
+        return;
+      }
+      lookupBarcode(id).then((result) => {
+        if (!cancelled) setProduct(result);
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, reloadTick]);
 
   const hasKnownIngredients = (product?.ingredients.length ?? 0) > 0;
   const detectedECodes = useMemo(
@@ -65,6 +83,23 @@ export default function ProductDetailScreen() {
       setScanningPhoto(false);
     }
   };
+
+  if (offline) {
+    return (
+      <SafeAreaView style={styles.center}>
+        <Ionicons name="cloud-offline-outline" size={48} color={colors.gray} />
+        <Text style={styles.offlineTitle}>İnternet bağlantısı yoxdur</Text>
+        <Text style={styles.offlineBody}>
+          Sertifikat nəticəsi keşdən göstərilmir — yoxlamaq üçün internetə qoşulun.
+        </Text>
+        <Button
+          title="Yenidən cəhd et"
+          onPress={() => setReloadTick((n) => n + 1)}
+          style={{ marginTop: spacing.lg, width: 200 }}
+        />
+      </SafeAreaView>
+    );
+  }
 
   if (!product) {
     return (
@@ -204,7 +239,9 @@ export default function ProductDetailScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl },
+  offlineTitle: { ...typography.h3, color: colors.black, marginTop: spacing.md, textAlign: 'center' },
+  offlineBody: { ...typography.small, color: colors.gray, marginTop: spacing.xs, textAlign: 'center' },
   header: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
   backBtn: {
     width: 40,
