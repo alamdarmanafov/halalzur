@@ -216,10 +216,12 @@ Hər ikisi sırf statik HTML-dir (build addımı yoxdur), ona görə Vercel-də:
    default `halalzur-admin-xxxx.vercel.app` linkindən istifadə edin və bu
    linki yalnız özünüzlə paylaşın.
 
-**Admin panelin şifrəsini dəyişin**: `admin-panel/index.html` faylında
-`ADMIN_PASSPHRASE` sabitini tapıb öz şifrənizlə əvəz edin, sonra push edin.
-Bu, real backend autentifikasiyası deyil (fayl mənbəyində görünür) — sadəcə
-panelin təsadüfi tapılmasının qarşısını alır. `product_submissions`,
+**Admin panelin girişini dəyişin**: `admin-panel/index.html` faylında
+`ADMIN_EMAIL` (defolt: `alamdarmanafov@gmail.com`, `lib/admin.ts`-dəki ilə
+eynidir) və `ADMIN_PASSPHRASE` sabitlərini tapıb öz e-poçt/şifrənizlə əvəz
+edin, sonra push edin. Bu, real backend autentifikasiyası deyil (fayl
+mənbəyində görünür) — sadəcə panelin təsadüfi tapılmasının qarşısını alır.
+`product_submissions`,
 `certified_entries` və `user_points` cədvəllərinin RLS siyasətləri hazırda
 `anon` açarı ilə oxuma/yazmaya icazə verir (bax `supabase/schema.sql`-dəki
 SECURITY CAVEAT qeydi) — ictimai buraxılışdan əvvəl bunu real Supabase Auth

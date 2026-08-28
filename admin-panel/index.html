@@ -187,7 +187,8 @@
   <form class="gate-card" id="gateForm">
     <svg class="gate-logo" viewBox="0 0 100 100"><defs><linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0A4D2E"/><stop offset="55%" stop-color="#119E4B"/><stop offset="100%" stop-color="#7CFC00"/></linearGradient></defs><rect width="100" height="100" rx="22" fill="url(#lg)"/><path d="M50 30 l16 20 l-30 0 z" fill="none"/><rect x="35" y="26" width="11" height="48" fill="#fff"/><path d="M46 26 h8 v18 h4 v-18 h4 v22 h-16 z" fill="#fff"/><path d="M50 52 l11 13 l20 -26" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
     <h1>Halalzur Admin</h1>
-    <p class="hint">Bu panel məhsul təkliflərinə baxmaq və təsdiqləmək üçündür. Giriş şifrəsini daxil edin.</p>
+    <p class="hint">Bu panel məhsul təkliflərinə baxmaq və təsdiqləmək üçündür. Admin e-poçtu və şifrənizi daxil edin.</p>
+    <input type="email" id="emailInput" placeholder="E-poçt" autocomplete="username" />
     <input type="password" id="passInput" placeholder="Admin şifrəsi" autocomplete="current-password" />
     <button type="submit" class="primary">Daxil ol</button>
     <div class="gate-error" id="gateError"></div>
@@ -241,8 +242,10 @@
 
   // Client-side-only gate — same caveat as lib/admin.ts in the app. Anyone
   // who reads this file's source can see the panel is only guarded by a
-  // string comparison, not a real backend session. Change this before
-  // sharing the panel's URL with anyone but yourself.
+  // string comparison, not a real backend session. Change these before
+  // sharing the panel's URL with anyone but yourself. ADMIN_EMAIL matches
+  // the same constant in lib/admin.ts (the in-app admin gate).
+  var ADMIN_EMAIL = "alamdarmanafov@gmail.com";
   var ADMIN_PASSPHRASE = "halalzur-2026";
   var SESSION_KEY = "halalzur_admin_session";
 
@@ -291,13 +294,14 @@
 
   gateForm.addEventListener("submit", function (e) {
     e.preventDefault();
-    var val = document.getElementById("passInput").value;
-    if (val === ADMIN_PASSPHRASE) {
+    var email = document.getElementById("emailInput").value.trim().toLowerCase();
+    var pass = document.getElementById("passInput").value;
+    if (email === ADMIN_EMAIL.toLowerCase() && pass === ADMIN_PASSPHRASE) {
       sessionStorage.setItem(SESSION_KEY, "1");
       gateError.textContent = "";
       enterApp();
     } else {
-      gateError.textContent = "Şifrə səhvdir.";
+      gateError.textContent = "E-poçt və ya şifrə səhvdir.";
     }
   });
 
@@ -305,6 +309,7 @@
     sessionStorage.removeItem(SESSION_KEY);
     appEl.hidden = true;
     gateEl.hidden = false;
+    document.getElementById("emailInput").value = "";
     document.getElementById("passInput").value = "";
   });
 
