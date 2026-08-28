@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Halalzur — Halal sertifikatı skan et</title>
+<meta name="description" content="Məhsulun barkodunu skan et, halal statusunu GIMDES, JAKIM, AZSTANDART Halal kimi tanınan sertifikat orqanlarına əsasən dərhal öyrən." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23119E4B'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #F6FAF7;
+    --surface: #FFFFFF;
+    --surface-2: #EEF6F1;
+    --ink: #10241A;
+    --ink-muted: #52685C;
+    --border: #E1EAE4;
+
+    --brand-dark: #0A4D2E;
+    --brand: #119E4B;
+    --brand-accent: #7CFC00;
+    --brand-surface: #E8F7ED;
+    --white: #FFFFFF;
+
+    --shadow-color: 16, 36, 26;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #081911;
+      --surface: #0F1F17;
+      --surface-2: #142B20;
+      --ink: #EAF3EC;
+      --ink-muted: #8FA79A;
+      --border: #1E3327;
+      --shadow-color: 0, 0, 0;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #081911;
+    --surface: #0F1F17;
+    --surface-2: #142B20;
+    --ink: #EAF3EC;
+    --ink-muted: #8FA79A;
+    --border: #1E3327;
+    --shadow-color: 0, 0, 0;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: "Manrope", sans-serif; text-wrap: balance; margin: 0; }
+  p { margin: 0; }
+  a { color: inherit; }
+  img { max-width: 100%; }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+  section { overflow-x: hidden; }
+
+  /* ---- nav ---- */
+  header.nav {
+    position: sticky; top: 0; z-index: 40;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-row { display: flex; align-items: center; justify-content: space-between; height: 72px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand-name { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 19px; color: var(--ink); }
+  .brand-name span { color: var(--brand); }
+  .nav-links { display: flex; align-items: center; gap: 32px; list-style: none; margin: 0; padding: 0; }
+  .nav-links a {
+    text-decoration: none; color: var(--ink-muted); font-weight: 600; font-size: 14.5px;
+  }
+  .nav-links a:hover { color: var(--ink); }
+  .nav-cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--brand); color: #fff; text-decoration: none;
+    font-weight: 700; font-size: 14px; padding: 10px 18px; border-radius: 999px;
+    box-shadow: 0 6px 16px -6px rgba(10,77,46,0.5);
+  }
+  .nav-mobile-hide { display: flex; }
+  @media (max-width: 760px) { .nav-links { display: none; } }
+
+  /* ---- hero ---- */
+  .hero { position: relative; padding: 72px 0 56px; }
+  .hero-blob {
+    position: absolute; top: -120px; right: -160px; width: 560px; height: 560px;
+    background: radial-gradient(circle, var(--brand-accent) 0%, transparent 68%);
+    opacity: 0.25; filter: blur(10px); pointer-events: none;
+  }
+  .hero-grid {
+    position: relative; display: grid; grid-template-columns: 1.05fr 0.85fr;
+    gap: 48px; align-items: center;
+  }
+  @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; } }
+
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: "Manrope", sans-serif; font-weight: 700; font-size: 12px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--brand-dark); background: var(--brand-surface);
+    padding: 7px 14px; border-radius: 999px; margin-bottom: 20px;
+  }
+  .eyebrow::before { content: "●"; color: var(--brand-accent); font-size: 8px; }
+
+  .hero h1 { font-size: clamp(34px, 5vw, 54px); line-height: 1.08; letter-spacing: -0.01em; }
+  .hero h1 .accent { color: var(--brand); }
+  .hero .lede {
+    font-size: 18px; line-height: 1.6; color: var(--ink-muted);
+    margin-top: 20px; max-width: 46ch;
+  }
+  .hero-actions { display: flex; gap: 14px; margin-top: 32px; flex-wrap: wrap; }
+  .btn-primary, .btn-secondary {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: "Source Sans 3", sans-serif; font-weight: 700; font-size: 15px;
+    padding: 15px 26px; border-radius: 14px; text-decoration: none; cursor: pointer;
+    border: none;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--brand-dark), var(--brand));
+    color: #fff; box-shadow: 0 10px 24px -10px rgba(10,77,46,0.55);
+  }
+  .btn-secondary {
+    background: var(--surface); color: var(--ink); border: 1.5px solid var(--border);
+  }
+
+  .trust-strip { margin-top: 44px; }
+  .trust-label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-muted); font-weight: 700; margin-bottom: 12px; }
+  .trust-logos { display: flex; flex-wrap: wrap; gap: 10px; }
+  .trust-chip {
+    font-size: 13px; font-weight: 700; color: var(--brand-dark);
+    background: var(--brand-surface); padding: 8px 14px; border-radius: 999px;
+  }
+
+  /* ---- phone mockup ---- */
+  .phone-wrap { display: flex; justify-content: center; }
+  .phone {
+    width: 272px; height: 552px; border-radius: 42px; background: #0c1512;
+    padding: 9px; box-shadow: 0 40px 70px -30px rgba(var(--shadow-color), 0.5), 0 10px 24px -10px rgba(var(--shadow-color), 0.4);
+    position: relative;
+  }
+  .phone .notch { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); width: 86px; height: 22px; background: #0c1512; border-radius: 14px; z-index: 5; }
+  .phone .screen {
+    width: 100%; height: 100%; border-radius: 33px; overflow: hidden; position: relative;
+    background: radial-gradient(120% 90% at 20% 15%, #24493a 0%, #0d1912 55%, #05100b 100%);
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  .phone .top-bar { position: absolute; top: 0; left: 0; right: 0; padding: 38px 18px 16px; background: linear-gradient(180deg, rgba(10,77,46,0.92), transparent); z-index: 4; }
+  .phone .top-bar .row { display: flex; align-items: center; justify-content: space-between; }
+  .phone .top-bar .brand-row { display: flex; align-items: center; gap: 8px; }
+  .phone .top-bar .brand-row b { color: #fff; font-family: "Manrope", sans-serif; font-size: 16px; }
+  .phone .bell { color: rgba(255,255,255,0.85); font-size: 16px; }
+  .phone .hint { color: rgba(255,255,255,0.85); font-size: 12px; margin-top: 4px; }
+  .phone .frame {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -55%);
+    width: 172px; height: 104px; border: 2.5px solid var(--brand-accent); border-radius: 16px;
+    box-shadow: 0 0 0 999px rgba(4,10,7,0.35); z-index: 3;
+  }
+  .phone .bottom-bar { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px 18px 24px; background: linear-gradient(0deg, rgba(10,77,46,0.92), transparent); text-align: center; z-index: 4; }
+  .phone .cta-pill { display: inline-block; background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.35); color: #fff; font-size: 12.5px; font-weight: 700; padding: 9px 20px; border-radius: 999px; }
+
+  /* ---- sections ---- */
+  .section { padding: 88px 0; }
+  .section-head { max-width: 640px; margin: 0 auto 48px; text-align: center; }
+  .section-head h2 { font-size: clamp(26px, 3.4vw, 36px); }
+  .section-head p { color: var(--ink-muted); font-size: 16.5px; margin-top: 14px; line-height: 1.6; }
+
+  .features-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  @media (max-width: 900px) { .features-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .features-grid { grid-template-columns: 1fr; } }
+  .feature-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+    padding: 26px 22px;
+  }
+  .feature-icon {
+    width: 44px; height: 44px; border-radius: 12px; background: var(--brand-surface);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+    font-size: 20px;
+  }
+  .feature-card h3 { font-size: 17px; margin-bottom: 8px; }
+  .feature-card p { color: var(--ink-muted); font-size: 14.5px; line-height: 1.55; }
+
+  .steps { background: var(--surface-2); }
+  .steps-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; position: relative; }
+  @media (max-width: 800px) { .steps-grid { grid-template-columns: 1fr; } }
+  .step { position: relative; }
+  .step-num {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--brand-dark), var(--brand));
+    color: #fff; font-family: "Manrope", sans-serif; font-weight: 800; font-size: 16px;
+    display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+  }
+  .step h3 { font-size: 18px; margin-bottom: 8px; }
+  .step p { color: var(--ink-muted); font-size: 14.5px; line-height: 1.55; }
+
+  .certifiers-band { text-align: center; }
+  .certifiers-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-top: 28px; }
+  .certifier-pill {
+    border: 1.5px solid var(--border); border-radius: 14px; padding: 14px 20px;
+    background: var(--surface); min-width: 140px;
+  }
+  .certifier-pill b { display: block; font-family: "Manrope", sans-serif; font-size: 15px; color: var(--ink); }
+  .certifier-pill span { display: block; font-size: 12px; color: var(--ink-muted); margin-top: 3px; }
+
+  /* ---- waitlist ---- */
+  .waitlist {
+    background: linear-gradient(150deg, var(--brand-dark), var(--brand));
+    border-radius: 28px; padding: 56px 40px; text-align: center; color: #fff;
+    max-width: 1160px; margin: 0 auto;
+  }
+  @media (max-width: 640px) { .waitlist { padding: 40px 22px; border-radius: 20px; } }
+  .waitlist h2 { color: #fff; font-size: clamp(24px, 3.2vw, 32px); }
+  .waitlist p { color: rgba(255,255,255,0.85); margin-top: 12px; font-size: 15.5px; }
+  .waitlist-form {
+    display: flex; gap: 10px; max-width: 440px; margin: 28px auto 0;
+    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 14px; padding: 6px;
+  }
+  @media (max-width: 480px) { .waitlist-form { flex-direction: column; } }
+  .waitlist-form input {
+    flex: 1; border: none; background: transparent; color: #fff; font-size: 15px;
+    padding: 12px 14px; outline: none; font-family: inherit;
+  }
+  .waitlist-form input::placeholder { color: rgba(255,255,255,0.65); }
+  .waitlist-form button {
+    background: #fff; color: var(--brand-dark); border: none; font-weight: 800;
+    font-size: 14.5px; padding: 12px 22px; border-radius: 10px; cursor: pointer;
+    font-family: "Source Sans 3", sans-serif;
+  }
+  .waitlist-form button:disabled { opacity: 0.6; cursor: default; }
+  .waitlist-msg { margin-top: 14px; font-size: 14px; min-height: 20px; }
+
+  /* ---- footer ---- */
+  footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px; }
+  .footer-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .footer-links { display: flex; gap: 22px; list-style: none; padding: 0; margin: 0; }
+  .footer-links a { text-decoration: none; color: var(--ink-muted); font-size: 13.5px; font-weight: 600; }
+  .footer-copy { color: var(--ink-muted); font-size: 13px; }
+
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap nav-row">
+    <a class="brand" href="#top">
+      <svg width="30" height="30" viewBox="0 0 100 100"><defs><linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0A4D2E"/><stop offset="55%" stop-color="#119E4B"/><stop offset="100%" stop-color="#7CFC00"/></linearGradient></defs><rect width="100" height="100" rx="22" fill="url(#lg)"/><path d="M22 30 v-6 a4 4 0 0 1 4 -4 h6" stroke="#fff" stroke-width="5" stroke-linecap="round" fill="none"/><path d="M68 20 h6 a4 4 0 0 1 4 4 v6" stroke="#fff" stroke-width="5" stroke-linecap="round" fill="none"/><path d="M78 70 v6 a4 4 0 0 1 -4 4 h-6" stroke="#fff" stroke-width="5" stroke-linecap="round" fill="none"/><path d="M32 80 h-6 a4 4 0 0 1 -4 -4 v-6" stroke="#fff" stroke-width="5" stroke-linecap="round" fill="none"/><rect x="35" y="26" width="11" height="48" fill="#fff"/><path d="M46 26 h8 v18 h4 v-18 h4 v22 h-16 z" fill="#fff"/><path d="M50 52 l11 13 l20 -26" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      <span class="brand-name">Halal<span>zur</span></span>
+    </a>
+    <nav>
+      <ul class="nav-links">
+        <li><a href="#features">Xüsusiyyətlər</a></li>
+        <li><a href="#how">Necə işləyir</a></li>
+        <li><a href="#certifiers">Sertifikat orqanları</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+    </nav>
+    <a class="nav-cta nav-mobile-hide" href="#waitlist">Erkən giriş</a>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="hero-blob"></div>
+    <div class="wrap hero-grid">
+      <div>
+        <div class="eyebrow">Hazırlanır — tezliklə App Store-da</div>
+        <h1>Məhsulunu skan et.<br /><span class="accent">Halal</span> statusunu öyrən.</h1>
+        <p class="lede">
+          Halalzur barkodu oxuyur və məhsulun halal statusunu GIMDES, JAKIM və
+          AZSTANDART Halal kimi tanınan sertifikat orqanlarının məlumatlarına
+          əsaslanaraq göstərir — aydın, izahlı və şəffaf şəkildə.
+        </p>
+        <div class="hero-actions">
+          <a class="btn-primary" href="#waitlist">Erkən giriş üçün yazılın →</a>
+          <a class="btn-secondary" href="#how">Necə işləyir</a>
+        </div>
+        <div class="trust-strip">
+          <div class="trust-label">Əsaslandığı sertifikat orqanları</div>
+          <div class="trust-logos">
+            <span class="trust-chip">GIMDES</span>
+            <span class="trust-chip">JAKIM</span>
+            <span class="trust-chip">AZSTANDART Halal</span>
+            <span class="trust-chip">HAK</span>
+            <span class="trust-chip">SMIIC</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="phone-wrap">
+        <div class="phone">
+          <div class="notch"></div>
+          <div class="screen">
+            <div class="top-bar">
+              <div class="row">
+                <div class="brand-row">
+                  <svg width="20" height="20" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#119E4B"/><path d="M22 30 v-6 a4 4 0 0 1 4 -4 h6" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none"/><path d="M68 20 h6 a4 4 0 0 1 4 4 v6" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none"/><path d="M78 70 v6 a4 4 0 0 1 -4 4 h-6" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none"/><path d="M32 80 h-6 a4 4 0 0 1 -4 -4 v-6" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none"/><rect x="35" y="26" width="11" height="48" fill="#fff"/><path d="M46 26 h8 v18 h4 v-18 h4 v22 h-16 z" fill="#fff"/><path d="M50 52 l11 13 l20 -26" stroke="#7CFC00" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+                  <b>Halalzur</b>
+                </div>
+                <span class="bell">🔔</span>
+              </div>
+              <div class="hint">Barkodu skan etmək üçün kameranı yönəldin</div>
+            </div>
+            <div class="frame"></div>
+            <div class="bottom-bar">
+              <span class="cta-pill">⌗ Skan etməyə başla</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="features">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Sadə, izahlı, mənbəyi göstərilən</h2>
+        <p>Halalzur nəticəni deyil, nəticənin haradan gəldiyini göstərir — hər status bir izahla gəlir.</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">⌗</div>
+          <h3>Ani skan</h3>
+          <p>Barkodu kameraya tutun, saniyələr içində nəticəni görün.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🛡</div>
+          <h3>İzahlı nəticə</h3>
+          <p>Halal, şübhəli və ya məsləhət görülmür — hər status öz səbəbi ilə göstərilir.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🧪</div>
+          <h3>E-kod bələdçisi</h3>
+          <p>Tərkibdəki E-kodların sertifikat orqanlarına görə statusunu ayrıca görün.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🤝</div>
+          <h3>İcma töhfəsi</h3>
+          <p>Bazada olmayan məhsulu təklif edin, təsdiqləndikdə xal qazanın.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section steps" id="how">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Necə işləyir</h2>
+        <p>Üç addım — hər dəfə eyni aydınlıqla.</p>
+      </div>
+      <div class="steps-grid">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>Skan et</h3>
+          <p>Məhsulun barkodunu kameraya tutun.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>Yoxla</h3>
+          <p>Halal statusunu və mənbəyini dərhal görün.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>Etibar et</h3>
+          <p>Aydın izahla arxayın seçim edin.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section certifiers-band" id="certifiers">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Tanınan sertifikat orqanları</h2>
+        <p>Halalzur öz hökmünü vermir — tanınan orqanların dərc etdiyi məlumata istinad edir.</p>
+      </div>
+      <div class="certifiers-row">
+        <div class="certifier-pill"><b>GIMDES</b><span>Türkiyə</span></div>
+        <div class="certifier-pill"><b>HAK</b><span>Türkiyə</span></div>
+        <div class="certifier-pill"><b>SMIIC</b><span>Beynəlxalq</span></div>
+        <div class="certifier-pill"><b>JAKIM</b><span>Malaziya</span></div>
+        <div class="certifier-pill"><b>AZSTANDART Halal</b><span>Azərbaycan</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="waitlist">
+    <div class="wrap">
+      <div class="waitlist">
+        <h2>Buraxılışdan ilk siz xəbərdar olun</h2>
+        <p>Halalzur App Store-da yayımlananda e-poçtunuza bir dəfəlik bildiriş göndərək.</p>
+        <form class="waitlist-form" id="waitlistForm">
+          <input type="email" id="waitlistEmail" placeholder="siz@example.com" required autocomplete="email" />
+          <button type="submit" id="waitlistBtn">Yazıl</button>
+        </form>
+        <div class="waitlist-msg" id="waitlistMsg"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="faq">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Tez-tez verilən suallar</h2>
+      </div>
+      <div class="features-grid" style="grid-template-columns: repeat(2, 1fr);">
+        <div class="feature-card">
+          <h3>Halalzur halal hökmü verirmi?</h3>
+          <p>Xeyr. Halalzur dini hökm vermir — yalnız tanınan sertifikat orqanlarının (GIMDES, JAKIM, AZSTANDART Halal və s.) dərc etdiyi məlumatı göstərir.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Hansı platformalarda əlçatan olacaq?</h3>
+          <p>Halalzur ilk mərhələdə yalnız iOS (iPhone) üçün hazırlanır.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Pulsuzdurmu?</h3>
+          <p>Bəli — aylıq məhdud sayda skan pulsuzdur. Limitsiz istifadə üçün Premium abunəlik olacaq.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Öz məhsulumu əlavə edə bilərəmmi?</h3>
+          <p>Bəli — bazada olmayan məhsulu tətbiq daxilində təklif edə bilərsiniz, təsdiqləndikdə xal qazanırsınız.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap footer-row">
+    <span class="brand-name">Halal<span style="color: var(--brand)">zur</span></span>
+    <ul class="footer-links">
+      <li><a href="#features">Xüsusiyyətlər</a></li>
+      <li><a href="#certifiers">Sertifikat orqanları</a></li>
+      <li><a href="#faq">FAQ</a></li>
+    </ul>
+    <span class="footer-copy">© 2026 Halalzur</span>
+  </div>
+</footer>
+
+<script>
+  var SUPABASE_URL = "https://szizepjcospoygnjmxwz.supabase.co";
+  var SUPABASE_ANON_KEY = "sb_publishable_YSxBg5SQveiZrRU6H65mVg_Ea4gp2Pl";
+
+  var form = document.getElementById("waitlistForm");
+  var input = document.getElementById("waitlistEmail");
+  var btn = document.getElementById("waitlistBtn");
+  var msg = document.getElementById("waitlistMsg");
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var email = input.value.trim();
+    if (!email) return;
+    btn.disabled = true;
+    btn.textContent = "Göndərilir…";
+    msg.textContent = "";
+
+    fetch(SUPABASE_URL + "/rest/v1/waitlist", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+        "Prefer": "return=minimal"
+      },
+      body: JSON.stringify({ email: email })
+    })
+      .then(function (res) {
+        if (res.ok) {
+          msg.textContent = "Təşəkkürlər! Buraxılışda xəbər verəcəyik.";
+          input.value = "";
+        } else if (res.status === 409) {
+          msg.textContent = "Bu e-poçt artıq siyahıdadır.";
+        } else {
+          msg.textContent = "Xəta baş verdi, yenidən cəhd edin.";
+        }
+      })
+      .catch(function () {
+        msg.textContent = "Xəta baş verdi, yenidən cəhd edin.";
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = "Yazıl";
+      });
+  });
+</script>
+
+</body>
+</html>
