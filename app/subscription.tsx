@@ -1,24 +1,33 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Linking } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Linking, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useIAP, ErrorCode } from 'react-native-iap';
 import { Logo } from '../components/Logo';
 import { Button } from '../components/Button';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
 /**
- * iOS subscriptions must go through StoreKit / In-App Purchase — Apple Pay
- * is not permitted for unlocking digital content inside an app (App Store
- * Review Guideline 3.1.1). Wire this up with `react-native-purchases`
- * (RevenueCat) or `expo-in-app-purchases`, using product IDs configured in
- * App Store Connect, e.g.:
- *   com.halalzur.app.premium.monthly
- *   com.halalzur.app.premium.sixmonth
- *   com.halalzur.app.premium.yearly
- * `purchasePremium()` below is a placeholder for that call.
+ * Real Apple StoreKit purchases via react-native-iap — Apple collects
+ * payment and pays out to the developer's bank account (set up in App
+ * Store Connect → Agreements, Tax, and Banking); there's no separate
+ * "route the money" step on our side.
+ *
+ * These product IDs must exist in App Store Connect → Subscriptions,
+ * in the same subscription group, with prices set there (the AZN prices
+ * below are just the UI fallback shown before the real StoreKit product
+ * loads — App Store Connect is the source of truth once connected).
+ *
+ * NOTE: react-native-iap is native code — it needs an EAS dev-client or
+ * TestFlight/production build. It will not work inside plain Expo Go.
+ *
+ * NOTE: purchases are finished here without server-side receipt
+ * verification (no backend exists yet). That's fine for early testing,
+ * but before real launch, verify receipts server-side (Apple's App
+ * Store Server API, or a service like RevenueCat) — otherwise a
+ * tampered/replayed receipt could unlock Premium for free.
  */
 const PLANS = {
   monthly: {
@@ -43,6 +52,8 @@ const PLANS = {
   },
 } as const;
 
+const PLAN_SKUS = Object.values(PLANS).map((p) => p.id);
+
 const FEATURES = [
   { icon: 'infinite-outline', free: '3 skan / ay', premium: 'Limitsiz skan' },
   { icon: 'document-text-outline', free: 'Əsas nəticə', premium: 'Tam sertifikat detalları' },
@@ -55,23 +66,84 @@ export default function SubscriptionScreen() {
   const { user, setPlan } = useAuth();
   const [selected, setSelected] = useState<keyof typeof PLANS>('yearly');
   const [purchasing, setPurchasing] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [iapError, setIapError] = useState<string | null>(null);
+
+  const {
+    connected,
+    subscriptions,
+    fetchProducts,
+    requestPurchase,
+    finishTransaction,
+    restorePurchases: restorePurchasesIAP,
+    getActiveSubscriptions,
+  } = useIAP({
+    onPurchaseSuccess: async (purchase) => {
+      try {
+        await finishTransaction({ purchase, isConsumable: false });
+        await setPlan('premium');
+        Alert.alert('Təbriklər!', 'Premium abunəlik aktivləşdi.');
+        router.back();
+      } finally {
+        setPurchasing(false);
+      }
+    },
+    onPurchaseError: (error) => {
+      setPurchasing(false);
+      if (error.code === ErrorCode.UserCancelled) return;
+      Alert.alert('Alış tamamlanmadı', error.message);
+    },
+    onError: (error) => {
+      setIapError(error.message);
+    },
+  });
+
+  useEffect(() => {
+    if (connected) {
+      fetchProducts({ skus: PLAN_SKUS, type: 'subs' }).catch((err) => setIapError(err.message));
+    }
+  }, [connected, fetchProducts]);
+
+  const priceFor = (key: keyof typeof PLANS) => {
+    const live = subscriptions.find((s) => s.id === PLANS[key].id);
+    return live?.displayPrice ?? PLANS[key].price;
+  };
 
   const purchasePremium = async () => {
+    if (Platform.OS !== 'ios') {
+      Alert.alert('Dəstəklənmir', 'Premium hazırda yalnız iOS-da əlçatandır.');
+      return;
+    }
     setPurchasing(true);
     try {
-      // TODO: replace with real StoreKit purchase (RevenueCat / expo-in-app-purchases)
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-      await setPlan('premium');
-      Alert.alert('Təbriklər!', 'Premium abunəlik aktivləşdi.');
-      router.back();
-    } finally {
+      await requestPurchase({ request: { apple: { sku: PLANS[selected].id } }, type: 'subs' });
+      // result lands in onPurchaseSuccess / onPurchaseError above
+    } catch (err: any) {
       setPurchasing(false);
+      Alert.alert(
+        'StoreKit əlçatan deyil',
+        'Bu, real cihazda (EAS build və ya TestFlight) işləyir — Expo Go-da native ödəniş modulu yoxdur.'
+      );
     }
   };
 
   const restorePurchases = async () => {
-    // TODO: replace with real restore call from the IAP SDK
-    Alert.alert('Bərpa edilir', 'Əvvəlki alışlarınız yoxlanılır…');
+    setRestoring(true);
+    try {
+      await restorePurchasesIAP();
+      const active = await getActiveSubscriptions(PLAN_SKUS);
+      if (active.length > 0) {
+        await setPlan('premium');
+        Alert.alert('Bərpa edildi', 'Premium abunəliyiniz tapıldı və aktivləşdirildi.');
+        router.back();
+      } else {
+        Alert.alert('Tapılmadı', 'Aktiv Premium abunəlik tapılmadı.');
+      }
+    } catch (err: any) {
+      Alert.alert('Bərpa alınmadı', err.message ?? 'Xəta baş verdi, yenidən cəhd edin.');
+    } finally {
+      setRestoring(false);
+    }
   };
 
   if (user?.plan === 'premium') {
@@ -135,7 +207,7 @@ export default function SubscriptionScreen() {
                     </View>
                   )}
                   <Text style={styles.planPeriod}>{plan.label}</Text>
-                  <Text style={styles.planPrice}>{plan.price}</Text>
+                  <Text style={styles.planPrice}>{priceFor(key)}</Text>
                   <Text style={styles.planPer}>/ {plan.period}</Text>
                 </Pressable>
               );
@@ -144,15 +216,22 @@ export default function SubscriptionScreen() {
         </View>
 
         <Button
-          title={purchasing ? 'Aktivləşdirilir…' : `Premium-a keç · ${PLANS[selected].price}`}
+          title={purchasing ? 'Aktivləşdirilir…' : `Premium-a keç · ${priceFor(selected)}`}
           onPress={purchasePremium}
           loading={purchasing}
           style={{ marginTop: spacing.lg }}
         />
 
-        <Pressable onPress={restorePurchases} style={{ marginTop: spacing.md }}>
-          <Text style={styles.restoreText}>Alışları bərpa et</Text>
+        <Pressable onPress={restorePurchases} style={{ marginTop: spacing.md }} disabled={restoring}>
+          <Text style={styles.restoreText}>{restoring ? 'Bərpa edilir…' : 'Alışları bərpa et'}</Text>
         </Pressable>
+
+        {iapError && Platform.OS === 'ios' && (
+          <Text style={styles.iapNotice}>
+            StoreKit-ə qoşulmadı — bu, Expo Go-da gözlənilən haldır. Real qiymətlər üçün EAS build/TestFlight
+            lazımdır.
+          </Text>
+        )}
 
         <Text style={styles.legal}>
           Abunəlik App Store hesabınızdan tutulur və dövr bitməzdən 24 saat əvvəl ləğv edilmədiyi
@@ -220,6 +299,13 @@ const styles = StyleSheet.create({
   planPrice: { ...typography.h3, color: colors.primaryDark, marginTop: 4 },
   planPer: { fontSize: 11, color: colors.gray },
   restoreText: { textAlign: 'center', color: colors.primary, fontWeight: '600' },
+  iapNotice: {
+    ...typography.small,
+    color: colors.warning,
+    textAlign: 'center',
+    marginTop: spacing.md,
+    lineHeight: 18,
+  },
   legal: { ...typography.small, color: colors.gray, textAlign: 'center', marginTop: spacing.lg, lineHeight: 18 },
   legalLinks: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.sm },
   legalLink: { ...typography.small, color: colors.primary, fontWeight: '600' },

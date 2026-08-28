@@ -95,12 +95,21 @@ işlədəcəyiniz ayrıca bir skriptdir.
 2. **Autentifikasiya** — `lib/auth-context.tsx` hazırda cihazda lokal
    saxlanılır, şifrə yoxlaması etmir. Real backend (Supabase/Firebase/öz
    API-niz) ilə əvəz edin.
-3. **Abunəlik ödənişi** — iOS-da rəqəmsal abunəlik yalnız **App Store
-   In-App Purchase (StoreKit)** vasitəsilə ola bilər (Apple Pay yox — Apple
-   Review Guideline 3.1.1). `app/subscription.tsx` daxilində `purchasePremium`
-   funksiyasını RevenueCat (`react-native-purchases`) və ya
-   `expo-in-app-purchases` ilə əvəz edin, App Store Connect-də məhsul ID-ləri
-   yaradın (`com.halalzur.app.premium.monthly/yearly`).
+3. **Abunəlik ödənişi** — `app/subscription.tsx` artıq `react-native-iap` ilə
+   real StoreKit çağırışı edir (Apple Pay yox — App Store Guideline 3.1.1-ə
+   görə yalnız In-App Purchase). İşləməsi üçün:
+   - App Store Connect → **Subscriptions**-də eyni ID-lərlə məhsul yaradın:
+     `com.halalzur.app.premium.monthly`, `.sixmonth`, `.yearly` — eyni
+     subscription group-da, qiymətləri orda təyin edin.
+   - **Agreements, Tax, and Banking**-i doldurun — Apple pulu yalnız bundan
+     sonra bank hesabınıza köçürür (bu, kodla əlaqəli deyil).
+   - Bu, native modul olduğu üçün **Expo Go-da işləmir** — test üçün EAS
+     dev-client build (`eas build --profile development`) və ya
+     TestFlight/production build lazımdır.
+   - Hazırda alışlar server tərəfdə qəbz təsdiqi olmadan bitirilir (backend
+     yoxdur) — real buraxılışdan əvvəl bunu Apple-ın App Store Server API-si
+     və ya RevenueCat kimi bir xidmətlə əlavə edin ki, saxta qəbzlər Premium-u
+     pulsuz aça bilməsin.
 4. **App ikon/splash PNG-ləri** — `assets/` içindəki fayllar hələ default
    Expo şablonundandır. `components/Logo.tsx`-dəki SVG-ni əsas götürüb
    Figma/Canva-da 1024×1024 PNG ixrac edin və həmin faylları əvəz edin.
