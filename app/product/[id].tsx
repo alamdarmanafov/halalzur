@@ -9,7 +9,9 @@ import { extractECodesFromText } from '../../lib/eCodes';
 import { recognizeIngredientText } from '../../lib/ocr';
 import { hasInternetConnection } from '../../lib/network';
 import { useFavorites } from '../../lib/favorites-context';
-import { CertificationResult } from '../../lib/types';
+import { useAuth } from '../../lib/auth-context';
+import { submitProduct } from '../../lib/submissions';
+import { CertificationResult, HalalStatus } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
 import { ECodeCard } from '../../components/ECodeCard';
 import { Button } from '../../components/Button';
@@ -23,8 +25,15 @@ const STATUS_TINT: Record<CertificationResult['status'], string> = {
   unknown: colors.warning,
 };
 
+const SUBMIT_STATUS_OPTIONS: { value: HalalStatus; label: string }[] = [
+  { value: 'halal', label: 'Halal' },
+  { value: 'mushbooh', label: 'Şübhəli' },
+  { value: 'haram', label: 'Məsləhət görülmür' },
+];
+
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { user } = useAuth();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [product, setProduct] = useState<CertificationResult | null>(null);
   const [manualIngredients, setManualIngredients] = useState('');
@@ -32,6 +41,12 @@ export default function ProductDetailScreen() {
   const [scanningPhoto, setScanningPhoto] = useState(false);
   const [offline, setOffline] = useState(false);
   const [reloadTick, setReloadTick] = useState(0);
+  const [submitName, setSubmitName] = useState('');
+  const [submitBrand, setSubmitBrand] = useState('');
+  const [submitCategory, setSubmitCategory] = useState('');
+  const [submitStatus, setSubmitStatus] = useState<HalalStatus>('halal');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -84,6 +99,35 @@ export default function ProductDetailScreen() {
       }
     } finally {
       setScanningPhoto(false);
+    }
+  };
+
+  const handleSubmitProduct = async () => {
+    if (!user || !product) return;
+    if (!submitName.trim() || !submitBrand.trim()) {
+      Alert.alert('Doldurun', 'Məhsulun adı və markası tələb olunur.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await submitProduct({
+        userId: user.id,
+        userName: user.name,
+        barcode: product.barcode,
+        productName: submitName.trim(),
+        brand: submitBrand.trim(),
+        category: submitCategory.trim(),
+        suggestedStatus: submitStatus,
+        ingredients: manualIngredients
+          ? manualIngredients.split(',').map((s) => s.trim()).filter(Boolean)
+          : [],
+        notes: manualIngredients,
+      });
+      setSubmitted(true);
+    } catch (err: any) {
+      Alert.alert('Göndərilmədi', err.message ?? 'Xəta baş verdi, yenidən cəhd edin.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -223,6 +267,70 @@ export default function ProductDetailScreen() {
               multiline
               style={styles.manualInput}
             />
+
+            <View style={styles.submitDivider} />
+
+            {submitted ? (
+              <View style={styles.submittedBox}>
+                <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
+                <Text style={styles.submittedText}>
+                  Təklifiniz göndərildi! Baxılıb təsdiqlənəndə xal qazanacaqsınız.
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.sectionTitle}>Bu məhsulu icmaya təklif edin</Text>
+                <Text style={styles.eCodeIntro}>
+                  Məhsulu özünüz yoxlamısınızsa, təklif edin — komandamız baxıb təsdiqləyəndə
+                  bazaya əlavə olunur və siz xal qazanırsınız.
+                </Text>
+                <TextInput
+                  value={submitName}
+                  onChangeText={setSubmitName}
+                  placeholder="Məhsulun adı"
+                  placeholderTextColor={colors.gray}
+                  style={styles.submitInput}
+                />
+                <TextInput
+                  value={submitBrand}
+                  onChangeText={setSubmitBrand}
+                  placeholder="Marka"
+                  placeholderTextColor={colors.gray}
+                  style={styles.submitInput}
+                />
+                <TextInput
+                  value={submitCategory}
+                  onChangeText={setSubmitCategory}
+                  placeholder="Kateqoriya (məs. Şirniyyat)"
+                  placeholderTextColor={colors.gray}
+                  style={styles.submitInput}
+                />
+                <View style={styles.statusPillRow}>
+                  {SUBMIT_STATUS_OPTIONS.map((opt) => (
+                    <Pressable
+                      key={opt.value}
+                      style={[styles.statusPill, submitStatus === opt.value && styles.statusPillActive]}
+                      onPress={() => setSubmitStatus(opt.value)}
+                    >
+                      <Text
+                        style={[
+                          styles.statusPillText,
+                          submitStatus === opt.value && styles.statusPillTextActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Button
+                  title={submitting ? 'Göndərilir…' : 'Təklif et'}
+                  onPress={handleSubmitProduct}
+                  loading={submitting}
+                  style={{ marginTop: spacing.sm }}
+                />
+              </>
+            )}
           </View>
         )}
 
@@ -345,6 +453,39 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     backgroundColor: colors.surface,
   },
+  submitDivider: { height: 1, backgroundColor: colors.surface, marginVertical: spacing.lg },
+  submitInput: {
+    height: 46,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.grayLight,
+    paddingHorizontal: spacing.md,
+    fontSize: typography.body.fontSize,
+    color: colors.black,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.sm,
+  },
+  statusPillRow: { flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm },
+  statusPill: {
+    flex: 1,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: colors.grayLight,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+  },
+  statusPillActive: { borderColor: colors.primary, backgroundColor: colors.surface },
+  statusPillText: { ...typography.small, color: colors.gray, fontWeight: '700' },
+  statusPillTextActive: { color: colors.primaryDark },
+  submittedBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  submittedText: { flex: 1, ...typography.small, color: colors.primaryDark, lineHeight: 18 },
   ingredientWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
   ingredientChip: {
     backgroundColor: colors.surface,

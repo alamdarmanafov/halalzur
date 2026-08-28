@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -7,6 +8,8 @@ import { useAuth } from '../../lib/auth-context';
 import { useHistory } from '../../lib/history-context';
 import { useFavorites } from '../../lib/favorites-context';
 import { registerForPushNotifications } from '../../lib/notifications';
+import { isAdmin } from '../../lib/admin';
+import { getPoints, fetchPendingSubmissions } from '../../lib/submissions';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 type MenuItem = {
@@ -21,6 +24,21 @@ export default function ProfileScreen() {
   const { history, clear } = useHistory();
   const { favorites } = useFavorites();
   const isPremium = user?.plan === 'premium';
+  const admin = isAdmin(user);
+  const [points, setPoints] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    getPoints(user.id)
+      .then(setPoints)
+      .catch(() => {});
+    if (admin) {
+      fetchPendingSubmissions()
+        .then((list) => setPendingCount(list.length))
+        .catch(() => {});
+    }
+  }, [user, admin]);
 
   const menuItems: MenuItem[] = [
     {
@@ -62,6 +80,15 @@ export default function ProfileScreen() {
           'Halalzur GIMDES, Helal Akreditasyon Kurumu (HAK), SMIIC, JAKIM və AZSTANDART Halal (Azərbaycan) qeydiyyatları ilə çarpaz yoxlama aparır.'
         ),
     },
+    ...(admin
+      ? [
+          {
+            icon: 'shield-half-outline' as const,
+            label: `Admin: Təsdiq gözləyənlər (${pendingCount})`,
+            onPress: () => router.push('/admin'),
+          },
+        ]
+      : []),
     {
       icon: 'trash-outline',
       label: 'Tarixçəni təmizlə',
@@ -87,6 +114,10 @@ export default function ProfileScreen() {
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>{user?.name}</Text>
             <Text style={styles.email}>{user?.email}</Text>
+          </View>
+          <View style={styles.pointsBadge}>
+            <Ionicons name="trophy" size={14} color={colors.primaryDark} />
+            <Text style={styles.pointsText}>{points}</Text>
           </View>
         </View>
 
@@ -151,6 +182,16 @@ const styles = StyleSheet.create({
   avatarText: { ...typography.h2, color: colors.primaryDark },
   name: { ...typography.h3, color: colors.black },
   email: { ...typography.small, color: colors.gray, marginTop: 2 },
+  pointsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  pointsText: { ...typography.small, color: colors.primaryDark, fontWeight: '800' },
   planCard: {
     flexDirection: 'row',
     alignItems: 'center',

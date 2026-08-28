@@ -33,6 +33,10 @@ export default function RootLayout() {
               name="favorites"
               options={{ presentation: 'card', animation: 'slide_from_right' }}
             />
+            <Stack.Screen
+              name="admin"
+              options={{ presentation: 'card', animation: 'slide_from_right' }}
+            />
           </Stack>
         </FavoritesProvider>
       </HistoryProvider>

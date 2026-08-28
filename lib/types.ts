@@ -47,3 +47,22 @@ export type ECodeEntry = {
   status: ECodeStatus;
   note: string;
 };
+
+export type ReviewStatus = 'pending' | 'approved' | 'rejected';
+
+export type ProductSubmission = {
+  id: string;
+  submittedBy: string;
+  submittedByName: string | null;
+  barcode: string;
+  productName: string;
+  brand: string;
+  category: string | null;
+  suggestedStatus: HalalStatus;
+  ingredients: string[];
+  notes: string | null;
+  reviewStatus: ReviewStatus;
+  adminNotes: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+};

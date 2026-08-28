@@ -86,3 +86,66 @@ create policy "Public insert" on device_tokens
 
 create policy "Public update" on device_tokens
   for update using (true) with check (true);
+
+-- Community contributions: users submit products they've checked, the app
+-- owner reviews and approves/rejects, approvals promote the row into
+-- certified_entries (under the 'halalzur' certifier — community-verified,
+-- distinct from official bodies like GIMDES) and award the submitter points.
+--
+-- SECURITY CAVEAT: this app has no real backend auth (login is local-only,
+-- not Supabase Auth), so `submitted_by`/`user_id` are just self-reported
+-- strings from the client — nothing stops a user from claiming a different
+-- id, and RLS can't restrict "update" to only the admin because there's no
+-- server-side identity to check against. The admin screen in the app gates
+-- access by checking the signed-in email against a hardcoded constant
+-- (lib/admin.ts) — a client-side check only, not real access control.
+-- Before a real public launch, replace local auth with Supabase Auth so
+-- these policies can check auth.uid() / a real admin role server-side.
+insert into certifiers (id, name, short_name, country, source_url) values
+  ('halalzur', 'Halalzur icma yoxlaması (istifadəçi təklifi, komanda tərəfindən təsdiqlənib)', 'Halalzur', 'İcma', null);
+
+create table product_submissions (
+  id uuid primary key default gen_random_uuid(),
+  submitted_by text not null,       -- local user id (lib/types.ts User.id)
+  submitted_by_name text,
+  barcode text not null,
+  product_name text not null,
+  brand text not null,
+  category text,
+  suggested_status halal_status not null default 'halal',
+  ingredients text[] not null default '{}',
+  notes text,
+  review_status text not null default 'pending' check (review_status in ('pending', 'approved', 'rejected')),
+  admin_notes text,
+  created_at timestamptz not null default now(),
+  reviewed_at timestamptz
+);
+
+alter table product_submissions enable row level security;
+
+create policy "Public insert" on product_submissions
+  for insert with check (true);
+
+create policy "Public read" on product_submissions
+  for select using (true);
+
+create policy "Public update" on product_submissions
+  for update using (true) with check (true);
+
+create table user_points (
+  user_id text primary key,        -- local user id (lib/types.ts User.id)
+  user_name text,
+  points integer not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+alter table user_points enable row level security;
+
+create policy "Public read" on user_points
+  for select using (true);
+
+create policy "Public insert" on user_points
+  for insert with check (true);
+
+create policy "Public update" on user_points
+  for update using (true) with check (true);

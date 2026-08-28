@@ -109,8 +109,34 @@ Kod yazmadan, birbaşa Supabase-də:
 3. **Save**. Tətbiqdə həmin barkodu skan edən kimi (və ya Məhsullar tabında
    axtaranda) dərhal görünəcək — heç bir kod dəyişikliyi/deploy lazım deyil.
 
-İstəsəniz, bunun üçün tətbiqin içində sadə bir "admin" əlavə etmə ekranı da
-qura bilərəm ki, Supabase-ə hər dəfə girməyə ehtiyac qalmasın.
+### İstifadəçi təklifləri + xal sistemi (icma töhfəsi)
+
+Bunun əvəzinə (və ya əlavə olaraq) indi tətbiqin özündə əl ilə girmədən
+istifadəçilərdən məhsul təklifi toplaya bilərsiniz:
+
+- Naməlum barkod ekranında istifadəçi "Bu məhsulu icmaya təklif edin"
+  formunu doldurub göndərir (`product_submissions` cədvəlinə düşür,
+  `review_status = 'pending'`).
+- Siz (`alamdarmanafov@gmail.com` ilə daxil olanda, `lib/admin.ts`-də
+  təyin olunub) Profil → **Admin: Təsdiq gözləyənlər** menyusundan
+  siyahını görüb **Təsdiqlə/Rədd et** edirsiniz.
+- Təsdiqlədikdə: məhsul avtomatik `certified_entries`-ə (`halalzur`
+  sertifikat mənbəyi ilə — "icma yoxlaması", rəsmi orqan deyil) əlavə
+  olunur, göndərən istifadəçi **+10 xal** qazanır (Profildə görünür).
+
+**Yeni Supabase cədvəllərini işə salmaq lazımdır** — `supabase/schema.sql`-in
+sonuna `product_submissions`, `user_points` cədvəlləri və `halalzur`
+sertifikat mənbəyi əlavə olunub. SQL Editor-da bütün faylı yenidən işə
+salmayın (köhnə hissələr xəta verər) — yalnız faylın **son hissəsini**
+(`insert into certifiers ... 'halalzur' ...`-dan aşağını) kopyalayıb işə
+salın.
+
+⚠️ **Təhlükəsizlik qeydi:** admin ekranı yalnız client-tərəfdə e-poçt
+yoxlaması ilə qorunur (real backend autentifikasiyası yoxdur), ona görə
+nəzəri olaraq bu, tam təhlükəsiz deyil. Real buraxılışdan əvvəl Supabase
+Auth (və ya oxşar) ilə əvəz edin ki, RLS server tərəfdə real istifadəçi
+identifikasiyasını yoxlaya bilsin (bax: `supabase/schema.sql`-də
+`product_submissions` üzərindəki qeyd).
 
 ## Firebase-i qoşmaq (push bildirişlər üçün)
 
