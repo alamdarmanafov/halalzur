@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Halalzur — Məxfilik siyasəti</title>
+<meta name="description" content="Halalzur tətbiqinin hansı məlumatları topladığı, necə istifadə etdiyi və istifadəçilərin hüquqları haqqında məxfilik siyasəti." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='lg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%230A4D2E'/%3E%3Cstop offset='55%25' stop-color='%23119E4B'/%3E%3Cstop offset='100%25' stop-color='%237CFC00'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='22' fill='url(%23lg)'/%3E%3Cpath d='M22 30 v-6 a4 4 0 0 1 4 -4 h6' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M68 20 h6 a4 4 0 0 1 4 4 v6' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M78 70 v6 a4 4 0 0 1 -4 4 h-6' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M32 80 h-6 a4 4 0 0 1 -4 -4 v-6' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Crect x='35' y='26' width='11' height='48' fill='%23fff'/%3E%3Cpath d='M46 26 h8 v18 h4 v-18 h4 v22 h-16 z' fill='%23fff'/%3E%3Cpath d='M50 52 l11 13 l20 -26' stroke='%23fff' stroke-width='10' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #F6FAF7;
+    --surface: #FFFFFF;
+    --surface-2: #EEF6F1;
+    --ink: #10241A;
+    --ink-muted: #52685C;
+    --border: #E1EAE4;
+
+    --brand-dark: #0A4D2E;
+    --brand: #119E4B;
+    --brand-accent: #7CFC00;
+    --brand-surface: #E8F7ED;
+
+    --shadow-color: 16, 36, 26;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #081911;
+      --surface: #0F1F17;
+      --surface-2: #142B20;
+      --ink: #EAF3EC;
+      --ink-muted: #8FA79A;
+      --border: #1E3327;
+      --shadow-color: 0, 0, 0;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #081911;
+    --surface: #0F1F17;
+    --surface-2: #142B20;
+    --ink: #EAF3EC;
+    --ink-muted: #8FA79A;
+    --border: #1E3327;
+    --shadow-color: 0, 0, 0;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2 { font-family: "Manrope", sans-serif; text-wrap: balance; margin: 0; }
+  p, li { margin: 0; }
+  a { color: var(--brand-dark); }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 24px; }
+
+  header.nav {
+    background: var(--bg); border-bottom: 1px solid var(--border);
+  }
+  .nav-row { max-width: 1160px; margin: 0 auto; padding: 0 24px; height: 72px; display: flex; align-items: center; justify-content: space-between; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .brand svg { width: 28px; height: 28px; }
+  .brand-name { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 18px; color: var(--ink); }
+  .brand-name span { color: var(--brand); }
+  .back-link { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: var(--ink-muted); font-weight: 600; font-size: 14px; }
+  .back-link:hover { color: var(--ink); }
+
+  main { padding: 56px 0 96px; }
+  .doc-head { margin-bottom: 40px; }
+  .doc-head .eyebrow {
+    display: inline-block; font-family: "Manrope", sans-serif; font-weight: 700; font-size: 12px;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--brand-dark);
+    background: var(--brand-surface); padding: 6px 12px; border-radius: 999px; margin-bottom: 16px;
+  }
+  .doc-head h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.15; }
+  .doc-head .updated { color: var(--ink-muted); font-size: 14px; margin-top: 12px; display: block; }
+
+  .doc-body { display: flex; flex-direction: column; gap: 36px; }
+  .doc-body section { display: flex; flex-direction: column; gap: 12px; }
+  .doc-body h2 { font-size: 19px; color: var(--ink); }
+  .doc-body p, .doc-body li { font-size: 15.5px; line-height: 1.7; color: var(--ink-muted); }
+  .doc-body ul { padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+  .doc-body strong { color: var(--ink); font-weight: 700; }
+
+  .data-table {
+    border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--surface);
+  }
+  .data-row { display: grid; grid-template-columns: 1fr 1.4fr; gap: 16px; padding: 14px 18px; }
+  .data-row + .data-row { border-top: 1px solid var(--border); }
+  .data-row .k { font-weight: 700; color: var(--ink); font-size: 14.5px; }
+  .data-row .v { color: var(--ink-muted); font-size: 14.5px; line-height: 1.6; }
+  @media (max-width: 560px) { .data-row { grid-template-columns: 1fr; gap: 4px; } }
+
+  .callout {
+    background: var(--surface-2); border-radius: 14px; padding: 18px 20px; font-size: 14.5px;
+    color: var(--ink); line-height: 1.6;
+  }
+  .callout a { font-weight: 700; }
+
+  footer { border-top: 1px solid var(--border); padding: 32px 0; }
+  .footer-row { max-width: 1160px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .footer-copy { color: var(--ink-muted); font-size: 13px; }
+  .footer-links { display: flex; gap: 20px; list-style: none; padding: 0; margin: 0; }
+  .footer-links a { text-decoration: none; color: var(--ink-muted); font-size: 13.5px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-row">
+    <a class="brand" href="index.html">
+      <svg viewBox="0 0 100 100"><defs><linearGradient id="lg2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0A4D2E"/><stop offset="55%" stop-color="#119E4B"/><stop offset="100%" stop-color="#7CFC00"/></linearGradient></defs><rect width="100" height="100" rx="22" fill="url(#lg2)"/><rect x="35" y="26" width="11" height="48" fill="#fff"/><path d="M46 26 h8 v18 h4 v-18 h4 v22 h-16 z" fill="#fff"/><path d="M50 52 l11 13 l20 -26" stroke="#7CFC00" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      <span class="brand-name">Halal<span>zur</span></span>
+    </a>
+    <a class="back-link" href="index.html">← Ana səhifə</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="doc-head">
+      <span class="eyebrow">Hüquqi</span>
+      <h1>Məxfilik siyasəti</h1>
+      <span class="updated">Son yenilənmə: 28 avqust 2026</span>
+    </div>
+
+    <div class="doc-body">
+      <section>
+        <h2>Ümumi baxış</h2>
+        <p>
+          Halalzur məhsulların halal statusunu skan etmək üçün mobil tətbiqdir. Bu səhifə
+          tətbiqin hansı məlumatları topladığını, niyə topladığını və istifadəçinin bu
+          barədə hansı seçimlərə malik olduğunu izah edir. Halalzur öz halal hökmünü
+          vermir — yalnız GIMDES, JAKIM, AZSTANDART Halal kimi tanınan sertifikat
+          orqanlarının dərc etdiyi məlumatı göstərir; bu siyasət isə şəxsi məlumatların
+          idarə olunmasına aiddir.
+        </p>
+      </section>
+
+      <section>
+        <h2>Hansı məlumatları toplayırıq</h2>
+        <div class="data-table">
+          <div class="data-row">
+            <div class="k">Hesab məlumatı</div>
+            <div class="v">Ad və e-poçt (giriş edərkən daxil etdiyiniz və ya Apple ID ilə daxil olduqda Apple-ın paylaşdığı). Cihazınızda saxlanılır.</div>
+          </div>
+          <div class="data-row">
+            <div class="k">Skan tarixçəsi və favoritlər</div>
+            <div class="v">Yalnız cihazınızda saxlanılır — bizim serverlərə göndərilmir.</div>
+          </div>
+          <div class="data-row">
+            <div class="k">Kamera</div>
+            <div class="v">Yalnız barkodu oxumaq üçün istifadə olunur. Şəkil yalnız naməlum məhsul üçün tərkib siyahısını əl ilə əlavə edərkən, sizin təşəbbüsünüzlə çəkilir.</div>
+          </div>
+          <div class="data-row">
+            <div class="k">İcma təklifləri</div>
+            <div class="v">Bazada olmayan məhsulu təklif etdikdə, göndərdiyiniz məlumat (məhsul adı, barkod, tərkib, adınız) təsdiq üçün serverimizdə saxlanılır.</div>
+          </div>
+          <div class="data-row">
+            <div class="k">Bildiriş tokeni</div>
+            <div class="v">Bildirişlərə icazə verdikdə, cihazınızın Firebase push tokeni serverimizdə (yalnız icazə üçün) saxlanılır.</div>
+          </div>
+          <div class="data-row">
+            <div class="k">Ödəniş</div>
+            <div class="v">Bütün Premium ödənişləri Apple-ın App Store sistemi üzərindən keçir — kart məlumatlarınıza heç vaxt çıxışımız olmur.</div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Məlumatları necə istifadə edirik</h2>
+        <ul>
+          <li>Hesabınızı tanımaq və premium statusunuzu izləmək üçün.</li>
+          <li>İcma tərəfindən təklif olunan məhsulları nəzərdən keçirib bazaya əlavə etmək üçün.</li>
+          <li>Buraxılış elanları və mühüm yeniliklər üçün bildiriş göndərmək üçün (yalnız icazə verdiyiniz halda).</li>
+          <li>Tətbiqi təkmilləşdirmək üçün — heç bir məlumat reklam məqsədilə satılmır və ya üçüncü tərəflərə ötürülmür.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Üçüncü tərəf xidmətlər</h2>
+        <p>Halalzur aşağıdakı xidmətlərdən istifadə edir, hər biri öz məxfilik siyasətinə tabedir:</p>
+        <ul>
+          <li><strong>Supabase</strong> — verilənlər bazası (icma təklifləri, xal, bildiriş tokenləri).</li>
+          <li><strong>Firebase Cloud Messaging (Google)</strong> — push bildirişlərinin çatdırılması.</li>
+          <li><strong>Apple</strong> — Apple ID ilə giriş və App Store ödənişləri.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Məlumatı saxlama və silmə</h2>
+        <p>
+          Cihazda saxlanılan məlumat (tarixçə, favoritlər, hesab) tətbiqi sildikdə avtomatik
+          silinir. Serverdə saxlanılan məlumatı (icma təklifləri, xal, bildiriş tokeni) silmək
+          istəyirsinizsə, <a href="delete-account.html">Hesabı sil</a> səhifəsindəki
+          təlimatları izləyin.
+        </p>
+      </section>
+
+      <section>
+        <h2>Uşaqların məxfiliyi</h2>
+        <p>Halalzur 13 yaşdan kiçik uşaqlara yönəldilməyib və onlardan bilərəkdən məlumat toplamır.</p>
+      </section>
+
+      <section>
+        <h2>Bu siyasətdə dəyişikliklər</h2>
+        <p>Bu siyasət yeniləndikdə, "Son yenilənmə" tarixi yuxarıda dəyişdiriləcək.</p>
+      </section>
+
+      <section>
+        <h2>Əlaqə</h2>
+        <div class="callout">
+          Sual və ya tələbləriniz üçün: <a href="mailto:alamdarmanafov@gmail.com">alamdarmanafov@gmail.com</a>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-row">
+    <span class="footer-copy">© 2026 Halalzur</span>
+    <ul class="footer-links">
+      <li><a href="index.html">Ana səhifə</a></li>
+      <li><a href="delete-account.html">Hesabı sil</a></li>
+    </ul>
+  </div>
+</footer>
+
+</body>
+</html>
