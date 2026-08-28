@@ -149,18 +149,3 @@ create policy "Public insert" on user_points
 
 create policy "Public update" on user_points
   for update using (true) with check (true);
-
--- halalzur.com's "early access" email capture (website/index.html). Insert
--- only — no select policy, so the anon key can add an email but never list
--- them back out; only the service_role (Supabase dashboard) can read the
--- list to actually send a launch announcement.
-create table waitlist (
-  id uuid primary key default gen_random_uuid(),
-  email text not null unique,
-  created_at timestamptz not null default now()
-);
-
-alter table waitlist enable row level security;
-
-create policy "Public insert" on waitlist
-  for insert with check (true);

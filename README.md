@@ -200,7 +200,7 @@ ki, admin panel əsas domendə (halalzur.com) görünməsin:
 
 | Qovluq | Nə üçündür | Domen |
 | --- | --- | --- |
-| `website/` | halalzur.com marketing saytı, erkən giriş (waitlist) formu | `halalzur.com` |
+| `website/` | halalzur.com marketing saytı, App Store yükləmə düymələri | `halalzur.com` |
 | `admin-panel/` | Məhsul təkliflərinə baxıb təsdiq/rədd etmə paneli | Vercel-in verdiyi default `*.vercel.app` linki (öz domen bağlamayın) |
 
 Hər ikisi sırf statik HTML-dir (build addımı yoxdur), ona görə Vercel-də:

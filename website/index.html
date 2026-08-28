@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Halalzur — Halal sertifikatı skan et</title>
 <meta name="description" content="Məhsulun barkodunu skan et, halal statusunu GIMDES, JAKIM, AZSTANDART Halal kimi tanınan sertifikat orqanlarına əsasən dərhal öyrən." />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23119E4B'/%3E%3C/svg%3E" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='lg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%230A4D2E'/%3E%3Cstop offset='55%25' stop-color='%23119E4B'/%3E%3Cstop offset='100%25' stop-color='%237CFC00'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='22' fill='url(%23lg)'/%3E%3Cpath d='M22 30 v-6 a4 4 0 0 1 4 -4 h6' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M68 20 h6 a4 4 0 0 1 4 4 v6' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M78 70 v6 a4 4 0 0 1 -4 4 h-6' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M32 80 h-6 a4 4 0 0 1 -4 -4 v-6' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Crect x='35' y='26' width='11' height='48' fill='%23fff'/%3E%3Cpath d='M46 26 h8 v18 h4 v-18 h4 v22 h-16 z' fill='%23fff'/%3E%3Cpath d='M50 52 l11 13 l20 -26' stroke='%23fff' stroke-width='10' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -219,25 +219,13 @@
   }
   @media (max-width: 640px) { .waitlist { padding: 40px 22px; border-radius: 20px; } }
   .waitlist h2 { color: #fff; font-size: clamp(24px, 3.2vw, 32px); }
-  .waitlist p { color: rgba(255,255,255,0.85); margin-top: 12px; font-size: 15.5px; }
-  .waitlist-form {
-    display: flex; gap: 10px; max-width: 440px; margin: 28px auto 0;
-    background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.3);
-    border-radius: 14px; padding: 6px;
-  }
-  @media (max-width: 480px) { .waitlist-form { flex-direction: column; } }
-  .waitlist-form input {
-    flex: 1; border: none; background: transparent; color: #fff; font-size: 15px;
-    padding: 12px 14px; outline: none; font-family: inherit;
-  }
-  .waitlist-form input::placeholder { color: rgba(255,255,255,0.65); }
-  .waitlist-form button {
-    background: #fff; color: var(--brand-dark); border: none; font-weight: 800;
-    font-size: 14.5px; padding: 12px 22px; border-radius: 10px; cursor: pointer;
+  .waitlist p { color: rgba(255,255,255,0.85); margin-top: 12px; font-size: 15.5px; max-width: 42ch; margin-left: auto; margin-right: auto; }
+  .btn-store {
+    display: inline-flex; align-items: center; gap: 10px; margin-top: 28px;
+    background: #fff; color: var(--brand-dark); text-decoration: none; font-weight: 800;
+    font-size: 15px; padding: 14px 26px; border-radius: 12px;
     font-family: "Source Sans 3", sans-serif;
   }
-  .waitlist-form button:disabled { opacity: 0.6; cursor: default; }
-  .waitlist-msg { margin-top: 14px; font-size: 14px; min-height: 20px; }
 
   /* ---- footer ---- */
   footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px; }
@@ -265,7 +253,11 @@
         <li><a href="#faq">FAQ</a></li>
       </ul>
     </nav>
-    <a class="nav-cta nav-mobile-hide" href="#waitlist">Erkən giriş</a>
+    <!-- APP_STORE_URL placeholder — replace with the real App Store listing link once Halalzur is published. -->
+    <a class="nav-cta nav-mobile-hide" href="#" id="navStoreLink">
+      <svg width="14" height="14" viewBox="0 0 384 512" fill="currentColor"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
+      Tətbiqi yüklə
+    </a>
   </div>
 </header>
 
@@ -282,7 +274,10 @@
           əsaslanaraq göstərir — aydın, izahlı və şəffaf şəkildə.
         </p>
         <div class="hero-actions">
-          <a class="btn-primary" href="#waitlist">Erkən giriş üçün yazılın →</a>
+          <a class="btn-primary" href="#" id="heroStoreLink">
+            <svg width="17" height="17" viewBox="0 0 384 512" fill="currentColor"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
+            Tətbiqi yüklə
+          </a>
           <a class="btn-secondary" href="#how">Necə işləyir</a>
         </div>
         <div class="trust-strip">
@@ -394,16 +389,15 @@
     </div>
   </section>
 
-  <section class="section" id="waitlist">
+  <section class="section" id="download">
     <div class="wrap">
       <div class="waitlist">
-        <h2>Buraxılışdan ilk siz xəbərdar olun</h2>
-        <p>Halalzur App Store-da yayımlananda e-poçtunuza bir dəfəlik bildiriş göndərək.</p>
-        <form class="waitlist-form" id="waitlistForm">
-          <input type="email" id="waitlistEmail" placeholder="siz@example.com" required autocomplete="email" />
-          <button type="submit" id="waitlistBtn">Yazıl</button>
-        </form>
-        <div class="waitlist-msg" id="waitlistMsg"></div>
+        <h2>Halalzur-u indi yükləyin</h2>
+        <p>iPhone-unuzda App Store-dan endirin, məhsulları saniyələr içində skan etməyə başlayın.</p>
+        <a class="btn-store" href="#" id="ctaStoreLink">
+          <svg width="19" height="19" viewBox="0 0 384 512" fill="currentColor"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
+          App Store-dan yüklə
+        </a>
       </div>
     </div>
   </section>
@@ -448,49 +442,15 @@
 </footer>
 
 <script>
-  var SUPABASE_URL = "https://szizepjcospoygnjmxwz.supabase.co";
-  var SUPABASE_ANON_KEY = "sb_publishable_YSxBg5SQveiZrRU6H65mVg_Ea4gp2Pl";
+  // PLACEHOLDER — set this to the real App Store listing URL once Halalzur
+  // is published (App Store Connect → App → App Store tab → "View on
+  // App Store" link, format https://apps.apple.com/az/app/halalzur/idXXXXXXXXXX),
+  // then every download button on the page picks it up automatically.
+  var APP_STORE_URL = "#";
 
-  var form = document.getElementById("waitlistForm");
-  var input = document.getElementById("waitlistEmail");
-  var btn = document.getElementById("waitlistBtn");
-  var msg = document.getElementById("waitlistMsg");
-
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
-    var email = input.value.trim();
-    if (!email) return;
-    btn.disabled = true;
-    btn.textContent = "Göndərilir…";
-    msg.textContent = "";
-
-    fetch(SUPABASE_URL + "/rest/v1/waitlist", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": SUPABASE_ANON_KEY,
-        "Authorization": "Bearer " + SUPABASE_ANON_KEY,
-        "Prefer": "return=minimal"
-      },
-      body: JSON.stringify({ email: email })
-    })
-      .then(function (res) {
-        if (res.ok) {
-          msg.textContent = "Təşəkkürlər! Buraxılışda xəbər verəcəyik.";
-          input.value = "";
-        } else if (res.status === 409) {
-          msg.textContent = "Bu e-poçt artıq siyahıdadır.";
-        } else {
-          msg.textContent = "Xəta baş verdi, yenidən cəhd edin.";
-        }
-      })
-      .catch(function () {
-        msg.textContent = "Xəta baş verdi, yenidən cəhd edin.";
-      })
-      .finally(function () {
-        btn.disabled = false;
-        btn.textContent = "Yazıl";
-      });
+  ["navStoreLink", "heroStoreLink", "ctaStoreLink"].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.href = APP_STORE_URL;
   });
 </script>
 
