@@ -30,6 +30,12 @@ export const CERTIFIERS: Certifier[] = [
     shortName: 'JAKIM',
     country: 'Malaziya',
   },
+  {
+    id: 'azstandart',
+    name: 'AZSTANDART Halal Sertifikatlaşdırma Orqanı (Azərbaycan Standartlaşdırma İnstitutu)',
+    shortName: 'AZSTANDART',
+    country: 'Azərbaycan',
+  },
 ];
 
 export function getCertifier(id: string): Certifier | undefined {

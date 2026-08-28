@@ -59,7 +59,7 @@ export default function ProfileScreen() {
       onPress: () =>
         Alert.alert(
           'Sertifikat orqanları',
-          'Halalzur GIMDES, Helal Akreditasyon Kurumu (HAK), SMIIC və JAKIM qeydiyyatları ilə çarpaz yoxlama aparır.'
+          'Halalzur GIMDES, Helal Akreditasyon Kurumu (HAK), SMIIC, JAKIM və AZSTANDART Halal (Azərbaycan) qeydiyyatları ilə çarpaz yoxlama aparır.'
         ),
     },
     {

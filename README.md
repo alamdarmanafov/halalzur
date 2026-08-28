@@ -1,8 +1,9 @@
 # Halalzur
 
 Halallıq sertifikatı skan tətbiqi (iOS, Expo/React Native). Məhsulun barkodunu
-skan edərək halallıq statusunu GIMDES, Helal Akreditasyon Kurumu (HAK), SMIIC
-və JAKIM kimi tanınan sertifikat orqanları ilə çarpaz yoxlayır.
+skan edərək halallıq statusunu GIMDES, Helal Akreditasyon Kurumu (HAK), SMIIC,
+JAKIM və AZSTANDART Halal (Azərbaycan) kimi tanınan sertifikat orqanları ilə
+çarpaz yoxlayır.
 
 ## Struktur
 
@@ -86,6 +87,30 @@ işlədəcəyiniz ayrıca bir skriptdir.
   brauzerdən araşdırmaq lazımdır.
 - HAK və SMIIC üçün sync yoxdur — onlar məhsul sertifikatlaşdırmır (sertifikat
   orqanlarını akkreditə edir), ona görə çəkiləcək məhsul data-sı yoxdur.
+- **AZSTANDART Halal** (Azərbaycan) — hələ sync skripti yoxdur, açıq/scrape
+  oluna bilən sertifikatlı firma siyahısı tapılmayıb. Azərbaycan
+  məhsullarını indi **əl ilə** əlavə edin (aşağıya bax).
+
+### Azərbaycan (və ya istənilən) məhsulunu əl ilə əlavə etmək
+
+Kod yazmadan, birbaşa Supabase-də:
+
+1. Supabase Dashboard → **Table Editor** → `certified_entries` cədvəlini açın.
+2. **Insert → Insert row** düyməsinə basın, sahələri doldurun:
+   - `entry_type`: `product`
+   - `barcode`: məhsulun barkodu (adətən qablaşdırmada, 13 rəqəm)
+   - `product_name`: məhsulun adı
+   - `brand`: marka
+   - `category`: məs. "Şirniyyat", "Çörək", "İçki"
+   - `status`: `halal` / `mushbooh` / `haram` / `unknown`
+   - `certifier_id`: `azstandart` (və ya digər orqan ID-si — `certifiers`
+     cədvəlindən)
+   - `certificate_number`, `verified_at`, `ingredients`, `notes`: istəyə görə
+3. **Save**. Tətbiqdə həmin barkodu skan edən kimi (və ya Məhsullar tabında
+   axtaranda) dərhal görünəcək — heç bir kod dəyişikliyi/deploy lazım deyil.
+
+İstəsəniz, bunun üçün tətbiqin içində sadə bir "admin" əlavə etmə ekranı da
+qura bilərəm ki, Supabase-ə hər dəfə girməyə ehtiyac qalmasın.
 
 ## Firebase-i qoşmaq (push bildirişlər üçün)
 
