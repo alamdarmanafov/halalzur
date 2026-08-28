@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Halalzur — Məxfilik siyasəti</title>
-<meta name="description" content="Halalzur tətbiqinin hansı məlumatları topladığı, necə istifadə etdiyi və istifadəçilərin hüquqları haqqında məxfilik siyasəti." />
+<title>Halalzur — Qiymət siyasəti</title>
+<meta name="description" content="Halalzur Premium abunəlik qiymətləri, ödəniş və avtomatik yenilənmə şərtləri, istifadə etdiyimiz üçüncü tərəf xidmətlər və əlaqə." />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='lg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%230A4D2E'/%3E%3Cstop offset='55%25' stop-color='%23119E4B'/%3E%3Cstop offset='100%25' stop-color='%237CFC00'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='22' fill='url(%23lg)'/%3E%3Cpath d='M22 30 v-6 a4 4 0 0 1 4 -4 h6' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M68 20 h6 a4 4 0 0 1 4 4 v6' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M78 70 v6 a4 4 0 0 1 -4 4 h-6' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M32 80 h-6 a4 4 0 0 1 -4 -4 v-6' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Crect x='35' y='26' width='11' height='48' fill='%23fff'/%3E%3Cpath d='M46 26 h8 v18 h4 v-18 h4 v22 h-16 z' fill='%23fff'/%3E%3Cpath d='M50 52 l11 13 l20 -26' stroke='%23fff' stroke-width='10' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -58,9 +58,7 @@
   a { color: var(--brand-dark); }
   .wrap { max-width: 760px; margin: 0 auto; padding: 0 24px; }
 
-  header.nav {
-    background: var(--bg); border-bottom: 1px solid var(--border);
-  }
+  header.nav { background: var(--bg); border-bottom: 1px solid var(--border); }
   .nav-row { max-width: 1160px; margin: 0 auto; padding: 0 24px; height: 72px; display: flex; align-items: center; justify-content: space-between; }
   .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; }
   .brand svg { width: 28px; height: 28px; }
@@ -85,6 +83,30 @@
   .doc-body p, .doc-body li { font-size: 15.5px; line-height: 1.7; color: var(--ink-muted); }
   .doc-body ul { padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
   .doc-body strong { color: var(--ink); font-weight: 700; }
+
+  .plans-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 640px) { .plans-grid { grid-template-columns: 1fr; } }
+  .plan-card {
+    border: 1px solid var(--border); border-radius: 16px; padding: 20px; background: var(--surface);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .plan-card.featured { border-color: var(--brand); box-shadow: 0 0 0 1px var(--brand); position: relative; }
+  .plan-card .tag {
+    position: absolute; top: -11px; left: 16px; background: var(--brand); color: #fff;
+    font-family: "Manrope", sans-serif; font-size: 11px; font-weight: 800; letter-spacing: 0.04em;
+    text-transform: uppercase; padding: 4px 10px; border-radius: 999px;
+  }
+  .plan-card .name { font-family: "Manrope", sans-serif; font-weight: 700; font-size: 15px; color: var(--ink); }
+  .plan-card .price { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 24px; color: var(--ink); margin-top: 4px; }
+  .plan-card .price span { font-size: 13px; font-weight: 600; color: var(--ink-muted); }
+  .plan-card .note { font-size: 13px; color: var(--ink-muted); margin-top: 2px; }
+
+  .free-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    border: 1px dashed var(--border); border-radius: 14px; padding: 16px 18px; background: var(--surface-2);
+  }
+  .free-row .name { font-weight: 700; color: var(--ink); font-size: 14.5px; }
+  .free-row .desc { color: var(--ink-muted); font-size: 14px; margin-top: 2px; }
 
   .data-table {
     border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--surface);
@@ -124,87 +146,78 @@
   <div class="wrap">
     <div class="doc-head">
       <span class="eyebrow">Hüquqi</span>
-      <h1>Məxfilik siyasəti</h1>
+      <h1>Qiymət siyasəti</h1>
       <span class="updated">Son yenilənmə: 28 avqust 2026</span>
     </div>
 
     <div class="doc-body">
       <section>
-        <h2>Ümumi baxış</h2>
-        <p>
-          Halalzur məhsulların halal statusunu skan etmək üçün mobil tətbiqdir. Bu səhifə
-          tətbiqin hansı məlumatları topladığını, niyə topladığını və istifadəçinin bu
-          barədə hansı seçimlərə malik olduğunu izah edir. Halalzur öz halal hökmünü
-          vermir — yalnız GIMDES, JAKIM, AZSTANDART Halal kimi tanınan sertifikat
-          orqanlarının dərc etdiyi məlumatı göstərir; bu siyasət isə şəxsi məlumatların
-          idarə olunmasına aiddir.
-        </p>
-      </section>
-
-      <section>
-        <h2>Hansı məlumatları toplayırıq</h2>
-        <div class="data-table">
-          <div class="data-row">
-            <div class="k">Hesab məlumatı</div>
-            <div class="v">Ad və e-poçt (giriş edərkən daxil etdiyiniz və ya Apple ID ilə daxil olduqda Apple-ın paylaşdığı). Cihazınızda saxlanılır.</div>
-          </div>
-          <div class="data-row">
-            <div class="k">Skan tarixçəsi və favoritlər</div>
-            <div class="v">Yalnız cihazınızda saxlanılır — bizim serverlərə göndərilmir.</div>
-          </div>
-          <div class="data-row">
-            <div class="k">Kamera</div>
-            <div class="v">Yalnız barkodu oxumaq üçün istifadə olunur. Şəkil yalnız naməlum məhsul üçün tərkib siyahısını əl ilə əlavə edərkən, sizin təşəbbüsünüzlə çəkilir.</div>
-          </div>
-          <div class="data-row">
-            <div class="k">İcma təklifləri</div>
-            <div class="v">Bazada olmayan məhsulu təklif etdikdə, göndərdiyiniz məlumat (məhsul adı, barkod, tərkib, adınız) təsdiq üçün serverimizdə saxlanılır.</div>
-          </div>
-          <div class="data-row">
-            <div class="k">Bildiriş tokeni</div>
-            <div class="v">Bildirişlərə icazə verdikdə, cihazınızın Firebase push tokeni serverimizdə (yalnız icazə üçün) saxlanılır.</div>
-          </div>
-          <div class="data-row">
-            <div class="k">Ödəniş</div>
-            <div class="v">Bütün Premium ödənişləri Apple-ın App Store sistemi üzərindən keçir — kart məlumatlarınıza heç vaxt çıxışımız olmur.</div>
+        <h2>Pulsuz plan</h2>
+        <div class="free-row">
+          <div>
+            <div class="name">Pulsuz</div>
+            <div class="desc">Ayda 3 skan, əsas halal statusu göstərilir</div>
           </div>
         </div>
       </section>
 
       <section>
-        <h2>Məlumatları necə istifadə edirik</h2>
+        <h2>Premium abunəlik planları</h2>
+        <p>Limitsiz skan və tam sertifikat detalları. Bütün planlar App Store vasitəsilə, avtomatik yenilənən abunəlik olaraq satılır.</p>
+        <div class="plans-grid">
+          <div class="plan-card">
+            <div class="name">Aylıq</div>
+            <div class="price">4.99 AZN<span> / ay</span></div>
+            <div class="note">Hər ay yenilənir</div>
+          </div>
+          <div class="plan-card featured">
+            <span class="tag">Ən sərfəli</span>
+            <div class="name">İllik</div>
+            <div class="price">39.99 AZN<span> / il</span></div>
+            <div class="note">Ayda ~3.33 AZN-ə bərabər</div>
+          </div>
+          <div class="plan-card">
+            <div class="name">6 aylıq</div>
+            <div class="price">19.99 AZN<span> / 6 ay</span></div>
+            <div class="note">Hər 6 ayda yenilənir</div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Ödəniş və avtomatik yenilənmə</h2>
         <ul>
-          <li>Hesabınızı tanımaq və premium statusunuzu izləmək üçün.</li>
-          <li>İcma tərəfindən təklif olunan məhsulları nəzərdən keçirib bazaya əlavə etmək üçün.</li>
-          <li>Buraxılış elanları və mühüm yeniliklər üçün bildiriş göndərmək üçün (yalnız icazə verdiyiniz halda).</li>
-          <li>Tətbiqi təkmilləşdirmək üçün — heç bir məlumat reklam məqsədilə satılmır və ya üçüncü tərəflərə ötürülmür.</li>
+          <li>Ödəniş Apple ID hesabınızdan, satın alma zamanı seçdiyiniz plana uyğun olaraq tutulur.</li>
+          <li>Abunəlik cari dövrün bitməsinə ən azı 24 saat qalmış ləğv edilmədiyi təqdirdə, eyni müddətə avtomatik yenilənir və Apple ID hesabınızdan ödəniş tutulur.</li>
+          <li>Abunəliyi idarə etmək və ya ləğv etmək üçün: iPhone-da <strong>Ayarlar → [adınız] → Abunəliklər</strong>.</li>
+          <li>Satın alınmış abunəlik müddətinin istifadə olunmamış hissəsi üçün geri ödəniş edilmir (bunu Apple-ın App Store şərtləri tənzimləyir).</li>
         </ul>
       </section>
 
       <section>
-        <h2>Məlumatı saxlama və silmə</h2>
-        <p>
-          Cihazda saxlanılan məlumat (tarixçə, favoritlər, hesab) tətbiqi sildikdə avtomatik
-          silinir. Serverdə saxlanılan məlumatı (icma təklifləri, xal, bildiriş tokeni) silmək
-          istəyirsinizsə, <a href="delete-account.html">Hesabı sil</a> səhifəsindəki
-          təlimatları izləyin.
-        </p>
+        <h2>Üçüncü tərəf xidmətlər</h2>
+        <p>Halalzur aşağıdakı xidmətlərdən istifadə edir, hər biri öz məxfilik siyasətinə tabedir:</p>
+        <div class="data-table">
+          <div class="data-row">
+            <div class="k">Apple</div>
+            <div class="v">Apple ID ilə giriş və App Store ödənişləri — bütün Premium abunəlik ödənişləri Apple-ın sistemi üzərindən keçir.</div>
+          </div>
+          <div class="data-row">
+            <div class="k">Supabase</div>
+            <div class="v">Verilənlər bazası — icma məhsul təklifləri, xal, bildiriş tokenləri.</div>
+          </div>
+          <div class="data-row">
+            <div class="k">Firebase Cloud Messaging (Google)</div>
+            <div class="v">Push bildirişlərinin çatdırılması.</div>
+          </div>
+        </div>
       </section>
 
       <section>
-        <h2>Uşaqların məxfiliyi</h2>
-        <p>Halalzur 13 yaşdan kiçik uşaqlara yönəldilməyib və onlardan bilərəkdən məlumat toplamır.</p>
-      </section>
-
-      <section>
-        <h2>Bu siyasətdə dəyişikliklər</h2>
-        <p>Bu siyasət yeniləndikdə, "Son yenilənmə" tarixi yuxarıda dəyişdiriləcək.</p>
-      </section>
-
-      <section>
+        <h2>Əlaqə</h2>
         <div class="callout">
-          İstifadə etdiyimiz üçüncü tərəf xidmətlər, abunəlik qiymətləri və əlaqə məlumatı üçün
-          <a href="pricing.html">Qiymət siyasəti</a> səhifəsinə baxın.
+          Qiymətlər, abunəlik və ya digər sual/tələbləriniz üçün:
+          <a href="mailto:alamdarmanafov@gmail.com">alamdarmanafov@gmail.com</a>
         </div>
       </section>
     </div>
@@ -216,7 +229,7 @@
     <span class="footer-copy">© 2026 Halalzur</span>
     <ul class="footer-links">
       <li><a href="index.html">Ana səhifə</a></li>
-      <li><a href="pricing.html">Qiymət siyasəti</a></li>
+      <li><a href="privacy.html">Məxfilik siyasəti</a></li>
       <li><a href="delete-account.html">Hesabı sil</a></li>
     </ul>
   </div>
