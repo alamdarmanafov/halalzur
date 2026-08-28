@@ -17,7 +17,7 @@ export default function Index() {
     );
   }
 
-  return <Redirect href={user ? '/(tabs)' : '/(auth)/login'} />;
+  return <Redirect href={user ? '/(tabs)' : '/(auth)/welcome'} />;
 }
 
 const styles = StyleSheet.create({

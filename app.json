@@ -11,6 +11,7 @@
     "ios": {
       "bundleIdentifier": "com.halalzur.app",
       "supportsTablet": true,
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Halalzur məhsulun barkodunu skan edərək halallıq statusunu yoxlamaq üçün kameraya ehtiyac duyur."
       }
