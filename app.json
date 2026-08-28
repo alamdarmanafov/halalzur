@@ -12,6 +12,10 @@
       "bundleIdentifier": "com.halalzur.app",
       "supportsTablet": true,
       "usesAppleSignIn": true,
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "entitlements": {
+        "aps-environment": "production"
+      },
       "infoPlist": {
         "NSCameraUsageDescription": "Halalzur məhsulun barkodunu skan edərək halallıq statusunu yoxlamaq üçün kameraya ehtiyac duyur."
       }
@@ -42,7 +46,9 @@
         {
           "cameraPermission": "Halalzur tərkib siyahısının şəklini çəkmək üçün kameraya ehtiyac duyur."
         }
-      ]
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging"
     ]
   }
 }

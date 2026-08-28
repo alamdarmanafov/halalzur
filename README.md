@@ -87,6 +87,34 @@ işlədəcəyiniz ayrıca bir skriptdir.
 - HAK və SMIIC üçün sync yoxdur — onlar məhsul sertifikatlaşdırmır (sertifikat
   orqanlarını akkreditə edir), ona görə çəkiləcək məhsul data-sı yoxdur.
 
+## Firebase-i qoşmaq (push bildirişlər üçün)
+
+Bildiriş göndərmə (delivery) Firebase Cloud Messaging ilə işləyir — Supabase
+yalnız hansı cihazın hansı istifadəçiyə aid olduğunu saxlayır
+(`device_tokens` cədvəli), göndərmə əməliyyatını özü etmir.
+
+1. [console.firebase.google.com](https://console.firebase.google.com)-da
+   yeni layihə yaradın.
+2. Layihəyə **iOS app** əlavə edin, bundle ID olaraq `com.halalzur.app`
+   yazın.
+3. Endirilən **`GoogleService-Info.plist`** faylını layihənin kök
+   qovluğuna qoyun (adı dəyişmədən — `app.json` bu adı gözləyir). Bu fayl
+   `.gitignore`-dadır, GitHub-a getmir.
+4. **Project Settings → Cloud Messaging → Apple app configuration**-da
+   APNs Authentication Key (`.p8`) yükləyin — bunu Apple Developer hesabı
+   → **Certificates, Identifiers & Profiles → Keys**-dən "Apple Push
+   Notifications service (APNs)" icazəsi ilə yaradırsınız (bir dəfəlik,
+   bütün tətbiqləriniz üçün ortaq istifadə oluna bilər).
+5. `supabase/schema.sql`-ə yenidən baxın — `device_tokens` cədvəli əlavə
+   olunub, onu da Supabase SQL Editor-da işə salmaq lazımdır (əvvəlki
+   cədvəllərə toxunmur, sadəcə əlavə edir).
+6. EAS build alın (Expo Go-da native Firebase modulu yoxdur, işləməyəcək).
+
+**Elan göndərmək** — heç bir backend kodu yazmadan: Firebase Console →
+**Cloud Messaging** → **New campaign** → **Notifications** → hədəf olaraq
+`halalzur_all` mövzusunu (topic) seçin. Hər cihaz giriş edəndə avtomatik bu
+mövzuya abunə olur (`lib/notifications.ts`).
+
 ## İstehsala keçməzdən əvvəl
 
 1. **Avtomatlaşdırma** — sync skriptini əl ilə deyil, dövri (məs. gündə bir

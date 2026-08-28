@@ -1,7 +1,10 @@
+import { useEffect } from 'react';
 import { Tabs } from 'expo-router';
-import { Pressable, StyleSheet, GestureResponderEvent, AccessibilityState } from 'react-native';
+import { Pressable, StyleSheet, GestureResponderEvent, AccessibilityState, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../../lib/auth-context';
+import { registerForPushNotifications, onForegroundMessage } from '../../lib/notifications';
 import { colors, radius } from '../../constants/theme';
 
 type ScanTabButtonProps = {
@@ -26,6 +29,17 @@ function ScanTabButton({ onPress, accessibilityState }: ScanTabButtonProps) {
 }
 
 export default function TabsLayout() {
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user) return;
+    registerForPushNotifications(user.id);
+    const unsubscribe = onForegroundMessage((title, body) => {
+      Alert.alert(title, body);
+    });
+    return unsubscribe;
+  }, [user]);
+
   return (
     <Tabs
       initialRouteName="index"

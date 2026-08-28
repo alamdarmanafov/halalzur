@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../lib/auth-context';
 import { useHistory } from '../../lib/history-context';
 import { useFavorites } from '../../lib/favorites-context';
+import { registerForPushNotifications } from '../../lib/notifications';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 type MenuItem = {
@@ -35,7 +36,17 @@ export default function ProfileScreen() {
     {
       icon: 'notifications-outline',
       label: 'Bildirişlər',
-      onPress: () => Alert.alert('Bildirişlər', 'Tezliklə əlçatan olacaq.'),
+      onPress: async () => {
+        const token = user ? await registerForPushNotifications(user.id) : null;
+        if (token) {
+          Alert.alert('Bildirişlər aktivdir', 'Halalzur elanlarını alacaqsınız.');
+        } else {
+          Alert.alert(
+            'Bildirişlər deaktivdir',
+            'İcazə verilməyib, ya da bu build-də (Expo Go) native bildiriş modulu yoxdur. Ayarlar → Bildirişlər-dən aça bilərsiniz.'
+          );
+        }
+      },
     },
     {
       icon: 'flask-outline',
