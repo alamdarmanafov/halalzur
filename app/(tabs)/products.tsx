@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,9 +9,19 @@ import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
+const CATEGORIES: { label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { label: 'Hamısı', icon: 'apps-outline' },
+  { label: 'Şirniyyat', icon: 'ice-cream-outline' },
+  { label: 'Çörək', icon: 'nutrition-outline' },
+  { label: 'İçki', icon: 'cafe-outline' },
+  { label: 'Süd məhsulları', icon: 'water-outline' },
+  { label: 'Kosmetika', icon: 'sparkles-outline' },
+];
+
 export default function ProductsScreen() {
   const { history } = useHistory();
   const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('Hamısı');
   const [results, setResults] = useState<CertificationResult[]>(getAllProducts());
 
   useEffect(() => {
@@ -24,11 +34,11 @@ export default function ProductsScreen() {
     };
   }, [query]);
 
-  const data = useMemo(() => (query ? results : history.length ? history : results), [
-    query,
-    results,
-    history,
-  ]);
+  const data = useMemo(() => {
+    const base = query ? results : history.length ? history : results;
+    if (category === 'Hamısı') return base;
+    return base.filter((item) => item.category.toLowerCase().includes(category.toLowerCase()));
+  }, [query, results, history, category]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -43,6 +53,29 @@ export default function ProductsScreen() {
           style={styles.searchInput}
         />
       </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.categoryRow}
+        contentContainerStyle={{ gap: spacing.sm }}
+      >
+        {CATEGORIES.map((c) => {
+          const active = c.label === category;
+          return (
+            <Pressable
+              key={c.label}
+              style={[styles.categoryChip, active && styles.categoryChipActive]}
+              onPress={() => setCategory(c.label)}
+            >
+              <Ionicons name={c.icon} size={14} color={active ? colors.white : colors.primaryDark} />
+              <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>
+                {c.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
 
       {!query && (
         <Text style={styles.sectionLabel}>
@@ -98,6 +131,19 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   searchInput: { flex: 1, fontSize: typography.body.fontSize, color: colors.black },
+  categoryRow: { marginTop: spacing.md, flexGrow: 0 },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+  },
+  categoryChipActive: { backgroundColor: colors.primary },
+  categoryChipText: { ...typography.small, color: colors.primaryDark, fontWeight: '700' },
+  categoryChipTextActive: { color: colors.white },
   sectionLabel: {
     ...typography.small,
     color: colors.gray,

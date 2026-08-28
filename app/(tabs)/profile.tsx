@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../lib/auth-context';
 import { useHistory } from '../../lib/history-context';
+import { useFavorites } from '../../lib/favorites-context';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 type MenuItem = {
@@ -17,6 +18,7 @@ type MenuItem = {
 export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const { history, clear } = useHistory();
+  const { favorites } = useFavorites();
   const isPremium = user?.plan === 'premium';
 
   const menuItems: MenuItem[] = [
@@ -24,6 +26,11 @@ export default function ProfileScreen() {
       icon: 'time-outline',
       label: `Skan tarixçəsi (${history.length})`,
       onPress: () => router.push('/(tabs)/products'),
+    },
+    {
+      icon: 'heart-outline',
+      label: `Favoritlər (${favorites.length})`,
+      onPress: () => router.push('/favorites'),
     },
     {
       icon: 'notifications-outline',

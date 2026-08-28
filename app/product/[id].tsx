@@ -4,25 +4,28 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { lookupBarcode } from '../../lib/certification';
+import { lookupBarcode, statusDescription } from '../../lib/certification';
 import { extractECodesFromText } from '../../lib/eCodes';
 import { recognizeIngredientText } from '../../lib/ocr';
 import { hasInternetConnection } from '../../lib/network';
+import { useFavorites } from '../../lib/favorites-context';
 import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
 import { ECodeCard } from '../../components/ECodeCard';
 import { Button } from '../../components/Button';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
+// unknown shares mushbooh's yellow tint — see components/StatusBadge.tsx
 const STATUS_TINT: Record<CertificationResult['status'], string> = {
   halal: colors.primary,
   haram: colors.danger,
   mushbooh: colors.warning,
-  unknown: colors.gray,
+  unknown: colors.warning,
 };
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const [product, setProduct] = useState<CertificationResult | null>(null);
   const [manualIngredients, setManualIngredients] = useState('');
   const [ingredientPhoto, setIngredientPhoto] = useState<string | null>(null);
@@ -117,6 +120,13 @@ export default function ProductDetailScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.black} />
         </Pressable>
+        <Pressable onPress={() => toggleFavorite(product)} style={styles.backBtn}>
+          <Ionicons
+            name={isFavorite(product.barcode) ? 'heart' : 'heart-outline'}
+            size={22}
+            color={isFavorite(product.barcode) ? colors.danger : colors.black}
+          />
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }}>
@@ -129,6 +139,7 @@ export default function ProductDetailScreen() {
           <View style={{ marginTop: spacing.sm }}>
             <StatusBadge status={product.status} />
           </View>
+          <Text style={styles.statusDesc}>{statusDescription[product.status]}</Text>
         </View>
 
         <View style={[styles.certifierCard, { borderColor: tint }]}>
@@ -242,7 +253,13 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl },
   offlineTitle: { ...typography.h3, color: colors.black, marginTop: spacing.md, textAlign: 'center' },
   offlineBody: { ...typography.small, color: colors.gray, marginTop: spacing.xs, textAlign: 'center' },
-  header: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
   backBtn: {
     width: 40,
     height: 40,
@@ -255,6 +272,14 @@ const styles = StyleSheet.create({
   emoji: { fontSize: 56 },
   name: { ...typography.h1, color: colors.black, marginTop: spacing.sm, textAlign: 'center', paddingHorizontal: spacing.lg },
   brand: { ...typography.body, color: colors.gray, marginTop: 4 },
+  statusDesc: {
+    ...typography.small,
+    color: colors.gray,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    lineHeight: 18,
+  },
   certifierCard: {
     flexDirection: 'row',
     gap: spacing.md,
