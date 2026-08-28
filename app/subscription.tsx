@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useIAP, ErrorCode } from 'react-native-iap';
 import { Logo } from '../components/Logo';
 import { Button } from '../components/Button';
+import { PremiumSuccessOverlay } from '../components/PremiumSuccessOverlay';
 import { useAuth } from '../lib/auth-context';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
@@ -68,6 +69,7 @@ export default function SubscriptionScreen() {
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [iapError, setIapError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const {
     connected,
@@ -82,8 +84,7 @@ export default function SubscriptionScreen() {
       try {
         await finishTransaction({ purchase, isConsumable: false });
         await setPlan('premium');
-        Alert.alert('Təbriklər!', 'Premium abunəlik aktivləşdi.');
-        router.back();
+        setShowSuccess(true);
       } finally {
         setPurchasing(false);
       }
@@ -248,6 +249,14 @@ export default function SubscriptionScreen() {
           </Pressable>
         </View>
       </ScrollView>
+
+      <PremiumSuccessOverlay
+        visible={showSuccess}
+        onDone={() => {
+          setShowSuccess(false);
+          router.back();
+        }}
+      />
     </SafeAreaView>
   );
 }
