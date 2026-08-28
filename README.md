@@ -192,3 +192,35 @@ mövzuya abunə olur (`lib/notifications.ts`).
 4. **App ikon/splash PNG-ləri** — `assets/` içindəki fayllar hələ default
    Expo şablonundandır. `components/Logo.tsx`-dəki SVG-ni əsas götürüb
    Figma/Canva-da 1024×1024 PNG ixrac edin və həmin faylları əvəz edin.
+
+## Sayt (halalzur.com) və admin panel — Vercel-ə yükləmə
+
+Bu repoda iki ayrı statik sayt var, **ikisi də ayrıca Vercel layihəsi olmalıdır**
+ki, admin panel əsas domendə (halalzur.com) görünməsin:
+
+| Qovluq | Nə üçündür | Domen |
+| --- | --- | --- |
+| `website/` | halalzur.com marketing saytı, erkən giriş (waitlist) formu | `halalzur.com` |
+| `admin-panel/` | Məhsul təkliflərinə baxıb təsdiq/rədd etmə paneli | Vercel-in verdiyi default `*.vercel.app` linki (öz domen bağlamayın) |
+
+Hər ikisi sırf statik HTML-dir (build addımı yoxdur), ona görə Vercel-də:
+
+1. **Sayt üçün**: vercel.com → **Add New Project** → bu repo-nu seçin →
+   **Root Directory**-ni `website` olaraq təyin edin → Framework Preset:
+   **Other** (build command boş qala bilər) → Deploy.
+   Deploy olduqdan sonra **Settings → Domains**-dən `halalzur.com`-u əlavə
+   edin (domeni aldıqdan sonra).
+2. **Admin panel üçün**: eyni repo ilə **ikinci, ayrı** bir layihə yaradın →
+   **Root Directory**-ni `admin-panel` olaraq təyin edin → Deploy edin.
+   Bu layihəyə **heç bir custom domen bağlamayın** — Vercel-in verdiyi
+   default `halalzur-admin-xxxx.vercel.app` linkindən istifadə edin və bu
+   linki yalnız özünüzlə paylaşın.
+
+**Admin panelin şifrəsini dəyişin**: `admin-panel/index.html` faylında
+`ADMIN_PASSPHRASE` sabitini tapıb öz şifrənizlə əvəz edin, sonra push edin.
+Bu, real backend autentifikasiyası deyil (fayl mənbəyində görünür) — sadəcə
+panelin təsadüfi tapılmasının qarşısını alır. `product_submissions`,
+`certified_entries` və `user_points` cədvəllərinin RLS siyasətləri hazırda
+`anon` açarı ilə oxuma/yazmaya icazə verir (bax `supabase/schema.sql`-dəki
+SECURITY CAVEAT qeydi) — ictimai buraxılışdan əvvəl bunu real Supabase Auth
+əsaslı admin roluna keçirmək lazımdır.

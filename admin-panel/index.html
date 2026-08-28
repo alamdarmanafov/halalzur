@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="az">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Halalzur Admin</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23119E4B'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #F3F7F4;
+    --surface: #FFFFFF;
+    --surface-2: #EEF6F1;
+    --ink: #10241A;
+    --ink-muted: #5B6F63;
+    --border: #DEE8E2;
+
+    --brand-dark: #0A4D2E;
+    --brand: #119E4B;
+    --brand-accent: #7CFC00;
+    --brand-surface: #E8F7ED;
+
+    --ok: #119E4B;
+    --ok-bg: #E8F7ED;
+    --warn: #B7791F;
+    --warn-bg: #FBF2DE;
+    --bad: #C0362C;
+    --bad-bg: #FBE7E4;
+
+    --shadow-color: 16, 36, 26;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0A1712;
+      --surface: #10201780;
+      --surface-2: #142B20;
+      --ink: #EAF3EC;
+      --ink-muted: #8FA79A;
+      --border: #223A2C;
+      --ok-bg: #123723;
+      --warn-bg: #3A2C10;
+      --bad-bg: #3A1815;
+      --shadow-color: 0, 0, 0;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0A1712;
+    --surface: #10201780;
+    --surface-2: #142B20;
+    --ink: #EAF3EC;
+    --ink-muted: #8FA79A;
+    --border: #223A2C;
+    --ok-bg: #123723;
+    --warn-bg: #3A2C10;
+    --bad-bg: #3A1815;
+    --shadow-color: 0, 0, 0;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: "Manrope", sans-serif; margin: 0; }
+  p { margin: 0; }
+  button { font-family: inherit; }
+
+  [hidden] { display: none !important; }
+
+  /* ---- gate ---- */
+  #gate {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+  }
+  .gate-card {
+    width: 100%; max-width: 360px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 32px 28px; box-shadow: 0 24px 48px -24px rgba(var(--shadow-color), 0.35);
+  }
+  .gate-logo { width: 44px; height: 44px; border-radius: 12px; margin-bottom: 18px; }
+  .gate-card h1 { font-size: 20px; margin-bottom: 6px; }
+  .gate-card p.hint { color: var(--ink-muted); font-size: 14px; line-height: 1.5; margin-bottom: 20px; }
+  .gate-card input {
+    width: 100%; padding: 12px 14px; border-radius: 10px; border: 1.5px solid var(--border);
+    background: var(--bg); color: var(--ink); font-size: 15px; outline: none; margin-bottom: 12px;
+  }
+  .gate-card input:focus { border-color: var(--brand); }
+  .gate-card button.primary {
+    width: 100%; padding: 12px; border-radius: 10px; border: none; cursor: pointer;
+    background: linear-gradient(135deg, var(--brand-dark), var(--brand)); color: #fff;
+    font-weight: 700; font-size: 15px;
+  }
+  .gate-error { color: var(--bad); font-size: 13.5px; margin-top: 10px; min-height: 18px; }
+
+  /* ---- app chrome ---- */
+  #app { min-height: 100vh; }
+  header.topbar {
+    position: sticky; top: 0; z-index: 10; background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-row {
+    max-width: 1040px; margin: 0 auto; padding: 0 24px; height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand svg { width: 26px; height: 26px; border-radius: 7px; }
+  .brand b { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 16.5px; }
+  .brand b span { color: var(--brand); }
+  .brand small { display: block; color: var(--ink-muted); font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }
+  .logout-btn {
+    background: transparent; border: 1.5px solid var(--border); color: var(--ink-muted);
+    padding: 8px 14px; border-radius: 999px; font-size: 13.5px; font-weight: 600; cursor: pointer;
+  }
+  .logout-btn:hover { color: var(--ink); border-color: var(--ink-muted); }
+
+  main { max-width: 1040px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 28px; }
+  @media (max-width: 640px) { .stats-row { grid-template-columns: 1fr; } }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 18px 20px;
+  }
+  .stat-card .num { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 28px; font-variant-numeric: tabular-nums; }
+  .stat-card .label { color: var(--ink-muted); font-size: 13px; font-weight: 600; margin-top: 4px; }
+
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+  .panel-head h2 { font-size: 19px; }
+  .panel-head span { color: var(--ink-muted); font-size: 13.5px; }
+
+  #refreshMsg { color: var(--ink-muted); font-size: 13.5px; margin-bottom: 16px; min-height: 18px; }
+
+  .cards { display: flex; flex-direction: column; gap: 14px; }
+  .submission-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px;
+  }
+  .sc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .sc-title { font-family: "Manrope", sans-serif; font-weight: 700; font-size: 16.5px; }
+  .sc-sub { color: var(--ink-muted); font-size: 13.5px; margin-top: 2px; }
+  .status-pill {
+    font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 999px; white-space: nowrap;
+  }
+  .status-pill.halal { color: var(--ok); background: var(--ok-bg); }
+  .status-pill.mushbooh, .status-pill.unknown { color: var(--warn); background: var(--warn-bg); }
+  .status-pill.haram { color: var(--bad); background: var(--bad-bg); }
+
+  .sc-meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font-size: 13.5px; color: var(--ink-muted); margin-bottom: 12px; }
+  .sc-meta b { color: var(--ink); font-weight: 600; }
+  .sc-ingredients { font-size: 13.5px; color: var(--ink-muted); line-height: 1.5; margin-bottom: 14px; }
+  .sc-ingredients b { color: var(--ink); }
+  .sc-notes {
+    font-size: 13.5px; color: var(--ink); background: var(--surface-2); border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 14px; line-height: 1.5;
+  }
+
+  .sc-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn {
+    border: none; border-radius: 10px; padding: 10px 18px; font-weight: 700; font-size: 14px; cursor: pointer;
+  }
+  .btn:disabled { opacity: 0.55; cursor: default; }
+  .btn-approve { background: var(--brand); color: #fff; }
+  .btn-reject { background: var(--bad-bg); color: var(--bad); }
+
+  .empty-state {
+    text-align: center; padding: 56px 20px; color: var(--ink-muted); background: var(--surface);
+    border: 1px dashed var(--border); border-radius: 16px; font-size: 14.5px;
+  }
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: var(--bg); padding: 12px 20px; border-radius: 999px;
+    font-size: 13.5px; font-weight: 600; box-shadow: 0 12px 30px -10px rgba(0,0,0,0.4);
+    opacity: 0; pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
+  .caveat {
+    margin-top: 40px; font-size: 12.5px; color: var(--ink-muted); line-height: 1.6;
+    border-top: 1px solid var(--border); padding-top: 16px;
+  }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <form class="gate-card" id="gateForm">
+    <svg class="gate-logo" viewBox="0 0 100 100"><defs><linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0A4D2E"/><stop offset="55%" stop-color="#119E4B"/><stop offset="100%" stop-color="#7CFC00"/></linearGradient></defs><rect width="100" height="100" rx="22" fill="url(#lg)"/><path d="M50 30 l16 20 l-30 0 z" fill="none"/><rect x="35" y="26" width="11" height="48" fill="#fff"/><path d="M46 26 h8 v18 h4 v-18 h4 v22 h-16 z" fill="#fff"/><path d="M50 52 l11 13 l20 -26" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+    <h1>Halalzur Admin</h1>
+    <p class="hint">Bu panel məhsul təkliflərinə baxmaq və təsdiqləmək üçündür. Giriş şifrəsini daxil edin.</p>
+    <input type="password" id="passInput" placeholder="Admin şifrəsi" autocomplete="current-password" />
+    <button type="submit" class="primary">Daxil ol</button>
+    <div class="gate-error" id="gateError"></div>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="topbar-row">
+      <div class="brand">
+        <svg viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#119E4B"/><rect x="35" y="26" width="11" height="48" fill="#fff"/><path d="M46 26 h8 v18 h4 v-18 h4 v22 h-16 z" fill="#fff"/><path d="M50 52 l11 13 l20 -26" stroke="#7CFC00" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+        <div>
+          <b>Halal<span>zur</span></b>
+          <small>Admin panel</small>
+        </div>
+      </div>
+      <button class="logout-btn" id="logoutBtn">Çıxış</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="stats-row">
+      <div class="stat-card"><div class="num" id="statPending">–</div><div class="label">Gözləyən təklif</div></div>
+      <div class="stat-card"><div class="num" id="statApproved">–</div><div class="label">Təsdiqlənib (cəmi)</div></div>
+      <div class="stat-card"><div class="num" id="statRejected">–</div><div class="label">Rədd edilib (cəmi)</div></div>
+    </div>
+
+    <div class="panel-head">
+      <h2>Gözləyən məhsul təklifləri</h2>
+      <span id="pendingCountLabel"></span>
+    </div>
+    <div id="refreshMsg">Yüklənir…</div>
+    <div class="cards" id="cards"></div>
+    <div class="empty-state" id="emptyState" hidden>Hazırda gözləyən təklif yoxdur.</div>
+
+    <p class="caveat">
+      Qeyd: bu panel yalnız şifrə ilə qorunur — Halalzur-un hazırkı backend-i real istifadəçi autentifikasiyası
+      (Supabase Auth) istifadə etmir, ona görə bu, əsl giriş nəzarəti deyil, sadəcə panelin təsadüfi ziyarətçilərdən
+      gizlədilməsidir. İctimai buraxılışdan əvvəl real admin rolu ilə əvəz olunmalıdır.
+    </p>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ---- config ----
+  var SUPABASE_URL = "https://szizepjcospoygnjmxwz.supabase.co";
+  var SUPABASE_ANON_KEY = "sb_publishable_YSxBg5SQveiZrRU6H65mVg_Ea4gp2Pl";
+  var POINTS_PER_APPROVAL = 10;
+
+  // Client-side-only gate — same caveat as lib/admin.ts in the app. Anyone
+  // who reads this file's source can see the panel is only guarded by a
+  // string comparison, not a real backend session. Change this before
+  // sharing the panel's URL with anyone but yourself.
+  var ADMIN_PASSPHRASE = "halalzur-2026";
+  var SESSION_KEY = "halalzur_admin_session";
+
+  var STATUS_LABEL = { halal: "🟢 Halal", mushbooh: "🟡 Şübhəli", unknown: "🟡 Naməlum", haram: "🔴 Məsləhət görülmür" };
+
+  function toast(msg) {
+    var el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { el.classList.remove("show"); }, 2600);
+  }
+
+  function sb(path, opts) {
+    opts = opts || {};
+    var headers = Object.assign(
+      { "apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+      opts.headers || {}
+    );
+    return fetch(SUPABASE_URL + "/rest/v1/" + path, {
+      method: opts.method || "GET",
+      headers: headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    }).then(function (res) {
+      if (!res.ok) return res.text().then(function (t) { throw new Error(t || res.statusText); });
+      var ct = res.headers.get("content-type") || "";
+      return ct.indexOf("application/json") !== -1 ? res.json() : null;
+    });
+  }
+
+  // ---- gate ----
+  var gateEl = document.getElementById("gate");
+  var appEl = document.getElementById("app");
+  var gateForm = document.getElementById("gateForm");
+  var gateError = document.getElementById("gateError");
+
+  function enterApp() {
+    gateEl.hidden = true;
+    appEl.hidden = false;
+    loadAll();
+  }
+
+  if (sessionStorage.getItem(SESSION_KEY) === "1") {
+    enterApp();
+  }
+
+  gateForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var val = document.getElementById("passInput").value;
+    if (val === ADMIN_PASSPHRASE) {
+      sessionStorage.setItem(SESSION_KEY, "1");
+      gateError.textContent = "";
+      enterApp();
+    } else {
+      gateError.textContent = "Şifrə səhvdir.";
+    }
+  });
+
+  document.getElementById("logoutBtn").addEventListener("click", function () {
+    sessionStorage.removeItem(SESSION_KEY);
+    appEl.hidden = true;
+    gateEl.hidden = false;
+    document.getElementById("passInput").value = "";
+  });
+
+  // ---- data ----
+  function loadAll() {
+    document.getElementById("refreshMsg").textContent = "Yüklənir…";
+    Promise.all([
+      sb("product_submissions?review_status=eq.pending&order=created_at.asc&select=*"),
+      sb("product_submissions?review_status=eq.approved&select=id"),
+      sb("product_submissions?review_status=eq.rejected&select=id"),
+    ])
+      .then(function (results) {
+        var pending = results[0] || [];
+        document.getElementById("statPending").textContent = pending.length;
+        document.getElementById("statApproved").textContent = (results[1] || []).length;
+        document.getElementById("statRejected").textContent = (results[2] || []).length;
+        renderCards(pending);
+        document.getElementById("refreshMsg").textContent = "";
+      })
+      .catch(function (err) {
+        document.getElementById("refreshMsg").textContent = "Xəta: " + err.message;
+      });
+  }
+
+  function renderCards(list) {
+    var container = document.getElementById("cards");
+    var empty = document.getElementById("emptyState");
+    document.getElementById("pendingCountLabel").textContent = list.length + " gözləyir";
+    container.innerHTML = "";
+    if (!list.length) {
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = true;
+    list.forEach(function (row) {
+      container.appendChild(buildCard(row));
+    });
+  }
+
+  function esc(s) {
+    var d = document.createElement("div");
+    d.textContent = s == null ? "" : s;
+    return d.innerHTML;
+  }
+
+  function buildCard(row) {
+    var card = document.createElement("div");
+    card.className = "submission-card";
+
+    var statusClass = row.suggested_status || "unknown";
+    var ingredients = (row.ingredients || []).join(", ");
+
+    card.innerHTML =
+      '<div class="sc-top">' +
+        '<div>' +
+          '<div class="sc-title">' + esc(row.product_name) + '</div>' +
+          '<div class="sc-sub">' + esc(row.brand) + (row.category ? " · " + esc(row.category) : "") + '</div>' +
+        '</div>' +
+        '<span class="status-pill ' + statusClass + '">' + (STATUS_LABEL[statusClass] || statusClass) + '</span>' +
+      '</div>' +
+      '<div class="sc-meta">' +
+        '<span><b>Barkod:</b> ' + esc(row.barcode) + '</span>' +
+        '<span><b>Göndərən:</b> ' + esc(row.submitted_by_name || row.submitted_by) + '</span>' +
+        '<span><b>Tarix:</b> ' + new Date(row.created_at).toLocaleDateString("az-AZ") + '</span>' +
+      '</div>' +
+      (ingredients ? '<div class="sc-ingredients"><b>Tərkib:</b> ' + esc(ingredients) + '</div>' : '') +
+      (row.notes ? '<div class="sc-notes">' + esc(row.notes) + '</div>' : '') +
+      '<div class="sc-actions">' +
+        '<button class="btn btn-approve" data-action="approve">Təsdiqlə (+' + POINTS_PER_APPROVAL + ' xal)</button>' +
+        '<button class="btn btn-reject" data-action="reject">Rədd et</button>' +
+      '</div>';
+
+    card.querySelector('[data-action="approve"]').addEventListener("click", function (e) {
+      approveSubmission(row, card, e.target);
+    });
+    card.querySelector('[data-action="reject"]').addEventListener("click", function (e) {
+      rejectSubmission(row, card, e.target);
+    });
+
+    return card;
+  }
+
+  function setCardBusy(card, busy) {
+    card.querySelectorAll("button").forEach(function (b) { b.disabled = busy; });
+  }
+
+  function approveSubmission(row, card, btn) {
+    setCardBusy(card, true);
+    btn.textContent = "Təsdiqlənir…";
+
+    sb("certified_entries", {
+      method: "POST",
+      body: {
+        entry_type: "product",
+        barcode: row.barcode,
+        product_name: row.product_name,
+        brand: row.brand,
+        category: row.category,
+        status: row.suggested_status,
+        certifier_id: "halalzur",
+        certificate_number: null,
+        verified_at: new Date().toISOString().slice(0, 10),
+        ingredients: row.ingredients || [],
+        notes: row.notes,
+        source_url: null,
+      },
+    })
+      .then(function () {
+        return sb("product_submissions?id=eq." + row.id, {
+          method: "PATCH",
+          headers: { "Prefer": "return=minimal" },
+          body: { review_status: "approved", reviewed_at: new Date().toISOString() },
+        });
+      })
+      .then(function () {
+        return sb("user_points?user_id=eq." + encodeURIComponent(row.submitted_by) + "&select=points");
+      })
+      .then(function (existing) {
+        var current = (existing && existing[0] && existing[0].points) || 0;
+        return sb("user_points", {
+          method: "POST",
+          headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
+          body: {
+            user_id: row.submitted_by,
+            user_name: row.submitted_by_name,
+            points: current + POINTS_PER_APPROVAL,
+            updated_at: new Date().toISOString(),
+          },
+        });
+      })
+      .then(function () {
+        toast("Təsdiqləndi: " + row.product_name);
+        card.remove();
+        loadAll();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        setCardBusy(card, false);
+        btn.textContent = "Təsdiqlə (+" + POINTS_PER_APPROVAL + " xal)";
+      });
+  }
+
+  function rejectSubmission(row, card, btn) {
+    var note = window.prompt("Rədd səbəbi (istəyə bağlı):", "");
+    if (note === null) return;
+    setCardBusy(card, true);
+    btn.textContent = "Rədd edilir…";
+
+    sb("product_submissions?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { review_status: "rejected", reviewed_at: new Date().toISOString(), admin_notes: note || null },
+    })
+      .then(function () {
+        toast("Rədd edildi: " + row.product_name);
+        card.remove();
+        loadAll();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        setCardBusy(card, false);
+        btn.textContent = "Rədd et";
+      });
+  }
+</script>
+
+</body>
+</html>
