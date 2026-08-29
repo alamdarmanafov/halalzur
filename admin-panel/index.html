@@ -308,6 +308,46 @@
     <div class="cards" id="placeCards" style="margin-top: 20px;"></div>
     <div class="empty-state" id="placesEmptyState" hidden>Hələ heç bir məkan əlavə edilməyib.</div>
 
+    <div class="panel-head" style="margin-top: 48px;">
+      <h2>Bildirişlər</h2>
+      <span id="announcementsCountLabel"></span>
+    </div>
+    <p style="font-size: 13px; color: var(--ink-muted); margin: -8px 0 16px; line-height: 1.5;">
+      Bu, app-i açanda istifadəçilərə göstərilən popup-dır (yeni versiya, kampaniya, ümumi məlumat və s.) — real
+      push bildirişi deyil. Yalnız bir bildiriş "aktiv" ola bilər, ən son aktiv olan göstərilir.
+    </p>
+
+    <form class="place-form" id="announcementForm">
+      <div class="field-grid">
+        <div class="field field-wide">
+          <label for="annTitle">Başlıq</label>
+          <input type="text" id="annTitle" placeholder="Məs. Yeni versiya çıxdı!" required />
+        </div>
+        <div class="field field-wide">
+          <label for="annBody">Mətn</label>
+          <textarea id="annBody" rows="3" placeholder="Məs. Halalzur-a Məkanlar bölməsi əlavə olundu — yaxınlıqdakı halal restoranları kəşf edin." required></textarea>
+        </div>
+        <div class="field">
+          <label for="annCtaLabel">Düymə mətni (istəyə bağlı)</label>
+          <input type="text" id="annCtaLabel" placeholder="Məs. Premium al" />
+        </div>
+        <div class="field">
+          <label for="annCtaRoute">Düymə hara aparsın</label>
+          <select id="annCtaRoute">
+            <option value="">Düymə olmasın</option>
+            <option value="/subscription">Premium/Abunəlik ekranı</option>
+            <option value="/places">Məkanlar ekranı</option>
+            <option value="/ecodes">E-kod bələdçisi</option>
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-approve" style="margin-top: 12px;">Bildirişi dərc et</button>
+      <div class="gate-error" id="announcementFormError"></div>
+    </form>
+
+    <div class="cards" id="announcementCards" style="margin-top: 20px;"></div>
+    <div class="empty-state" id="announcementsEmptyState" hidden>Hələ heç bir bildiriş yaradılmayıb.</div>
+
     <p class="caveat">
       Qeyd: giriş e-poçtu/şifrəsi artıq server tərəfində (Vercel funksiyası, environment variable) yoxlanılır — bu
       faylda açıq görünmür. Amma aşağıdakı təsdiq/rədd əməliyyatları hələ də Supabase-in anon açarı ilə birbaşa
@@ -368,6 +408,7 @@
     appEl.hidden = false;
     loadAll();
     loadPlaces();
+    loadAnnouncements();
   }
 
   if (sessionStorage.getItem(SESSION_KEY) === "1") {
@@ -682,6 +723,154 @@
       .finally(function () {
         submitBtn.disabled = false;
         submitBtn.textContent = "Məkanı əlavə et";
+      });
+  });
+
+  // ---- announcements ----
+  var CTA_ROUTE_LABEL = {
+    "/subscription": "Premium/Abunəlik ekranı",
+    "/places": "Məkanlar ekranı",
+    "/ecodes": "E-kod bələdçisi",
+  };
+
+  function loadAnnouncements() {
+    sb("announcements?order=created_at.desc&select=*")
+      .then(function (rows) {
+        renderAnnouncementCards(rows || []);
+      })
+      .catch(function (err) {
+        toast("Bildirişlər yüklənmədi: " + err.message);
+      });
+  }
+
+  function renderAnnouncementCards(list) {
+    var container = document.getElementById("announcementCards");
+    var empty = document.getElementById("announcementsEmptyState");
+    document.getElementById("announcementsCountLabel").textContent = list.length + " bildiriş";
+    container.innerHTML = "";
+    if (!list.length) {
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = true;
+    list.forEach(function (row) {
+      container.appendChild(buildAnnouncementCard(row));
+    });
+  }
+
+  function buildAnnouncementCard(row) {
+    var card = document.createElement("div");
+    card.className = "place-card";
+    var statusText = row.active ? "🟢 Aktiv (göstərilir)" : "⚪️ Deaktiv";
+    var ctaText = row.cta_label
+      ? esc(row.cta_label) + " → " + (CTA_ROUTE_LABEL[row.cta_route] || row.cta_route || "—")
+      : "Düymə yoxdur";
+    card.innerHTML =
+      '<div>' +
+        '<div class="pc-title">' + esc(row.title) + '</div>' +
+        '<div class="pc-sub">' + statusText + ' · ' + new Date(row.created_at).toLocaleDateString("az-AZ") + '</div>' +
+        '<div class="pc-note">' + esc(row.body) + '</div>' +
+        '<div class="pc-sub" style="margin-top:6px;">' + ctaText + '</div>' +
+      '</div>' +
+      '<div style="display:flex; flex-direction:column; gap:6px;">' +
+        '<button class="place-delete-btn" data-action="toggle" style="background:var(--ok-bg); color:var(--ok);">' +
+          (row.active ? "Deaktiv et" : "Aktiv et") +
+        '</button>' +
+        '<button class="place-delete-btn" data-action="delete-ann">Sil</button>' +
+      '</div>';
+
+    card.querySelector('[data-action="toggle"]').addEventListener("click", function (e) {
+      toggleAnnouncement(row, e.target);
+    });
+    card.querySelector('[data-action="delete-ann"]').addEventListener("click", function (e) {
+      deleteAnnouncement(row, card, e.target);
+    });
+    return card;
+  }
+
+  function toggleAnnouncement(row, btn) {
+    btn.disabled = true;
+    sb("announcements?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { active: !row.active },
+    })
+      .then(function () {
+        loadAnnouncements();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+      });
+  }
+
+  function deleteAnnouncement(row, card, btn) {
+    if (!window.confirm('"' + row.title + '" silinsin?')) return;
+    btn.disabled = true;
+    btn.textContent = "Silinir…";
+    sb("announcements?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+      .then(function () {
+        toast("Silindi: " + row.title);
+        card.remove();
+        loadAnnouncements();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+        btn.textContent = "Sil";
+      });
+  }
+
+  document.getElementById("announcementForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var errorEl = document.getElementById("announcementFormError");
+    errorEl.textContent = "";
+
+    var title = document.getElementById("annTitle").value.trim();
+    var body = document.getElementById("annBody").value.trim();
+    var ctaLabel = document.getElementById("annCtaLabel").value.trim();
+    var ctaRoute = document.getElementById("annCtaRoute").value;
+
+    if (!title || !body) {
+      errorEl.textContent = "Başlıq və mətn tələb olunur.";
+      return;
+    }
+
+    var submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Dərc edilir…";
+
+    // Only one announcement is meant to be active at a time — the app
+    // always shows the latest active one, so deactivate the rest first.
+    sb("announcements?active=eq.true", {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { active: false },
+    })
+      .then(function () {
+        return sb("announcements", {
+          method: "POST",
+          headers: { "Prefer": "return=minimal" },
+          body: {
+            title: title,
+            body: body,
+            cta_label: ctaLabel || null,
+            cta_route: ctaLabel ? ctaRoute || null : null,
+            active: true,
+          },
+        });
+      })
+      .then(function () {
+        toast("Bildiriş dərc edildi: " + title);
+        e.target.reset();
+        loadAnnouncements();
+      })
+      .catch(function (err) {
+        errorEl.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Bildirişi dərc et";
       });
   });
 </script>

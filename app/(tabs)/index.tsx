@@ -30,7 +30,14 @@ export default function ScanScreen() {
     async (barcode: string) => {
       if (lockRef.current || isBusy) return;
       if (limitReached) {
-        router.push('/subscription');
+        Alert.alert(
+          'Bugünkü limit bitdi',
+          'Pulsuz planda gündə 3 skan hüququnuz var. Sabah yenidən 3 pulsuz skan əldə edəcəksiniz — və ya limitsiz istifadə üçün Premium-a keçin.',
+          [
+            { text: 'Bağla', style: 'cancel' },
+            { text: 'Premium al', onPress: () => router.push('/subscription') },
+          ]
+        );
         return;
       }
       lockRef.current = true;

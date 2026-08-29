@@ -1,10 +1,11 @@
-import { useEffect } from 'react';
+import { Fragment, useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { Pressable, StyleSheet, GestureResponderEvent, AccessibilityState, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../lib/auth-context';
 import { registerForPushNotifications, onForegroundMessage } from '../../lib/notifications';
+import { AnnouncementModal } from '../../components/AnnouncementModal';
 import { colors, radius } from '../../constants/theme';
 
 const TAB_ICON_SIZE = 24;
@@ -43,16 +44,18 @@ export default function TabsLayout() {
   }, [user]);
 
   return (
-    <Tabs
-      initialRouteName="index"
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.gray,
-        tabBarStyle: { height: 88, paddingTop: 8, paddingBottom: 28 },
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
-      }}
-    >
+    <Fragment>
+      <AnnouncementModal />
+      <Tabs
+        initialRouteName="index"
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.gray,
+          tabBarStyle: { height: 88, paddingTop: 8, paddingBottom: 28 },
+          tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
+        }}
+      >
       <Tabs.Screen
         name="products"
         options={{
@@ -96,7 +99,8 @@ export default function TabsLayout() {
           ),
         }}
       />
-    </Tabs>
+      </Tabs>
+    </Fragment>
   );
 }
 

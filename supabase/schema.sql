@@ -185,3 +185,35 @@ create policy "Public update" on places
 
 create policy "Public delete" on places
   for delete using (true);
+
+-- In-app announcements ("yeni versiya çıxdı", promo, maintenance notice,
+-- etc.) — admin writes one from the admin panel, the app shows the latest
+-- active one as a popup the first time each user opens it after it's
+-- published (tracked locally per device via AsyncStorage, not here).
+-- This is separate from real OS push notifications: those already work
+-- today with zero backend code via the Firebase console (see the
+-- BROADCAST_TOPIC note in lib/notifications.ts) — this table is only for
+-- the in-app popup channel.
+create table announcements (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  body text not null,
+  cta_label text,
+  cta_route text,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+alter table announcements enable row level security;
+
+create policy "Public read" on announcements
+  for select using (true);
+
+create policy "Public insert" on announcements
+  for insert with check (true);
+
+create policy "Public update" on announcements
+  for update using (true) with check (true);
+
+create policy "Public delete" on announcements
+  for delete using (true);
