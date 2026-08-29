@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { createContext, useContext, useEffect, useMemo, useState, PropsWithChildren } from 'react';
 import { User } from './types';
+import { syncUser } from './userSync';
 
 const STORAGE_KEY = 'halalzur.user';
 
@@ -83,14 +84,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
             [credential.fullName?.givenName, credential.fullName?.familyName]
               .filter(Boolean)
               .join(' ') || 'Apple istifadəçisi';
-          await persist({
+          const appleUser: User = {
             id: `apple-${credential.user}`,
             name,
             email: credential.email ?? `${credential.user}@privaterelay.appleid.com`,
             plan: 'free',
             scansToday: 0,
             lastScanDate: null,
-          });
+          };
+          await persist(appleUser);
+          syncUser(appleUser);
         } catch (err: any) {
           if (err?.code === 'ERR_REQUEST_CANCELED') return;
           throw err;
@@ -107,7 +110,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
       },
       setPlan: async (plan) => {
         if (!user) return;
-        await persist({ ...user, plan });
+        const next = { ...user, plan };
+        await persist(next);
+        syncUser(next);
       },
       // Free-tier scan quota resets daily rather than persisting a running
       // total, so a user's local date (not a server clock) is the reset key.

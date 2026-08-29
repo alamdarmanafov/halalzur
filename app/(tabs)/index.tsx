@@ -9,6 +9,7 @@ import { BrandModal } from '../../components/BrandModal';
 import { useAuth } from '../../lib/auth-context';
 import { useHistory } from '../../lib/history-context';
 import { lookupBarcode } from '../../lib/certification';
+import { logScanEvent } from '../../lib/scanEvents';
 import { hasInternetConnection } from '../../lib/network';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
@@ -48,6 +49,7 @@ export default function ScanScreen() {
         }
         const result = await lookupBarcode(barcode);
         await addScan(result);
+        logScanEvent(result);
         if (!isPremium) await incrementScanCount();
         router.push({ pathname: '/product/[id]', params: { id: result.barcode } });
       } finally {

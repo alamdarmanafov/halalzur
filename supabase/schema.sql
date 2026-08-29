@@ -217,3 +217,50 @@ create policy "Public update" on announcements
 
 create policy "Public delete" on announcements
   for delete using (true);
+
+-- Mirrors lib/types.ts User for the admin panel's "İstifadəçilər" list.
+-- SCOPE CAVEAT: only synced for Apple Sign-In users (lib/userSync.ts) —
+-- email/password sign-in is still the demo-only stub in auth-context.tsx
+-- that hands every such user the same id ('local-user'), so syncing those
+-- would just overwrite one row instead of listing real people. `plan` is
+-- also self-reported by the client after StoreKit's on-device purchase
+-- flow, not verified server-side against Apple — same no-real-backend
+-- caveat as product_submissions above, not a source of billing truth.
+create table users (
+  id text primary key,
+  name text,
+  email text,
+  plan text not null default 'free' check (plan in ('free', 'premium')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table users enable row level security;
+
+create policy "Public read" on users
+  for select using (true);
+
+create policy "Public insert" on users
+  for insert with check (true);
+
+create policy "Public update" on users
+  for update using (true) with check (true);
+
+-- One row per successful scan — powers the admin panel's Dashboard
+-- (daily/weekly/monthly/yearly counts). Write-only from the app; no
+-- user_id column on purpose, this is aggregate usage volume, not a
+-- per-user history (lib/history-context.tsx already keeps that locally).
+create table scan_events (
+  id uuid primary key default gen_random_uuid(),
+  barcode text not null,
+  status halal_status,
+  created_at timestamptz not null default now()
+);
+
+alter table scan_events enable row level security;
+
+create policy "Public insert" on scan_events
+  for insert with check (true);
+
+create policy "Public read" on scan_events
+  for select using (true);
