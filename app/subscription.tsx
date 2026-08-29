@@ -56,7 +56,7 @@ const PLANS = {
 const PLAN_SKUS = Object.values(PLANS).map((p) => p.id);
 
 const FEATURES = [
-  { icon: 'infinite-outline', free: '3 skan / ay', premium: 'Limitsiz skan' },
+  { icon: 'infinite-outline', free: '3 skan / gün', premium: 'Limitsiz skan' },
   { icon: 'document-text-outline', free: 'Əsas nəticə', premium: 'Tam sertifikat detalları' },
   { icon: 'time-outline', free: '10 tarixçə', premium: 'Limitsiz tarixçə' },
   { icon: 'notifications-outline', free: '—', premium: 'Geri çağırma bildirişləri' },

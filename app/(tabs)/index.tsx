@@ -11,18 +11,20 @@ import { lookupBarcode } from '../../lib/certification';
 import { hasInternetConnection } from '../../lib/network';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
-const FREE_MONTHLY_SCAN_LIMIT = 3;
+const FREE_DAILY_SCAN_LIMIT = 3;
 const DEMO_BARCODES = ['8690504048068', '8690506042027', '4006381333931', '5449000000996'];
 
 export default function ScanScreen() {
-  const { user, setPlan } = useAuth();
+  const { user, incrementScanCount } = useAuth();
   const { addScan } = useHistory();
   const [permission, requestPermission] = useCameraPermissions();
   const [isBusy, setIsBusy] = useState(false);
   const lockRef = useRef(false);
 
   const isPremium = user?.plan === 'premium';
-  const limitReached = !isPremium && (user?.scansThisMonth ?? 0) >= FREE_MONTHLY_SCAN_LIMIT;
+  const today = new Date().toISOString().slice(0, 10);
+  const scansToday = user?.lastScanDate === today ? user?.scansToday ?? 0 : 0;
+  const limitReached = !isPremium && scansToday >= FREE_DAILY_SCAN_LIMIT;
 
   const handleBarcode = useCallback(
     async (barcode: string) => {
@@ -44,6 +46,7 @@ export default function ScanScreen() {
         }
         const result = await lookupBarcode(barcode);
         await addScan(result);
+        if (!isPremium) await incrementScanCount();
         router.push({ pathname: '/product/[id]', params: { id: result.barcode } });
       } finally {
         setIsBusy(false);
@@ -52,7 +55,7 @@ export default function ScanScreen() {
         }, 1200);
       }
     },
-    [isBusy, limitReached, addScan]
+    [isBusy, limitReached, addScan, incrementScanCount, isPremium]
   );
 
   const onScanned = useCallback(
@@ -118,7 +121,7 @@ export default function ScanScreen() {
       <LinearGradient colors={['transparent', 'rgba(10,77,46,0.9)']} style={styles.bottomOverlay}>
         {!isPremium && (
           <Text style={styles.quota}>
-            Bu ay {user?.scansThisMonth ?? 0}/{FREE_MONTHLY_SCAN_LIMIT} pulsuz skan istifadə olunub
+            Bu gün {scansToday}/{FREE_DAILY_SCAN_LIMIT} pulsuz skan istifadə olunub
           </Text>
         )}
         <Text style={styles.demoLabel}>Nümunə üçün toxunun:</Text>

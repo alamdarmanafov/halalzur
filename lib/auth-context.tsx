@@ -16,6 +16,7 @@ type AuthContextValue = {
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   setPlan: (plan: User['plan']) => Promise<void>;
+  incrementScanCount: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -53,7 +54,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
           name: email.split('@')[0] || 'İstifadəçi',
           email,
           plan: 'free',
-          scansThisMonth: 0,
+          scansToday: 0,
+          lastScanDate: null,
         });
       },
       signUp: async (name, email) => {
@@ -62,7 +64,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
           name,
           email,
           plan: 'free',
-          scansThisMonth: 0,
+          scansToday: 0,
+          lastScanDate: null,
         });
       },
       signInWithApple: async () => {
@@ -85,7 +88,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
             name,
             email: credential.email ?? `${credential.user}@privaterelay.appleid.com`,
             plan: 'free',
-            scansThisMonth: 0,
+            scansToday: 0,
+            lastScanDate: null,
           });
         } catch (err: any) {
           if (err?.code === 'ERR_REQUEST_CANCELED') return;
@@ -104,6 +108,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setPlan: async (plan) => {
         if (!user) return;
         await persist({ ...user, plan });
+      },
+      // Free-tier scan quota resets daily rather than persisting a running
+      // total, so a user's local date (not a server clock) is the reset key.
+      incrementScanCount: async () => {
+        if (!user) return;
+        const today = new Date().toISOString().slice(0, 10);
+        const scansToday = user.lastScanDate === today ? user.scansToday + 1 : 1;
+        await persist({ ...user, scansToday, lastScanDate: today });
       },
     }),
     [user, isLoading]

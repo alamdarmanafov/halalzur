@@ -28,7 +28,8 @@ export type User = {
   name: string;
   email: string;
   plan: SubscriptionPlan;
-  scansThisMonth: number;
+  scansToday: number;
+  lastScanDate: string | null; // 'YYYY-MM-DD', local date of the last counted scan
 };
 
 /**
