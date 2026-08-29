@@ -49,6 +49,7 @@
       ],
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
+      "expo-maps",
       [
         "expo-build-properties",
         {
