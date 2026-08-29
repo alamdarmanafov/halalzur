@@ -7,6 +7,8 @@ import { useAuth } from '../../lib/auth-context';
 import { registerForPushNotifications, onForegroundMessage } from '../../lib/notifications';
 import { colors, radius } from '../../constants/theme';
 
+const TAB_ICON_SIZE = 24;
+
 type ScanTabButtonProps = {
   onPress?: (e: GestureResponderEvent) => void;
   accessibilityState?: AccessibilityState;
@@ -55,14 +57,18 @@ export default function TabsLayout() {
         name="products"
         options={{
           title: 'Məhsullar',
-          tabBarIcon: ({ color, size }) => <Ionicons name="list" color={color} size={size} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'list' : 'list-outline'} color={color} size={TAB_ICON_SIZE} />
+          ),
         }}
       />
       <Tabs.Screen
         name="favorites"
         options={{
           title: 'Favoritlər',
-          tabBarIcon: ({ color, size }) => <Ionicons name="heart" color={color} size={size} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'heart' : 'heart-outline'} color={color} size={TAB_ICON_SIZE} />
+          ),
         }}
       />
       <Tabs.Screen
@@ -76,14 +82,18 @@ export default function TabsLayout() {
         name="places"
         options={{
           title: 'Məkanlar',
-          tabBarIcon: ({ color, size }) => <Ionicons name="location" color={color} size={size} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'location' : 'location-outline'} color={color} size={TAB_ICON_SIZE} />
+          ),
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profil',
-          tabBarIcon: ({ color, size }) => <Ionicons name="person" color={color} size={size} />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} color={color} size={TAB_ICON_SIZE} />
+          ),
         }}
       />
     </Tabs>
