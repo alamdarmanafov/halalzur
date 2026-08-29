@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Logo } from '../../components/Logo';
 import { Button } from '../../components/Button';
+import { BrandModal } from '../../components/BrandModal';
 import { useAuth } from '../../lib/auth-context';
 import { useHistory } from '../../lib/history-context';
 import { lookupBarcode } from '../../lib/certification';
@@ -19,6 +20,7 @@ export default function ScanScreen() {
   const { addScan } = useHistory();
   const [permission, requestPermission] = useCameraPermissions();
   const [isBusy, setIsBusy] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
   const lockRef = useRef(false);
 
   const isPremium = user?.plan === 'premium';
@@ -30,14 +32,7 @@ export default function ScanScreen() {
     async (barcode: string) => {
       if (lockRef.current || isBusy) return;
       if (limitReached) {
-        Alert.alert(
-          'Bugünkü limit bitdi',
-          'Pulsuz planda gündə 3 skan hüququnuz var. Sabah yenidən 3 pulsuz skan əldə edəcəksiniz — və ya limitsiz istifadə üçün Premium-a keçin.',
-          [
-            { text: 'Bağla', style: 'cancel' },
-            { text: 'Premium al', onPress: () => router.push('/subscription') },
-          ]
-        );
+        setShowLimitModal(true);
         return;
       }
       lockRef.current = true;
@@ -140,6 +135,18 @@ export default function ScanScreen() {
           ))}
         </View>
       </LinearGradient>
+
+      <BrandModal
+        visible={showLimitModal}
+        title="Bugünkü limit bitdi"
+        body="Pulsuz planda gündə 3 skan hüququnuz var. Sabah yenidən 3 pulsuz skan əldə edəcəksiniz — və ya limitsiz istifadə üçün Premium-a keçin."
+        ctaLabel="Premium al"
+        onCta={() => {
+          setShowLimitModal(false);
+          router.push('/subscription');
+        }}
+        onClose={() => setShowLimitModal(false)}
+      />
     </View>
   );
 }
