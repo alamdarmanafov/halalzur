@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, ScrollView } from 'react-native';
+import { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, Pressable, ScrollView, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { getPlacesByCategory, PLACE_CATEGORY_LABEL, PLACE_CATEGORY_ICON, PlaceCategory } from '../../lib/places';
+import { getPlacesByCategory, Place, PLACE_CATEGORY_LABEL, PLACE_CATEGORY_ICON, PlaceCategory } from '../../lib/places';
 import { StatusBadge } from '../../components/StatusBadge';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
@@ -15,7 +15,22 @@ const FILTERS: { key: PlaceCategory | 'hamısı'; label: string; icon: keyof typ
 
 export default function PlacesScreen() {
   const [filter, setFilter] = useState<PlaceCategory | 'hamısı'>('hamısı');
-  const data = useMemo(() => getPlacesByCategory(filter), [filter]);
+  const [data, setData] = useState<Place[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    getPlacesByCategory(filter).then((places) => {
+      if (active) {
+        setData(places);
+        setLoading(false);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [filter]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -49,10 +64,14 @@ export default function PlacesScreen() {
         contentContainerStyle={{ paddingBottom: spacing.xl, paddingTop: spacing.md }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="location-outline" size={32} color={colors.grayLight} />
-            <Text style={styles.emptyText}>Bu kateqoriyada məkan tapılmadı</Text>
-          </View>
+          loading ? (
+            <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+          ) : (
+            <View style={styles.empty}>
+              <Ionicons name="location-outline" size={32} color={colors.grayLight} />
+              <Text style={styles.emptyText}>Bu kateqoriyada məkan tapılmadı</Text>
+            </View>
+          )
         }
         renderItem={({ item }) => (
           <View style={styles.card}>

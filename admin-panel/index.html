@@ -175,6 +175,34 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
 
+  .place-form {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px;
+  }
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 640px) { .field-grid { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field-wide { grid-column: 1 / -1; }
+  .field label { font-size: 12.5px; font-weight: 600; color: var(--ink-muted); }
+  .field input, .field select, .field textarea {
+    padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--border);
+    background: var(--bg); color: var(--ink); font-size: 14.5px; font-family: inherit; outline: none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--brand); }
+  .field textarea { resize: vertical; }
+
+  .place-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px 20px;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  }
+  .place-card .pc-title { font-family: "Manrope", sans-serif; font-weight: 700; font-size: 15.5px; }
+  .place-card .pc-sub { color: var(--ink-muted); font-size: 13px; margin-top: 2px; }
+  .place-card .pc-note { font-size: 13px; color: var(--ink); margin-top: 8px; line-height: 1.5; }
+  .place-delete-btn {
+    border: none; background: var(--bad-bg); color: var(--bad); border-radius: 8px;
+    padding: 8px 12px; font-weight: 700; font-size: 13px; cursor: pointer; flex-shrink: 0;
+  }
+  .place-delete-btn:disabled { opacity: 0.55; cursor: default; }
+
   .caveat {
     margin-top: 40px; font-size: 12.5px; color: var(--ink-muted); line-height: 1.6;
     border-top: 1px solid var(--border); padding-top: 16px;
@@ -223,6 +251,62 @@
     <div id="refreshMsg">Yüklənir…</div>
     <div class="cards" id="cards"></div>
     <div class="empty-state" id="emptyState" hidden>Hazırda gözləyən təklif yoxdur.</div>
+
+    <div class="panel-head" style="margin-top: 48px;">
+      <h2>Məkanlar</h2>
+      <span id="placesCountLabel"></span>
+    </div>
+
+    <form class="place-form" id="placeForm">
+      <div class="field-grid">
+        <div class="field">
+          <label for="placeName">Ad</label>
+          <input type="text" id="placeName" placeholder="Məs. Şirvanşah Restoranı" required />
+        </div>
+        <div class="field">
+          <label for="placeCategory">Kateqoriya</label>
+          <select id="placeCategory">
+            <option value="restoran">Restoran</option>
+            <option value="kafe">Kafe</option>
+            <option value="coffee_shop">Coffee Shop</option>
+          </select>
+        </div>
+        <div class="field field-wide">
+          <label for="placeAddress">Ünvan</label>
+          <input type="text" id="placeAddress" placeholder="Məs. Nizami küç. 14, Bakı" required />
+        </div>
+        <div class="field">
+          <label for="placeLat">Enlik (latitude)</label>
+          <input type="text" inputmode="decimal" id="placeLat" placeholder="40.3728" required />
+        </div>
+        <div class="field">
+          <label for="placeLng">Uzunluq (longitude)</label>
+          <input type="text" inputmode="decimal" id="placeLng" placeholder="49.8442" required />
+        </div>
+        <div class="field">
+          <label for="placeStatus">Status</label>
+          <select id="placeStatus">
+            <option value="halal">Halal</option>
+            <option value="mushbooh">Şübhəli</option>
+            <option value="haram">Tövsiyə edilmir</option>
+            <option value="unknown">Naməlum</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="placeCertifier">Sertifikat orqanı (istəyə bağlı)</label>
+          <input type="text" id="placeCertifier" placeholder="Məs. GIMDES" />
+        </div>
+        <div class="field field-wide">
+          <label for="placeNote">Qeyd (istəyə bağlı)</label>
+          <textarea id="placeNote" rows="2" placeholder="Məs. Bütün ət sertifikatlı təchizatçıdandır."></textarea>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-approve" style="margin-top: 12px;">Məkanı əlavə et</button>
+      <div class="gate-error" id="placeFormError"></div>
+    </form>
+
+    <div class="cards" id="placeCards" style="margin-top: 20px;"></div>
+    <div class="empty-state" id="placesEmptyState" hidden>Hələ heç bir məkan əlavə edilməyib.</div>
 
     <p class="caveat">
       Qeyd: giriş e-poçtu/şifrəsi artıq server tərəfində (Vercel funksiyası, environment variable) yoxlanılır — bu
@@ -283,6 +367,7 @@
     gateEl.hidden = true;
     appEl.hidden = false;
     loadAll();
+    loadPlaces();
   }
 
   if (sessionStorage.getItem(SESSION_KEY) === "1") {
@@ -484,6 +569,121 @@
         btn.textContent = "Rədd et";
       });
   }
+
+  // ---- places ----
+  var PLACE_CATEGORY_LABEL = { restoran: "Restoran", kafe: "Kafe", coffee_shop: "Coffee Shop" };
+
+  function loadPlaces() {
+    sb("places?order=created_at.desc&select=*")
+      .then(function (rows) {
+        renderPlaceCards(rows || []);
+      })
+      .catch(function (err) {
+        toast("Məkanlar yüklənmədi: " + err.message);
+      });
+  }
+
+  function renderPlaceCards(list) {
+    var container = document.getElementById("placeCards");
+    var empty = document.getElementById("placesEmptyState");
+    document.getElementById("placesCountLabel").textContent = list.length + " məkan";
+    container.innerHTML = "";
+    if (!list.length) {
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = true;
+    list.forEach(function (row) {
+      container.appendChild(buildPlaceCard(row));
+    });
+  }
+
+  function buildPlaceCard(row) {
+    var card = document.createElement("div");
+    card.className = "place-card";
+    card.innerHTML =
+      '<div>' +
+        '<div class="pc-title">' + esc(row.name) + '</div>' +
+        '<div class="pc-sub">' + (STATUS_LABEL[row.status] || row.status) + ' · ' +
+          (PLACE_CATEGORY_LABEL[row.category] || row.category) + ' · ' + esc(row.address) + '</div>' +
+        (row.certifier_name ? '<div class="pc-sub">Sertifikat: ' + esc(row.certifier_name) + '</div>' : '') +
+        (row.note ? '<div class="pc-note">' + esc(row.note) + '</div>' : '') +
+      '</div>' +
+      '<button class="place-delete-btn" data-action="delete-place">Sil</button>';
+
+    card.querySelector('[data-action="delete-place"]').addEventListener("click", function (e) {
+      deletePlace(row, card, e.target);
+    });
+    return card;
+  }
+
+  function deletePlace(row, card, btn) {
+    if (!window.confirm('"' + row.name + '" silinsin?')) return;
+    btn.disabled = true;
+    btn.textContent = "Silinir…";
+    sb("places?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+      .then(function () {
+        toast("Silindi: " + row.name);
+        card.remove();
+        loadPlaces();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+        btn.textContent = "Sil";
+      });
+  }
+
+  document.getElementById("placeForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var errorEl = document.getElementById("placeFormError");
+    errorEl.textContent = "";
+
+    var name = document.getElementById("placeName").value.trim();
+    var address = document.getElementById("placeAddress").value.trim();
+    var lat = parseFloat(document.getElementById("placeLat").value);
+    var lng = parseFloat(document.getElementById("placeLng").value);
+    var category = document.getElementById("placeCategory").value;
+    var status = document.getElementById("placeStatus").value;
+    var certifier = document.getElementById("placeCertifier").value.trim();
+    var note = document.getElementById("placeNote").value.trim();
+
+    if (!name || !address || isNaN(lat) || isNaN(lng)) {
+      errorEl.textContent = "Ad, ünvan və düzgün enlik/uzunluq dəyərləri tələb olunur.";
+      return;
+    }
+
+    var submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Əlavə edilir…";
+
+    sb("places", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: {
+        name: name,
+        category: category,
+        status: status,
+        address: address,
+        latitude: lat,
+        longitude: lng,
+        certifier_name: certifier || null,
+        note: note || null,
+      },
+    })
+      .then(function () {
+        toast("Məkan əlavə edildi: " + name);
+        e.target.reset();
+        loadPlaces();
+      })
+      .catch(function (err) {
+        errorEl.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Məkanı əlavə et";
+      });
+  });
 </script>
 
 </body>

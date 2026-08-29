@@ -149,3 +149,39 @@ create policy "Public insert" on user_points
 
 create policy "Public update" on user_points
   for update using (true) with check (true);
+
+-- Halal-certified venues (restaurants/cafes/coffee shops) shown on the
+-- Xəritə/Məkanlar tabs. Unlike products, there's no automated sync for
+-- these yet — the admin adds each one by hand from the admin panel after
+-- verifying it themselves, so (unlike certified_entries) there is no
+-- pending-review queue here: a row in this table IS the published entry.
+-- Same RLS caveat as product_submissions above: no real backend auth, so
+-- writes go through the app's own anon key and are only gated by the
+-- admin panel's client-side login screen.
+create table places (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  category text not null check (category in ('restoran', 'kafe', 'coffee_shop')),
+  status halal_status not null default 'halal',
+  address text not null,
+  latitude double precision not null,
+  longitude double precision not null,
+  certifier_name text,
+  note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table places enable row level security;
+
+create policy "Public read" on places
+  for select using (true);
+
+create policy "Public insert" on places
+  for insert with check (true);
+
+create policy "Public update" on places
+  for update using (true) with check (true);
+
+create policy "Public delete" on places
+  for delete using (true);

@@ -1,4 +1,5 @@
 import { HalalStatus } from './types';
+import { supabase, isSupabaseConfigured } from './supabase';
 
 export type PlaceCategory = 'restoran' | 'kafe' | 'coffee_shop';
 
@@ -28,8 +29,9 @@ export const PLACE_CATEGORY_ICON: Record<PlaceCategory, string> = {
 
 /**
  * Local demo dataset — same role as MOCK_DB in lib/certification.ts: a
- * dev/offline fallback until a real `places` table (or a places sync,
- * mirroring scripts/sync for products) backs this from Supabase.
+ * dev/offline fallback while Supabase's `places` table (supabase/schema.sql)
+ * isn't configured yet, or if a request to it fails. The admin panel writes
+ * the real rows by hand — there's no automated sync for places.
  */
 const MOCK_PLACES: Place[] = [
   {
@@ -100,11 +102,47 @@ const MOCK_PLACES: Place[] = [
   },
 ];
 
-export function getAllPlaces(): Place[] {
+type PlaceRow = {
+  id: string;
+  name: string;
+  category: PlaceCategory;
+  status: HalalStatus;
+  address: string;
+  latitude: number;
+  longitude: number;
+  certifier_name: string | null;
+  note: string | null;
+};
+
+function mapRowToPlace(row: PlaceRow): Place {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    status: row.status,
+    address: row.address,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    certifierName: row.certifier_name,
+    note: row.note,
+  };
+}
+
+export async function getAllPlaces(): Promise<Place[]> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from('places')
+      .select('id, name, category, status, address, latitude, longitude, certifier_name, note')
+      .order('created_at', { ascending: false });
+
+    if (!error) return (data ?? []).map(mapRowToPlace);
+    console.warn('Supabase getAllPlaces failed, falling back to local data:', error.message);
+  }
+
   return MOCK_PLACES;
 }
 
-export function getPlacesByCategory(category: PlaceCategory | 'hamısı'): Place[] {
-  const all = getAllPlaces();
+export async function getPlacesByCategory(category: PlaceCategory | 'hamısı'): Promise<Place[]> {
+  const all = await getAllPlaces();
   return category === 'hamısı' ? all : all.filter((p) => p.category === category);
 }
