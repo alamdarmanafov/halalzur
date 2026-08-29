@@ -58,7 +58,7 @@ export default function TabsLayout() {
         options={{
           title: 'Məhsullar',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'list' : 'list-outline'} color={color} size={TAB_ICON_SIZE} />
+            <Ionicons name={focused ? 'basket' : 'basket-outline'} color={color} size={TAB_ICON_SIZE} />
           ),
         }}
       />
