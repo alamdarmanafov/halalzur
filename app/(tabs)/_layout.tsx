@@ -59,10 +59,10 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="map"
+        name="favorites"
         options={{
-          title: 'Xəritə',
-          tabBarIcon: ({ color, size }) => <Ionicons name="map" color={color} size={size} />,
+          title: 'Favoritlər',
+          tabBarIcon: ({ color, size }) => <Ionicons name="heart" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
