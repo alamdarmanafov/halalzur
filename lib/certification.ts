@@ -210,7 +210,7 @@ export function getProductByBarcode(barcode: string): CertificationResult | unde
 // 'mushbooh' ("şübhəli") while 'haram' gets its own, stronger wording.
 export const statusLabel: Record<CertificationResult['status'], string> = {
   halal: 'HALAL',
-  haram: 'MƏSLƏHƏT GÖRÜLMÜR',
+  haram: 'TÖVSİYƏ EDİLMİR',
   mushbooh: 'ŞÜBHƏLİ',
   unknown: 'ŞÜBHƏLİ',
 };

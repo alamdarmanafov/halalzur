@@ -28,7 +28,7 @@ const STATUS_TINT: Record<CertificationResult['status'], string> = {
 const SUBMIT_STATUS_OPTIONS: { value: HalalStatus; label: string }[] = [
   { value: 'halal', label: 'Halal' },
   { value: 'mushbooh', label: 'Şübhəli' },
-  { value: 'haram', label: 'Məsləhət görülmür' },
+  { value: 'haram', label: 'Tövsiyə edilmir' },
 ];
 
 export default function ProductDetailScreen() {

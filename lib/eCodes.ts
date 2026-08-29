@@ -71,7 +71,7 @@ export const E_CODES: ECodeEntry[] = [
     name: 'Jelatin',
     category: 'Sabitləşdirici',
     status: 'depends',
-    note: 'Donuzdan olarsa haram, halal kəsilmiş heyvan və ya balıqdan olarsa halal.',
+    note: 'Donuzdan olarsa tövsiyə edilmir, halal kəsilmiş heyvan və ya balıqdan olarsa halal.',
   },
   {
     code: 'E471',
@@ -175,7 +175,7 @@ export function extractECodesFromText(text: string): ECodeEntry[] {
 
 export const eCodeStatusLabel: Record<ECodeStatus, string> = {
   halal: 'Halal',
-  haram: 'Halal deyil',
+  haram: 'Tövsiyə edilmir',
   mushbooh: 'Şübhəli',
   depends: 'Mənbədən asılıdır',
 };
