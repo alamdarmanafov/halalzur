@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://halalzur.com/sitemap.xml
