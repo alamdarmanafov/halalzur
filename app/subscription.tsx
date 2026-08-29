@@ -17,9 +17,11 @@ import { colors, radius, spacing, typography } from '../constants/theme';
  * "route the money" step on our side.
  *
  * These product IDs must exist in App Store Connect → Subscriptions,
- * in the same subscription group, with prices set there (the AZN prices
+ * in the same subscription group, with prices set there (the USD prices
  * below are just the UI fallback shown before the real StoreKit product
  * loads — App Store Connect is the source of truth once connected).
+ * Priced in USD rather than AZN because Azerbaijani Manat isn't one of
+ * App Store Connect's storefront currencies.
  *
  * NOTE: react-native-iap is native code — it needs an EAS dev-client or
  * TestFlight/production build. It will not work inside plain Expo Go.
@@ -34,20 +36,20 @@ const PLANS = {
   monthly: {
     id: 'com.halalzur.app.premium.monthly',
     label: 'Aylıq',
-    price: '4.99 AZN',
+    price: '$2.99',
     period: 'ay',
   },
   sixMonth: {
     id: 'com.halalzur.app.premium.sixmonth',
     label: '6 Aylıq',
-    price: '19.99 AZN',
+    price: '$9.99',
     period: '6 ay',
-    badge: '33% qənaət',
+    badge: '44% qənaət',
   },
   yearly: {
     id: 'com.halalzur.app.premium.yearly',
     label: 'İllik',
-    price: '39.99 AZN',
+    price: '$19.99',
     period: 'il',
     badge: 'Ən sərfəli',
   },
