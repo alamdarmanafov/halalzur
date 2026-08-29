@@ -1,6 +1,7 @@
 import { CertificationResult, Certifier } from './types';
 import { getCertifier } from './certifiers';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { lookupOpenFoodFacts } from './openFoodFacts';
 
 /**
  * Local demo/offline dataset — used only as a dev fallback while the
@@ -148,13 +149,15 @@ export async function lookupBarcode(barcode: string): Promise<CertificationResul
       .maybeSingle<CertifiedEntryRow>();
 
     if (!error) {
-      return data ? mapRowToResult(data, barcode) : UNKNOWN_RESULT(barcode);
+      if (data) return mapRowToResult(data, barcode);
+      return (await lookupOpenFoodFacts(barcode)) ?? UNKNOWN_RESULT(barcode);
     }
     console.warn('Supabase lookupBarcode failed, falling back to local data:', error.message);
   }
 
   await new Promise((resolve) => setTimeout(resolve, 900));
-  return MOCK_DB[barcode] ?? UNKNOWN_RESULT(barcode);
+  if (MOCK_DB[barcode]) return MOCK_DB[barcode];
+  return (await lookupOpenFoodFacts(barcode)) ?? UNKNOWN_RESULT(barcode);
 }
 
 export async function searchProducts(query: string): Promise<CertificationResult[]> {
