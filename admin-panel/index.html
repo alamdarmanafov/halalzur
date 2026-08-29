@@ -225,9 +225,10 @@
     <div class="empty-state" id="emptyState" hidden>Hazırda gözləyən təklif yoxdur.</div>
 
     <p class="caveat">
-      Qeyd: bu panel yalnız şifrə ilə qorunur — Halalzur-un hazırkı backend-i real istifadəçi autentifikasiyası
-      (Supabase Auth) istifadə etmir, ona görə bu, əsl giriş nəzarəti deyil, sadəcə panelin təsadüfi ziyarətçilərdən
-      gizlədilməsidir. İctimai buraxılışdan əvvəl real admin rolu ilə əvəz olunmalıdır.
+      Qeyd: giriş e-poçtu/şifrəsi artıq server tərəfində (Vercel funksiyası, environment variable) yoxlanılır — bu
+      faylda açıq görünmür. Amma aşağıdakı təsdiq/rədd əməliyyatları hələ də Supabase-in anon açarı ilə birbaşa
+      göndərilir, real istifadəçi sessiyası (Supabase Auth) yoxdur — bu, panelin təsadüfi ziyarətçilərdən
+      gizlədilməsidir, tam giriş nəzarəti deyil. İctimai buraxılışdan əvvəl real admin rolu ilə əvəz olunmalıdır.
     </p>
   </main>
 </div>
@@ -240,13 +241,9 @@
   var SUPABASE_ANON_KEY = "sb_publishable_YSxBg5SQveiZrRU6H65mVg_Ea4gp2Pl";
   var POINTS_PER_APPROVAL = 10;
 
-  // Client-side-only gate — same caveat as lib/admin.ts in the app. Anyone
-  // who reads this file's source can see the panel is only guarded by a
-  // string comparison, not a real backend session. Change these before
-  // sharing the panel's URL with anyone but yourself. ADMIN_EMAIL matches
-  // the same constant in lib/admin.ts (the in-app admin gate).
-  var ADMIN_EMAIL = "alamdarmanafov@gmail.com";
-  var ADMIN_PASSPHRASE = "kjdisd6g987ds698vg7";
+  // Login is verified server-side by api/admin-login.js (Vercel function,
+  // reads ADMIN_EMAIL/ADMIN_PASSPHRASE from that project's environment
+  // variables) — neither value ships in this file, unlike before.
   var SESSION_KEY = "halalzur_admin_session";
 
   var STATUS_LABEL = { halal: "🟢 Halal", mushbooh: "🟡 Şübhəli", unknown: "🟡 Naməlum", haram: "🔴 Tövsiyə edilmir" };
@@ -294,15 +291,28 @@
 
   gateForm.addEventListener("submit", function (e) {
     e.preventDefault();
-    var email = document.getElementById("emailInput").value.trim().toLowerCase();
+    var email = document.getElementById("emailInput").value.trim();
     var pass = document.getElementById("passInput").value;
-    if (email === ADMIN_EMAIL.toLowerCase() && pass === ADMIN_PASSPHRASE) {
-      sessionStorage.setItem(SESSION_KEY, "1");
-      gateError.textContent = "";
-      enterApp();
-    } else {
-      gateError.textContent = "E-poçt və ya şifrə səhvdir.";
-    }
+    var submitBtn = gateForm.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    gateError.textContent = "";
+
+    fetch("/api/admin-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email, password: pass }),
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("bad_credentials");
+        sessionStorage.setItem(SESSION_KEY, "1");
+        enterApp();
+      })
+      .catch(function () {
+        gateError.textContent = "E-poçt və ya şifrə səhvdir.";
+      })
+      .finally(function () {
+        submitBtn.disabled = false;
+      });
   });
 
   document.getElementById("logoutBtn").addEventListener("click", function () {
