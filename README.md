@@ -226,3 +226,42 @@ mənbəyində görünür) — sadəcə panelin təsadüfi tapılmasının qarş�
 `anon` açarı ilə oxuma/yazmaya icazə verir (bax `supabase/schema.sql`-dəki
 SECURITY CAVEAT qeydi) — ictimai buraxılışdan əvvəl bunu real Supabase Auth
 əsaslı admin roluna keçirmək lazımdır.
+
+### Alternativ: sayt üçün GitHub Pages (Vercel ilə yanaşı)
+
+Sayt sırf statik olduğu üçün Vercel-ə əlavə olaraq GitHub Pages üzərindən də
+pulsuz yayımlana bilər. Bu repoda artıq hazırdır:
+
+- `.github/workflows/deploy-pages.yml` — hər `website/` dəyişikliyində
+  `website/` qovluğunu avtomatik GitHub Pages-ə yükləyən GitHub Actions
+  iş axını.
+- `website/CNAME` — `halalzur.com` yazılıb, GitHub-un custom domeni
+  saxlaması üçün lazımdır (əks halda hər deploy-da domen sıfırlanır).
+
+Aktivləşdirmək üçün (bir dəfəlik, GitHub-un öz saytında edilir — git push
+ilə edilə bilməz):
+
+1. `github.com/alamdarmanafov/halalzur` → **Settings → Pages**.
+2. **Build and deployment → Source**-də **GitHub Actions**-ı seçin
+   (Branch üsulunu yox — Actions üsulunu).
+3. `claude/new-app-three-tab-menu-5bfgsd` budağına (və ya bu iş axınına)
+   uyğun push edildikdə iş axını avtomatik işə düşəcək; **Actions** tabında
+   gedişatı izləyə bilərsiniz.
+4. Deploy bitdikdən sonra **Settings → Pages**-də **Custom domain** sahəsinə
+   `halalzur.com` yazıb yadda saxlayın (CNAME faylı artıq repoda olduğu üçün
+   bu sahə avtomatik doldurula bilər).
+5. Domen qeydiyyatçınızda (domeni haradan aldınızsa) bu DNS qeydlərini əlavə
+   edin:
+   - Apex domen (`halalzur.com`) üçün 4 **A** qeydi: `185.199.108.153`,
+     `185.199.109.153`, `185.199.110.153`, `185.199.111.153`.
+   - `www` subdomeni istəyirsinizsə: **CNAME** qeydi →
+     `alamdarmanafov.github.io`.
+6. DNS yayıldıqdan sonra (bir neçə dəqiqədən bir neçə saata qədər) GitHub
+   Pages HTTPS sertifikatını özü avtomatik yaradacaq.
+
+Diqqət: eyni domeni (`halalzur.com`) həm Vercel-ə, həm GitHub Pages-ə DNS
+səviyyəsində eyni anda bağlamaq mümkün deyil — DNS bir vaxtda yalnız bir
+xidmətə işarə edə bilər. İkisini paralel saxlamaq istəyirsinizsə, birini
+əsas domendə (`halalzur.com`), digərini subdomendə (məs. Vercel üçün
+`www.halalzur.com`, GitHub Pages üçün default `alamdarmanafov.github.io`
+linki) saxlaya bilərsiniz.
