@@ -1,10 +1,33 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Pressable,
+  ScrollView,
+  ActivityIndicator,
+  RefreshControl,
+  Modal,
+  TextInput,
+  Alert,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { getPlacesByCategory, Place, PLACE_CATEGORY_LABEL, PLACE_CATEGORY_ICON, PlaceCategory } from '../../lib/places';
+import {
+  getPlacesByCategory,
+  submitPlace,
+  Place,
+  PLACE_CATEGORY_LABEL,
+  PLACE_CATEGORY_ICON,
+  PlaceCategory,
+} from '../../lib/places';
+import { useAuth } from '../../lib/auth-context';
 import { StatusBadge } from '../../components/StatusBadge';
+import { Button } from '../../components/Button';
 import { colors, radius, spacing, typography } from '../../constants/theme';
+
+const SUBMIT_CATEGORIES: PlaceCategory[] = ['restoran', 'kafe', 'coffee_shop'];
 
 const FILTERS: { key: PlaceCategory | 'hamısı'; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'hamısı', label: 'Hamısı', icon: 'apps-outline' },
@@ -14,10 +37,17 @@ const FILTERS: { key: PlaceCategory | 'hamısı'; label: string; icon: keyof typ
 ];
 
 export default function PlacesScreen() {
+  const { user } = useAuth();
   const [filter, setFilter] = useState<PlaceCategory | 'hamısı'>('hamısı');
   const [data, setData] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [formVisible, setFormVisible] = useState(false);
+  const [formName, setFormName] = useState('');
+  const [formCategory, setFormCategory] = useState<PlaceCategory>('restoran');
+  const [formAddress, setFormAddress] = useState('');
+  const [formNote, setFormNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -42,10 +72,53 @@ export default function PlacesScreen() {
     }
   };
 
+  const resetForm = () => {
+    setFormName('');
+    setFormCategory('restoran');
+    setFormAddress('');
+    setFormNote('');
+  };
+
+  const handleSubmitPlace = async () => {
+    if (!user) return;
+    if (!formName.trim() || !formAddress.trim()) {
+      Alert.alert('Doldurun', 'Məkanın adı və ünvanı tələb olunur.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await submitPlace({
+        userId: user.id,
+        userName: user.name,
+        name: formName.trim(),
+        category: formCategory,
+        address: formAddress.trim(),
+        note: formNote.trim(),
+      });
+      setFormVisible(false);
+      resetForm();
+      Alert.alert(
+        'Təşəkkürlər!',
+        'Məkan təklifiniz göndərildi — admin baxıb təsdiqləyəndən sonra siyahıda görünəcək.'
+      );
+    } catch (err: any) {
+      Alert.alert('Göndərilmədi', err.message ?? 'Xəta baş verdi, yenidən cəhd edin.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Text style={styles.title}>Məkanlar</Text>
-      <Text style={styles.subtitle}>Halal sertifikatlı restoran, kafe və coffee shop-lar</Text>
+      <View style={styles.titleRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>Məkanlar</Text>
+          <Text style={styles.subtitle}>Halal sertifikatlı restoran, kafe və coffee shop-lar</Text>
+        </View>
+        <Pressable style={styles.addBtn} onPress={() => setFormVisible(true)}>
+          <Ionicons name="add" size={22} color={colors.white} />
+        </Pressable>
+      </View>
 
       <ScrollView
         horizontal
@@ -108,14 +181,113 @@ export default function PlacesScreen() {
           </View>
         )}
       />
+
+      <Modal visible={formVisible} animationType="slide" transparent onRequestClose={() => setFormVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Məkan təklif et</Text>
+              <Pressable onPress={() => setFormVisible(false)}>
+                <Ionicons name="close" size={22} color={colors.gray} />
+              </Pressable>
+            </View>
+
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <TextInput
+                value={formName}
+                onChangeText={setFormName}
+                placeholder="Məkanın adı"
+                placeholderTextColor={colors.gray}
+                style={styles.input}
+              />
+              <View style={styles.categoryPickRow}>
+                {SUBMIT_CATEGORIES.map((c) => (
+                  <Pressable
+                    key={c}
+                    style={[styles.categoryChip, formCategory === c && styles.categoryChipActive]}
+                    onPress={() => setFormCategory(c)}
+                  >
+                    <Text
+                      style={[styles.categoryChipText, formCategory === c && styles.categoryChipTextActive]}
+                    >
+                      {PLACE_CATEGORY_LABEL[c]}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput
+                value={formAddress}
+                onChangeText={setFormAddress}
+                placeholder="Ünvan"
+                placeholderTextColor={colors.gray}
+                style={styles.input}
+              />
+              <TextInput
+                value={formNote}
+                onChangeText={setFormNote}
+                placeholder="Qeyd (istəyə bağlı)"
+                placeholderTextColor={colors.gray}
+                multiline
+                style={[styles.input, { minHeight: 70, textAlignVertical: 'top' }]}
+              />
+              <Text style={styles.formHint}>
+                Təklifiniz admin tərəfindən baxılıb təsdiqlənəndən sonra Məkanlar siyahısında görünəcək.
+              </Text>
+              <Button
+                title={submitting ? 'Göndərilir…' : 'Göndər'}
+                onPress={handleSubmitPlace}
+                loading={submitting}
+                style={{ marginTop: spacing.sm, marginBottom: spacing.lg }}
+              />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white, paddingHorizontal: spacing.lg },
-  title: { ...typography.h1, color: colors.primaryDark, marginTop: spacing.md },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: spacing.md, gap: spacing.md },
+  title: { ...typography.h1, color: colors.primaryDark },
   subtitle: { ...typography.small, color: colors.gray, marginTop: 4 },
+  addBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modalCard: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: spacing.lg,
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  modalTitle: { ...typography.h2, color: colors.black },
+  input: {
+    height: 46,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.grayLight,
+    paddingHorizontal: spacing.md,
+    fontSize: typography.body.fontSize,
+    color: colors.black,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.sm,
+  },
+  categoryPickRow: { flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm },
+  formHint: { ...typography.small, color: colors.gray, marginTop: spacing.xs, lineHeight: 17 },
   categoryRow: { marginTop: spacing.md, flexGrow: 0 },
   categoryChip: {
     flexDirection: 'row',

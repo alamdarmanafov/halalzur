@@ -227,6 +227,11 @@
   }
   .place-card .pc-title { font-family: "Manrope", sans-serif; font-weight: 700; font-size: 15.5px; }
   .place-card .pc-sub { color: var(--ink-muted); font-size: 13px; margin-top: 2px; }
+  .pc-badge-pending {
+    display: inline-block; color: var(--warn); background: var(--warn-bg);
+    font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px;
+    margin-bottom: 6px;
+  }
   .place-card .pc-note { font-size: 13px; color: var(--ink); margin-top: 8px; line-height: 1.5; }
   .place-delete-btn {
     border: none; background: var(--bad-bg); color: var(--bad); border-radius: 8px;
@@ -793,7 +798,7 @@
   var PLACE_CATEGORY_LABEL = { restoran: "Restoran", kafe: "Kafe", coffee_shop: "Coffee Shop" };
 
   function loadPlaces() {
-    sb("places?order=created_at.desc&select=*")
+    sb("places?order=approved.asc,created_at.desc&select=*")
       .then(function (rows) {
         renderPlaceCards(rows || []);
       })
@@ -820,20 +825,53 @@
   function buildPlaceCard(row) {
     var card = document.createElement("div");
     card.className = "place-card";
+    var pending = row.approved === false;
     card.innerHTML =
       '<div>' +
+        (pending
+          ? '<div class="pc-badge pc-badge-pending">⏳ Gözləyir' +
+            (row.submitted_by_name ? ' — ' + esc(row.submitted_by_name) : '') + '</div>'
+          : '') +
         '<div class="pc-title">' + esc(row.name) + '</div>' +
         '<div class="pc-sub">' + (STATUS_LABEL[row.status] || row.status) + ' · ' +
           (PLACE_CATEGORY_LABEL[row.category] || row.category) + ' · ' + esc(row.address) + '</div>' +
         (row.certifier_name ? '<div class="pc-sub">Sertifikat: ' + esc(row.certifier_name) + '</div>' : '') +
         (row.note ? '<div class="pc-note">' + esc(row.note) + '</div>' : '') +
       '</div>' +
-      '<button class="place-delete-btn" data-action="delete-place">Sil</button>';
+      '<div style="display:flex; gap:8px;">' +
+        (pending ? '<button class="place-delete-btn" data-action="approve-place" style="background:var(--ok-bg); color:var(--ok);">Təsdiqlə</button>' : '') +
+        '<button class="place-delete-btn" data-action="delete-place">Sil</button>' +
+      '</div>';
 
     card.querySelector('[data-action="delete-place"]').addEventListener("click", function (e) {
       deletePlace(row, card, e.target);
     });
+    var approveBtn = card.querySelector('[data-action="approve-place"]');
+    if (approveBtn) {
+      approveBtn.addEventListener("click", function (e) {
+        approvePlace(row, card, e.target);
+      });
+    }
     return card;
+  }
+
+  function approvePlace(row, card, btn) {
+    btn.disabled = true;
+    btn.textContent = "Təsdiqlənir…";
+    sb("places?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { approved: true, updated_at: new Date().toISOString() },
+    })
+      .then(function () {
+        toast("Təsdiqləndi: " + row.name);
+        loadPlaces();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+        btn.textContent = "Təsdiqlə";
+      });
   }
 
   function deletePlace(row, card, btn) {

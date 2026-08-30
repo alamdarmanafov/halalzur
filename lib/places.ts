@@ -9,8 +9,8 @@ export type Place = {
   category: PlaceCategory;
   status: HalalStatus;
   address: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   certifierName: string | null;
   note: string | null;
 };
@@ -108,8 +108,8 @@ type PlaceRow = {
   category: PlaceCategory;
   status: HalalStatus;
   address: string;
-  latitude: number;
-  longitude: number;
+  latitude: number | null;
+  longitude: number | null;
   certifier_name: string | null;
   note: string | null;
 };
@@ -133,6 +133,7 @@ export async function getAllPlaces(): Promise<Place[]> {
     const { data, error } = await supabase
       .from('places')
       .select('id, name, category, status, address, latitude, longitude, certifier_name, note')
+      .eq('approved', true)
       .order('created_at', { ascending: false });
 
     if (!error) return (data ?? []).map(mapRowToPlace);
@@ -145,4 +146,33 @@ export async function getAllPlaces(): Promise<Place[]> {
 export async function getPlacesByCategory(category: PlaceCategory | 'hamısı'): Promise<Place[]> {
   const all = await getAllPlaces();
   return category === 'hamısı' ? all : all.filter((p) => p.category === category);
+}
+
+/**
+ * In-app submission by a regular user — always lands with approved =
+ * false, so it stays invisible in getAllPlaces()/getPlacesByCategory()
+ * until an admin reviews and approves it from the admin panel.
+ */
+export async function submitPlace(input: {
+  userId: string;
+  userName: string;
+  name: string;
+  category: PlaceCategory;
+  address: string;
+  note: string;
+}): Promise<void> {
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error('Supabase qoşulmayıb — məkan təklifi göndərilə bilmir.');
+  }
+  const { error } = await supabase.from('places').insert({
+    name: input.name,
+    category: input.category,
+    address: input.address,
+    status: 'unknown',
+    note: input.note || null,
+    approved: false,
+    submitted_by: input.userId,
+    submitted_by_name: input.userName,
+  });
+  if (error) throw error;
 }

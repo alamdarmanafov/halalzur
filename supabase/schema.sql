@@ -158,16 +158,31 @@ create policy "Public update" on user_points
 -- Same RLS caveat as product_submissions above: no real backend auth, so
 -- writes go through the app's own anon key and are only gated by the
 -- admin panel's client-side login screen.
+-- If `places` already exists from an earlier run of this file, apply the
+-- new columns/nullability with this migration instead of re-running the
+-- CREATE TABLE below:
+--   alter table places alter column latitude drop not null;
+--   alter table places alter column longitude drop not null;
+--   alter table places add column approved boolean not null default true;
+--   alter table places add column submitted_by text;
+--   alter table places add column submitted_by_name text;
 create table places (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   category text not null check (category in ('restoran', 'kafe', 'coffee_shop')),
   status halal_status not null default 'halal',
   address text not null,
-  latitude double precision not null,
-  longitude double precision not null,
+  latitude double precision,
+  longitude double precision,
   certifier_name text,
   note text,
+  -- Admin-panel-added rows default to approved; in-app user submissions
+  -- (lib/places.ts submitPlace) insert with approved = false and only
+  -- appear in getAllPlaces()/getPlacesByCategory() once an admin approves
+  -- them from the admin panel's "Gözləyən məkanlar" section.
+  approved boolean not null default true,
+  submitted_by text,
+  submitted_by_name text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
