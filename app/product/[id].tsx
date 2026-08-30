@@ -203,7 +203,11 @@ export default function ProductDetailScreen() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }}>
         <View style={styles.hero}>
-          <Text style={styles.emoji}>{product.imageEmoji}</Text>
+          {product.imageUrl ? (
+            <Image source={{ uri: product.imageUrl }} style={styles.productImage} resizeMode="contain" />
+          ) : (
+            <Text style={styles.emoji}>{product.imageEmoji}</Text>
+          )}
           <Text style={styles.name}>{product.productName}</Text>
           <Text style={styles.brand}>
             {product.brand} · {product.category}
@@ -406,6 +410,7 @@ const styles = StyleSheet.create({
   },
   hero: { alignItems: 'center', paddingVertical: spacing.lg },
   emoji: { fontSize: 56 },
+  productImage: { width: 120, height: 120, borderRadius: radius.lg },
   name: { ...typography.h1, color: colors.black, marginTop: spacing.sm, textAlign: 'center', paddingHorizontal: spacing.lg },
   brand: { ...typography.body, color: colors.gray, marginTop: 4 },
   statusDesc: {

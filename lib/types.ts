@@ -19,6 +19,9 @@ export type CertificationResult = {
   ingredients: string[];
   notes: string | null;
   imageEmoji: string;
+  // Real product photo, when a source (Open Food Facts, UPCitemdb) has
+  // one — imageEmoji stays as the fallback when this is null.
+  imageUrl?: string | null;
 };
 
 export type SubscriptionPlan = 'free' | 'premium';

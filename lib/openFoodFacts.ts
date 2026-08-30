@@ -14,6 +14,8 @@ type OpenFoodFactsProduct = {
   categories?: string;
   ingredients_text?: string;
   ingredients_text_tr?: string;
+  image_front_url?: string;
+  image_url?: string;
 };
 
 type OpenFoodFactsResponse = {
@@ -53,6 +55,7 @@ export async function lookupOpenFoodFacts(barcode: string): Promise<Certificatio
       notes:
         'Tərkib Open Food Facts açıq bazasından götürülüb — halal statusu heç bir sertifikat orqanı tərəfindən təsdiqlənməyib. Aşağıdakı E-kodlara əsasən ehtiyatlı olun.',
       imageEmoji: '🛒',
+      imageUrl: product.image_front_url || product.image_url || null,
     };
   } catch {
     return null;

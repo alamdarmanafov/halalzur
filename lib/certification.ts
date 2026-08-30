@@ -2,6 +2,7 @@ import { CertificationResult, Certifier } from './types';
 import { getCertifier } from './certifiers';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { lookupOpenFoodFacts } from './openFoodFacts';
+import { lookupUpcItemDb } from './upcItemDb';
 
 /**
  * Local demo/offline dataset — used only as a dev fallback while the
@@ -122,6 +123,11 @@ function mapRowToResult(row: CertifiedEntryRow, fallbackBarcode: string): Certif
   };
 }
 
+/** Open Food Facts first (better ingredient coverage), then UPCitemdb. */
+async function lookupExternalFallback(barcode: string): Promise<CertificationResult | null> {
+  return (await lookupOpenFoodFacts(barcode)) ?? (await lookupUpcItemDb(barcode));
+}
+
 const UNKNOWN_RESULT = (barcode: string): CertificationResult => ({
   barcode,
   productName: 'Naməlum məhsul',
@@ -150,14 +156,14 @@ export async function lookupBarcode(barcode: string): Promise<CertificationResul
 
     if (!error) {
       if (data) return mapRowToResult(data, barcode);
-      return (await lookupOpenFoodFacts(barcode)) ?? UNKNOWN_RESULT(barcode);
+      return (await lookupExternalFallback(barcode)) ?? UNKNOWN_RESULT(barcode);
     }
     console.warn('Supabase lookupBarcode failed, falling back to local data:', error.message);
   }
 
   await new Promise((resolve) => setTimeout(resolve, 900));
   if (MOCK_DB[barcode]) return MOCK_DB[barcode];
-  return (await lookupOpenFoodFacts(barcode)) ?? UNKNOWN_RESULT(barcode);
+  return (await lookupExternalFallback(barcode)) ?? UNKNOWN_RESULT(barcode);
 }
 
 export async function searchProducts(query: string): Promise<CertificationResult[]> {
