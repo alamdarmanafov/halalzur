@@ -160,26 +160,22 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <Pressable onPress={() => router.push('/subscription')}>
-          <LinearGradient
-            colors={isPremium ? [colors.primaryDark, colors.primary] : [colors.primary, colors.accent]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.planCard}
-          >
-            <View style={{ flex: 1 }}>
-              {isPremium ? (
-                <Text style={styles.planLabel}>Limitsiz skan, tam sertifikat detalları</Text>
-              ) : (
-                <>
-                  <Text style={styles.planLabel}>Pulsuz plan</Text>
-                  <Text style={styles.planDesc}>Gündə 3 skan · Premium-a keçin, limitsiz olsun</Text>
-                </>
-              )}
-            </View>
-            <Ionicons name="chevron-forward" size={22} color={colors.white} />
-          </LinearGradient>
-        </Pressable>
+        {!isPremium && (
+          <Pressable onPress={() => router.push('/subscription')}>
+            <LinearGradient
+              colors={[colors.primary, colors.accent]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.planCard}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.planLabel}>Pulsuz plan</Text>
+                <Text style={styles.planDesc}>Gündə 3 skan · Premium-a keçin, limitsiz olsun</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={22} color={colors.white} />
+            </LinearGradient>
+          </Pressable>
+        )}
 
         <View style={styles.menu}>
           {menuItems.map((item) => (

@@ -61,7 +61,7 @@ export default function TabsLayout() {
       <WelcomeModal />
       <AnnouncementModal />
       <Tabs
-        initialRouteName="index"
+        initialRouteName="products"
         screenOptions={{
           headerShown: false,
           tabBarActiveTintColor: colors.primary,
