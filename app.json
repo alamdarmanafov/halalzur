@@ -56,7 +56,8 @@
             "useFrameworks": "dynamic"
           }
         }
-      ]
+      ],
+      "./plugins/withFirebaseDisableSPM"
     ]
   }
 }
