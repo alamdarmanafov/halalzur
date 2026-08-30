@@ -204,6 +204,38 @@ export async function searchProducts(query: string): Promise<CertificationResult
   );
 }
 
+/**
+ * Premium's "Halal Alternatives" feature — up to 3 halal-status products
+ * from the same category, offered when the scanned product came back
+ * mushbooh/haram/unknown. MOCK_DB has no meaningful categories to browse,
+ * so this is Supabase-only (empty result when it isn't configured).
+ */
+export async function getHalalAlternatives(
+  category: string,
+  excludeBarcode: string
+): Promise<CertificationResult[]> {
+  if (!isSupabaseConfigured || !supabase || !category || category === '—') return [];
+
+  const safeCategory = category.replace(/[,()%]/g, '');
+  const { data, error } = await supabase
+    .from('certified_entries')
+    .select(
+      'barcode, product_name, brand, category, status, certificate_number, verified_at, ingredients, notes, certifiers(id, name, short_name, country)'
+    )
+    .eq('entry_type', 'product')
+    .eq('status', 'halal')
+    .ilike('category', `%${safeCategory}%`)
+    .neq('barcode', excludeBarcode)
+    .limit(3)
+    .returns<CertifiedEntryRow[]>();
+
+  if (error) {
+    console.warn('getHalalAlternatives failed:', error.message);
+    return [];
+  }
+  return (data ?? []).map((row) => mapRowToResult(row, row.barcode ?? ''));
+}
+
 export function getAllProducts(): CertificationResult[] {
   return Object.values(MOCK_DB);
 }

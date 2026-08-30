@@ -178,6 +178,7 @@ export const E_CODES: ECodeEntry[] = [
   { code: "E435", name: "Polysorbate 60", category: "Emulqator", status: "depends", note: "Emulqator — Yağ turşusu mənbəyi yoxlanmalıdır." },
   { code: "E436", name: "Polysorbate 65", category: "Emulqator", status: "depends", note: "Emulqator — Yağ turşusu mənbəyi yoxlanmalıdır." },
   { code: "E440", name: "Pectins", category: "Jelləşdirici", status: "halal", note: "Meyvə mənşəli pektin." },
+  { code: "E441", name: "Gelatin", category: "Jelləşdirici", status: "depends", note: "Heyvan sümüyü/dərisindən alınır — halal kəsilmiş heyvan və ya balıqdan olarsa halal, donuzdan olarsa tövsiyə edilmir; etiketdə mənbə göstərilmir." },
   { code: "E442", name: "Ammonium phosphatides", category: "Emulqator", status: "halal", note: "Emulqator." },
   { code: "E444", name: "Sucrose acetate isobutyrate", category: "Stabilizator", status: "halal", note: "İçki stabilizatoru." },
   { code: "E445", name: "Glycerol esters of wood rosins", category: "Stabilizator", status: "depends", note: "Şam qatranı efirləri — İstehsal üsulu yoxlanıla bilər." },
@@ -353,14 +354,33 @@ export function searchECodes(query: string): ECodeEntry[] {
  * variant in the table.
  */
 export function extractECodesFromText(text: string): ECodeEntry[] {
-  const matches = text.match(/E\s?-?\s?\d{3,4}[a-h]?/gi) ?? [];
   const found = new Map<string, ECodeEntry>();
-  for (const raw of matches) {
+
+  // "E123" / "E123a" style tokens — exact match first, then the old
+  // 4-character-prefix fallback for a variant missing from the table.
+  const codeMatches = text.match(/E\s?-?\s?\d{3,4}[a-h]?/gi) ?? [];
+  for (const raw of codeMatches) {
     const normalized = raw.toUpperCase().replace(/[\s-]/g, '');
     const exact = E_CODES.find((e) => e.code.toUpperCase() === normalized);
     const entry = exact ?? E_CODES.find((e) => e.code.toUpperCase().startsWith(normalized.slice(0, 4)));
     if (entry) found.set(entry.code, entry);
   }
+
+  // Ingredient names spelled out in full instead of as an E-code (e.g. a
+  // label that says "Gelatin" or "Lecithin" with no "E441"/"E322" next to
+  // it) — whole-word match, skipping short names too likely to false-hit
+  // ("Talc" would; but < 5 chars is rare among these anyway).
+  for (const entry of E_CODES) {
+    for (const namePart of entry.name.split(/[/,]/).map((s) => s.trim())) {
+      if (namePart.length < 5) continue;
+      const escaped = namePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (new RegExp(`\\b${escaped}\\b`, 'i').test(text)) {
+        found.set(entry.code, entry);
+        break;
+      }
+    }
+  }
+
   return Array.from(found.values());
 }
 

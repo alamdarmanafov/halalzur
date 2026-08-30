@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from 'rea
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { Logo } from '../../components/Logo';
 import { Button } from '../../components/Button';
 import { BrandModal } from '../../components/BrandModal';
@@ -106,8 +107,18 @@ export default function ScanScreen() {
         style={styles.topOverlay}
       >
         <View style={styles.headerRow}>
-          <Logo size={34} />
-          <Text style={styles.headerTitle}>Halalzur</Text>
+          <View style={styles.headerLeft}>
+            <Logo size={34} />
+            <Text style={styles.headerTitle}>Halalzur</Text>
+          </View>
+          <Pressable
+            style={styles.shoppingBtn}
+            onPress={() => router.push(isPremium ? '/shopping-scan' : '/subscription')}
+          >
+            <Ionicons name="cart-outline" size={16} color={colors.white} />
+            <Text style={styles.shoppingBtnText}>Shopping Scan</Text>
+            {!isPremium && <Ionicons name="lock-closed" size={12} color={colors.white} />}
+          </Pressable>
         </View>
         <Text style={styles.headerSubtitle}>Barkodu çərçivəyə salın</Text>
       </LinearGradient>
@@ -165,8 +176,21 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   topOverlay: { position: 'absolute', top: 0, left: 0, right: 0, paddingTop: 60, paddingBottom: 24, paddingHorizontal: spacing.lg },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   headerTitle: { ...typography.h2, color: colors.white },
+  shoppingBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+  },
+  shoppingBtnText: { color: colors.white, fontWeight: '700', fontSize: 11 },
   headerSubtitle: { ...typography.small, color: colors.surface, marginTop: 4 },
   frameWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   frame: {

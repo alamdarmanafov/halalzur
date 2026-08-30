@@ -34,6 +34,10 @@ export default function RootLayout() {
               options={{ presentation: 'card', animation: 'slide_from_right' }}
             />
             <Stack.Screen
+              name="shopping-scan"
+              options={{ presentation: 'card', animation: 'slide_from_bottom' }}
+            />
+            <Stack.Screen
               name="admin"
               options={{ presentation: 'card', animation: 'slide_from_right' }}
             />

@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { lookupBarcode, statusDescription } from '../../lib/certification';
+import { lookupBarcode, statusDescription, getHalalAlternatives } from '../../lib/certification';
 import { extractECodesFromText, searchECodes, eCodeStatusLabel } from '../../lib/eCodes';
 import { recognizeIngredientText } from '../../lib/ocr';
 import { hasInternetConnection } from '../../lib/network';
@@ -36,9 +36,11 @@ const SUBMIT_STATUS_OPTIONS: { value: HalalStatus; label: string }[] = [
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const isPremium = user?.plan === 'premium';
   const { isFavorite, toggleFavorite } = useFavorites();
   const { history, removeScan } = useHistory();
   const [product, setProduct] = useState<CertificationResult | null>(null);
+  const [alternatives, setAlternatives] = useState<CertificationResult[]>([]);
   const [manualIngredients, setManualIngredients] = useState('');
   const [ingredientPhoto, setIngredientPhoto] = useState<string | null>(null);
   const [scanningPhoto, setScanningPhoto] = useState(false);
@@ -71,6 +73,20 @@ export default function ProductDetailScreen() {
       cancelled = true;
     };
   }, [id, reloadTick]);
+
+  useEffect(() => {
+    if (!product || product.status === 'halal' || !isPremium) {
+      setAlternatives([]);
+      return;
+    }
+    let cancelled = false;
+    getHalalAlternatives(product.category, product.barcode).then((results) => {
+      if (!cancelled) setAlternatives(results);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [product, isPremium]);
 
   const hasKnownIngredients = (product?.ingredients.length ?? 0) > 0;
   const detectedECodes = useMemo(
@@ -268,6 +284,51 @@ export default function ProductDetailScreen() {
           </View>
         )}
 
+        {product.status !== 'halal' && isPremium && alternatives.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionTitleRow}>
+              <Ionicons name="leaf" size={18} color={colors.primary} />
+              <Text style={styles.sectionTitle}>Halal Alternatives</Text>
+            </View>
+            <Text style={styles.eCodeIntro}>
+              Bu məhsul əvəzinə {alternatives.length} halal alternativ tapdıq.
+            </Text>
+            {alternatives.map((alt) => (
+              <Pressable
+                key={alt.barcode}
+                style={styles.altCard}
+                onPress={() => router.push({ pathname: '/product/[id]', params: { id: alt.barcode } })}
+              >
+                <Text style={styles.altEmoji}>{alt.imageEmoji}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.altName} numberOfLines={1}>
+                    {alt.productName}
+                  </Text>
+                  <Text style={styles.altBrand} numberOfLines={1}>
+                    {alt.brand}
+                  </Text>
+                </View>
+                <StatusBadge status={alt.status} size="sm" />
+              </Pressable>
+            ))}
+          </View>
+        )}
+
+        {product.status !== 'halal' && !isPremium && (
+          <View style={styles.section}>
+            <Pressable style={styles.lockedCard} onPress={() => router.push('/subscription')}>
+              <Ionicons name="leaf" size={20} color={colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.lockedTitle}>Halal Alternatives</Text>
+                <Text style={styles.lockedBody}>
+                  Bu kateqoriyada halal alternativləri görmək üçün Premium-a keçin.
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.grayLight} />
+            </Pressable>
+          </View>
+        )}
+
         {product.ingredients.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Tərkib</Text>
@@ -396,14 +457,34 @@ export default function ProductDetailScreen() {
 
         {detectedECodes.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>E-kodlar üçün sertifikat orqanlarının fikri</Text>
-            <Text style={styles.eCodeIntro}>
-              Bunlar AI qərarı deyil — halal sertifikat orqanlarının öz dərc etdiyi E-kod
-              təsnifatından götürülüb.
-            </Text>
-            {detectedECodes.map((entry) => (
-              <ECodeCard key={entry.code} entry={entry} />
-            ))}
+            <View style={styles.sectionTitleRow}>
+              <Ionicons name="flask" size={18} color={colors.primaryDark} />
+              <Text style={styles.sectionTitle}>Deep Ingredient Check</Text>
+            </View>
+            {isPremium ? (
+              <>
+                <Text style={styles.eCodeIntro}>
+                  Bunlar AI qərarı deyil — halal sertifikat orqanlarının öz dərc etdiyi E-kod
+                  təsnifatından götürülüb.
+                </Text>
+                {detectedECodes.map((entry) => (
+                  <ECodeCard key={entry.code} entry={entry} />
+                ))}
+              </>
+            ) : (
+              <Pressable style={styles.lockedCard} onPress={() => router.push('/subscription')}>
+                <Ionicons name="lock-closed" size={20} color={colors.primaryDark} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.lockedTitle}>
+                    {detectedECodes.length} tərkib komponenti araşdırılıb
+                  </Text>
+                  <Text style={styles.lockedBody}>
+                    Hansı komponentin niyə şübhəli olduğunu görmək üçün Premium-a keçin.
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.grayLight} />
+              </Pressable>
+            )}
           </View>
         )}
 
@@ -527,6 +608,32 @@ const styles = StyleSheet.create({
   noteText: { flex: 1, ...typography.small, color: '#7A5B10' },
   section: { marginHorizontal: spacing.lg, marginTop: spacing.lg },
   sectionTitle: { ...typography.h3, color: colors.black, marginBottom: spacing.sm },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginBottom: spacing.sm },
+  lockedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    padding: spacing.md,
+  },
+  lockedTitle: { ...typography.body, color: colors.black, fontWeight: '700' },
+  lockedBody: { ...typography.small, color: colors.gray, marginTop: 2, lineHeight: 17 },
+  altCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  altEmoji: { fontSize: 24 },
+  altName: { ...typography.body, color: colors.black, fontWeight: '700' },
+  altBrand: { ...typography.small, color: colors.gray },
   eCodeIntro: { ...typography.small, color: colors.gray, marginBottom: spacing.sm, lineHeight: 18 },
   photoBtn: {
     flexDirection: 'row',

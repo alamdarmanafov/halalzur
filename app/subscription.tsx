@@ -40,13 +40,6 @@ const PLANS = {
     price: '$2.99',
     period: 'ay',
   },
-  sixMonth: {
-    id: 'com.halalzur.app.premium.sixmonth',
-    label: '6 Aylıq',
-    price: '$9.99',
-    period: '6 ay',
-    badge: '44% qənaət',
-  },
   yearly: {
     id: 'com.halalzur.app.premium.yearly',
     label: 'İllik',
@@ -59,20 +52,17 @@ const PLANS = {
 const PLAN_SKUS = Object.values(PLANS).map((p) => p.id);
 
 /**
- * Every claim here must map to something the app actually enforces —
- * halal/certificate info itself is never premium-gated (that would be
- * withholding safety information from free users, which this app's
- * whole purpose is to surface). What premium genuinely buys is
- * convenience: no daily scan cap (app/(tabs)/index.tsx FREE_DAILY_SCAN_LIMIT)
- * and full scan history instead of the last 10 (lib/history-context.tsx
- * FREE_HISTORY_LIMIT) — both real gates. The last two rows are honest
- * service-level promises, not technical claims.
+ * The 4 real Premium features (see lib/premiumFeatures.ts for the gating
+ * logic itself) — deliberately just these 4, per spec. Halal/certificate
+ * status is never gated (app/product/[id].tsx always shows it to every
+ * user); history, favorites, and ad-removal are explicitly NOT premium
+ * differentiators here.
  */
 const FEATURES = [
-  { icon: 'infinite-outline', free: '3 skan / gün', premium: 'Limitsiz skan' },
-  { icon: 'time-outline', free: 'Son 10 skan', premium: 'Limitsiz tarixçə' },
-  { icon: 'megaphone-outline', free: 'Adi bildirişlər', premium: 'Yeniliklər barədə ilk bildiriş' },
-  { icon: 'headset-outline', free: 'Standart dəstək', premium: 'Prioritet dəstək' },
+  { icon: 'infinite-outline', label: 'Limitsiz Scan' },
+  { icon: 'flask-outline', label: 'Deep Ingredient Check' },
+  { icon: 'leaf-outline', label: 'Halal Alternatives' },
+  { icon: 'cart-outline', label: 'Shopping Scan' },
 ] as const;
 
 export default function SubscriptionScreen() {
@@ -183,26 +173,16 @@ export default function SubscriptionScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <Logo size={64} />
-          <Text style={styles.heroTitle}>Halalzur Premium</Text>
-          <Text style={styles.heroSubtitle}>Limitsiz skan, tam sertifikat şəffaflığı</Text>
+          <Text style={styles.heroTitle}>Daha çox yoxla.{'\n'}Daha ağıllı seçim et.</Text>
         </View>
 
         <View style={styles.table}>
-          <View style={styles.tableHeaderRow}>
-            <View style={{ flex: 1.4 }} />
-            <Text style={[styles.colHeader, { flex: 1 }]}>Pulsuz</Text>
-            <Text style={[styles.colHeader, styles.colHeaderPremium, { flex: 1 }]}>Premium</Text>
-          </View>
           {FEATURES.map((f) => (
             <View key={f.icon} style={styles.tableRow}>
-              <View style={[styles.featureCell, { flex: 1.4 }]}>
-                <Ionicons name={f.icon as keyof typeof Ionicons.glyphMap} size={16} color={colors.primaryDark} />
-                <Text style={styles.featureLabel} numberOfLines={2}>
-                  {f.premium}
-                </Text>
+              <View style={styles.featureIconWrap}>
+                <Ionicons name={f.icon as keyof typeof Ionicons.glyphMap} size={20} color={colors.primaryDark} />
               </View>
-              <Text style={[styles.cell, { flex: 1 }]}>{f.free}</Text>
-              <Text style={[styles.cell, styles.cellPremium, { flex: 1 }]}>{f.premium}</Text>
+              <Text style={styles.featureLabel}>{f.label}</Text>
             </View>
           ))}
         </View>
@@ -281,24 +261,24 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   closeBtn: { alignSelf: 'flex-end', padding: spacing.sm, marginTop: spacing.sm },
   hero: { alignItems: 'center', marginTop: spacing.sm, marginBottom: spacing.lg },
-  heroTitle: { ...typography.h1, color: colors.primaryDark, marginTop: spacing.sm },
-  heroSubtitle: { ...typography.body, color: colors.gray, marginTop: 4, textAlign: 'center' },
+  heroTitle: { ...typography.h1, color: colors.primaryDark, marginTop: spacing.md, textAlign: 'center' },
   title: { ...typography.h2, color: colors.primaryDark, marginTop: spacing.md, textAlign: 'center' },
   table: { backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md },
-  tableHeaderRow: { flexDirection: 'row', marginBottom: spacing.sm },
-  colHeader: { ...typography.small, color: colors.gray, fontWeight: '700', textAlign: 'center' },
-  colHeaderPremium: { color: colors.primaryDark },
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.md,
     paddingVertical: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(10,77,46,0.08)',
   },
-  featureCell: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  featureLabel: { ...typography.small, color: colors.black, flexShrink: 1 },
-  cell: { ...typography.small, color: colors.gray, textAlign: 'center' },
-  cellPremium: { color: colors.primaryDark, fontWeight: '700' },
+  featureIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featureLabel: { ...typography.body, color: colors.black, fontWeight: '700', flexShrink: 1 },
   planRow: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.lg },
   planOption: {
     flex: 1,
