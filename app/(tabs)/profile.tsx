@@ -168,12 +168,14 @@ export default function ProfileScreen() {
             style={styles.planCard}
           >
             <View style={{ flex: 1 }}>
-              <Text style={styles.planLabel}>{isPremium ? 'Premium üzv' : 'Pulsuz plan'}</Text>
-              <Text style={styles.planDesc}>
-                {isPremium
-                  ? 'Limitsiz skan, tam sertifikat detalları'
-                  : 'Gündə 3 skan · Premium-a keçin, limitsiz olsun'}
-              </Text>
+              {isPremium ? (
+                <Text style={styles.planLabel}>Limitsiz skan, tam sertifikat detalları</Text>
+              ) : (
+                <>
+                  <Text style={styles.planLabel}>Pulsuz plan</Text>
+                  <Text style={styles.planDesc}>Gündə 3 skan · Premium-a keçin, limitsiz olsun</Text>
+                </>
+              )}
             </View>
             <Ionicons name="chevron-forward" size={22} color={colors.white} />
           </LinearGradient>
