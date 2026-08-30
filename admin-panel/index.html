@@ -285,6 +285,10 @@
           <span>Təkliflər</span>
           <span class="badge" id="navBadgePending" hidden>0</span>
         </button>
+        <button class="nav-item" type="button" data-section="products">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7 12 3 4 7l8 4 8-4Z"/><path d="M4 7v10l8 4 8-4V7"/><path d="M12 11v10"/></svg>
+          <span>Məhsullar</span>
+        </button>
         <button class="nav-item" type="button" data-section="places">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 21s7-7.4 7-12.3A7 7 0 1 0 5 8.7C5 13.6 12 21 12 21z"/><circle cx="12" cy="8.7" r="2.4"/></svg>
           <span>Məkanlar</span>
@@ -337,6 +341,60 @@
     <div id="refreshMsg">Yüklənir…</div>
     <div class="cards" id="cards"></div>
     <div class="empty-state" id="emptyState" hidden>Hazırda gözləyən təklif yoxdur.</div>
+    </section>
+
+    <section class="section" id="section-products" hidden>
+    <div class="panel-head">
+      <h2>Məhsullar</h2>
+      <span id="productsCountLabel"></span>
+    </div>
+
+    <form class="place-form" id="productForm">
+      <div class="field-grid">
+        <div class="field">
+          <label for="productBarcode">Barkod</label>
+          <input type="text" inputmode="numeric" id="productBarcode" placeholder="Məs. 8690504048068" required />
+        </div>
+        <div class="field">
+          <label for="productName">Məhsulun adı</label>
+          <input type="text" id="productName" placeholder="Məs. Fındık Kreması" required />
+        </div>
+        <div class="field">
+          <label for="productBrand">Marka</label>
+          <input type="text" id="productBrand" placeholder="Məs. Örnek Gıda A.Ş." required />
+        </div>
+        <div class="field">
+          <label for="productCategory">Kateqoriya</label>
+          <input type="text" id="productCategory" placeholder="Məs. Şirniyyat" />
+        </div>
+        <div class="field">
+          <label for="productStatus">Status</label>
+          <select id="productStatus">
+            <option value="halal">Halal</option>
+            <option value="mushbooh">Şübhəli</option>
+            <option value="haram">Tövsiyə edilmir</option>
+            <option value="unknown">Naməlum</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="productCertNumber">Sertifikat № (istəyə bağlı)</label>
+          <input type="text" id="productCertNumber" placeholder="Məs. GIMDES-2024-11832" />
+        </div>
+        <div class="field field-wide">
+          <label for="productIngredients">Tərkib (vergüllə ayırın)</label>
+          <input type="text" id="productIngredients" placeholder="Məs. Şəkər, Fındıq, Bitki yağı" />
+        </div>
+        <div class="field field-wide">
+          <label for="productNote">Qeyd (istəyə bağlı)</label>
+          <textarea id="productNote" rows="2" placeholder="Məs. Tərkibdə mənbəyi təsdiqlənməmiş E441 var."></textarea>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-approve" style="margin-top: 12px;">Məhsulu əlavə et</button>
+      <div class="gate-error" id="productFormError"></div>
+    </form>
+
+    <div class="cards" id="productCards" style="margin-top: 20px;"></div>
+    <div class="empty-state" id="productsEmptyState" hidden>Hələ heç bir məhsul əlavə edilməyib.</div>
     </section>
 
     <section class="section" id="section-places" hidden>
@@ -546,6 +604,7 @@
   var sections = {
     dashboard: document.getElementById("section-dashboard"),
     submissions: document.getElementById("section-submissions"),
+    products: document.getElementById("section-products"),
     places: document.getElementById("section-places"),
     announcements: document.getElementById("section-announcements"),
     users: document.getElementById("section-users"),
@@ -586,6 +645,7 @@
     appEl.hidden = false;
     loadDashboard();
     loadAll();
+    loadProducts();
     loadPlaces();
     loadAnnouncements();
     loadUsers();
@@ -793,6 +853,122 @@
         btn.textContent = "Rədd et";
       });
   }
+
+  // ---- products (admin-added certified_entries) ----
+  function loadProducts() {
+    sb("certified_entries?order=created_at.desc&limit=100&select=*")
+      .then(function (rows) {
+        renderProductCards(rows || []);
+      })
+      .catch(function (err) {
+        toast("Məhsullar yüklənmədi: " + err.message);
+      });
+  }
+
+  function renderProductCards(list) {
+    var container = document.getElementById("productCards");
+    var empty = document.getElementById("productsEmptyState");
+    document.getElementById("productsCountLabel").textContent = list.length + " məhsul (son 100)";
+    container.innerHTML = "";
+    if (!list.length) {
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = true;
+    list.forEach(function (row) {
+      container.appendChild(buildProductCard(row));
+    });
+  }
+
+  function buildProductCard(row) {
+    var card = document.createElement("div");
+    card.className = "place-card";
+    card.innerHTML =
+      '<div>' +
+        '<div class="pc-title">' + esc(row.product_name || row.brand) + '</div>' +
+        '<div class="pc-sub">' + (STATUS_LABEL[row.status] || row.status) + ' · ' +
+          esc(row.brand) + (row.category ? ' · ' + esc(row.category) : '') + '</div>' +
+        (row.barcode ? '<div class="pc-sub">Barkod: ' + esc(row.barcode) + '</div>' : '') +
+        (row.certificate_number ? '<div class="pc-sub">Sertifikat: ' + esc(row.certificate_number) + '</div>' : '') +
+      '</div>' +
+      '<button class="place-delete-btn" data-action="delete-product">Sil</button>';
+
+    card.querySelector('[data-action="delete-product"]').addEventListener("click", function (e) {
+      deleteProduct(row, card, e.target);
+    });
+    return card;
+  }
+
+  function deleteProduct(row, card, btn) {
+    if (!window.confirm('"' + (row.product_name || row.brand) + '" silinsin?')) return;
+    btn.disabled = true;
+    btn.textContent = "Silinir…";
+    sb("certified_entries?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+      .then(function () {
+        toast("Silindi: " + (row.product_name || row.brand));
+        card.remove();
+        loadProducts();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+        btn.textContent = "Sil";
+      });
+  }
+
+  document.getElementById("productForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var errorEl = document.getElementById("productFormError");
+    errorEl.textContent = "";
+
+    var barcode = document.getElementById("productBarcode").value.trim();
+    var name = document.getElementById("productName").value.trim();
+    var brand = document.getElementById("productBrand").value.trim();
+    var category = document.getElementById("productCategory").value.trim();
+    var status = document.getElementById("productStatus").value;
+    var certNumber = document.getElementById("productCertNumber").value.trim();
+    var ingredientsRaw = document.getElementById("productIngredients").value.trim();
+    var note = document.getElementById("productNote").value.trim();
+
+    if (!barcode || !name || !brand) {
+      errorEl.textContent = "Barkod, məhsulun adı və marka tələb olunur.";
+      return;
+    }
+
+    var submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Əlavə edilir…";
+
+    sb("certified_entries", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: {
+        entry_type: "product",
+        barcode: barcode,
+        product_name: name,
+        brand: brand,
+        category: category || null,
+        status: status,
+        certifier_id: "halalzur",
+        certificate_number: certNumber || null,
+        verified_at: new Date().toISOString().slice(0, 10),
+        ingredients: ingredientsRaw ? ingredientsRaw.split(",").map(function (s) { return s.trim(); }).filter(Boolean) : [],
+        notes: note || null,
+      },
+    })
+      .then(function () {
+        toast("Məhsul əlavə edildi: " + name);
+        e.target.reset();
+        loadProducts();
+      })
+      .catch(function (err) {
+        errorEl.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Məhsulu əlavə et";
+      });
+  });
 
   // ---- places ----
   var PLACE_CATEGORY_LABEL = { restoran: "Restoran", kafe: "Kafe", coffee_shop: "Coffee Shop" };

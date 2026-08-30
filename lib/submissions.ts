@@ -94,6 +94,17 @@ export async function fetchPendingSubmissions(): Promise<ProductSubmission[]> {
   return (data ?? []).map(mapRow);
 }
 
+export async function getApprovedCount(userId: string): Promise<number> {
+  const client = requireSupabase();
+  const { count, error } = await client
+    .from('product_submissions')
+    .select('id', { count: 'exact', head: true })
+    .eq('submitted_by', userId)
+    .eq('review_status', 'approved');
+  if (error) throw error;
+  return count ?? 0;
+}
+
 export async function getPoints(userId: string): Promise<number> {
   const client = requireSupabase();
   const { data, error } = await client

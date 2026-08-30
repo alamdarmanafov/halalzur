@@ -85,6 +85,11 @@ export default function ProfileScreen() {
       onPress: () => router.push('/ecodes'),
     },
     {
+      icon: 'trophy-outline',
+      label: 'Nailiyyətlər',
+      onPress: () => router.push('/achievements'),
+    },
+    {
       icon: 'shield-checkmark-outline',
       label: 'Sertifikat orqanları haqqında',
       onPress: () =>

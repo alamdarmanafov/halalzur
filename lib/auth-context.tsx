@@ -3,6 +3,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { createContext, useContext, useEffect, useMemo, useState, PropsWithChildren } from 'react';
 import { User } from './types';
 import { syncUser, fetchRemotePlan } from './userSync';
+import { AchievementTier } from './achievements';
 
 const STORAGE_KEY = 'halalzur.user';
 
@@ -19,7 +20,15 @@ type AuthContextValue = {
   setPlan: (plan: User['plan']) => Promise<void>;
   incrementScanCount: () => Promise<void>;
   refreshPlan: () => Promise<void>;
+  grantAchievementPremium: (tier: AchievementTier) => Promise<void>;
 };
+
+/** A timed achievement reward that has passed its expiry reverts to free. */
+function withExpiredAchievementCleared(u: User): User {
+  if (u.plan !== 'premium' || !u.premiumExpiresAt) return u;
+  if (new Date(u.premiumExpiresAt).getTime() > Date.now()) return u;
+  return { ...u, plan: 'free', premiumExpiresAt: null };
+}
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -31,16 +40,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
     AsyncStorage.getItem(STORAGE_KEY)
       .then(async (raw) => {
         if (!raw) return;
-        const stored: User = JSON.parse(raw);
+        const stored = withExpiredAchievementCleared(JSON.parse(raw) as User);
         setUser(stored);
         // An admin-panel plan change only ever lands in Supabase's `users`
         // row — this is the one moment that change reaches the device.
         const remotePlan = await fetchRemotePlan(stored.id);
-        if (remotePlan && remotePlan !== stored.plan) {
-          const next = { ...stored, plan: remotePlan };
-          setUser(next);
-          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-        }
+        const next =
+          remotePlan && remotePlan !== stored.plan ? { ...stored, plan: remotePlan } : stored;
+        setUser(next);
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -68,6 +76,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
           plan: 'free',
           scansToday: 0,
           lastScanDate: null,
+          premiumExpiresAt: null,
+          claimedAchievements: [],
         });
       },
       signUp: async (name, email) => {
@@ -78,6 +88,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
           plan: 'free',
           scansToday: 0,
           lastScanDate: null,
+          premiumExpiresAt: null,
+          claimedAchievements: [],
         });
       },
       signInWithApple: async () => {
@@ -102,6 +114,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
             plan: 'free',
             scansToday: 0,
             lastScanDate: null,
+            premiumExpiresAt: null,
+            claimedAchievements: [],
           };
           await persist(appleUser);
           syncUser(appleUser);
@@ -136,9 +150,25 @@ export function AuthProvider({ children }: PropsWithChildren) {
       refreshPlan: async () => {
         if (!user) return;
         const remotePlan = await fetchRemotePlan(user.id);
-        if (remotePlan && remotePlan !== user.plan) {
-          await persist({ ...user, plan: remotePlan });
-        }
+        const withPlan = remotePlan && remotePlan !== user.plan ? { ...user, plan: remotePlan } : user;
+        const cleared = withExpiredAchievementCleared(withPlan);
+        if (cleared !== user) await persist(cleared);
+      },
+      grantAchievementPremium: async (tier) => {
+        if (!user) return;
+        const base =
+          user.plan === 'premium' && user.premiumExpiresAt && new Date(user.premiumExpiresAt).getTime() > Date.now()
+            ? new Date(user.premiumExpiresAt).getTime()
+            : Date.now();
+        const premiumExpiresAt = new Date(base + tier.days * 86400000).toISOString();
+        const next: User = {
+          ...user,
+          plan: 'premium',
+          premiumExpiresAt,
+          claimedAchievements: [...user.claimedAchievements, tier.threshold],
+        };
+        await persist(next);
+        syncUser(next);
       },
     }),
     [user, isLoading]

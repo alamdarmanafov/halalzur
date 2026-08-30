@@ -30,6 +30,13 @@ export type User = {
   plan: SubscriptionPlan;
   scansToday: number;
   lastScanDate: string | null; // 'YYYY-MM-DD', local date of the last counted scan
+  // Set only when `plan: 'premium'` came from an achievement reward
+  // (lib/achievements.ts) rather than a real purchase or admin grant —
+  // auth-context reverts the plan to 'free' once this date passes.
+  premiumExpiresAt: string | null;
+  // Achievement thresholds (lib/achievements.ts ACHIEVEMENT_TIERS) already
+  // rewarded, so crossing the same one again doesn't re-grant premium.
+  claimedAchievements: number[];
 };
 
 /**

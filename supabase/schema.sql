@@ -55,6 +55,19 @@ create policy "Public read access" on certifiers
 create policy "Public read access" on certified_entries
   for select using (true);
 
+-- Needed by both approveSubmission() (lib/submissions.ts, promotes an
+-- approved community submission into this table) and the admin panel's
+-- Məhsullar section (direct add/delete). Same no-real-backend-auth caveat
+-- as product_submissions above — gated client-side only.
+create policy "Public insert" on certified_entries
+  for insert with check (true);
+
+create policy "Public update" on certified_entries
+  for update using (true) with check (true);
+
+create policy "Public delete" on certified_entries
+  for delete using (true);
+
 insert into certifiers (id, name, short_name, country, source_url) values
   ('gimdes', 'GIMDES – Gıda ve İhtiyaç Maddeleri Denetleme ve Sertifikalandırma Araştırmaları Derneği', 'GIMDES', 'Türkiyə', 'https://www.gimdes.org/'),
   ('jakim', 'JAKIM – Department of Islamic Development Malaysia', 'JAKIM', 'Malaziya', 'https://myehalal.halal.gov.my/'),
