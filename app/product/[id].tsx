@@ -9,6 +9,7 @@ import { extractECodesFromText } from '../../lib/eCodes';
 import { recognizeIngredientText } from '../../lib/ocr';
 import { hasInternetConnection } from '../../lib/network';
 import { useFavorites } from '../../lib/favorites-context';
+import { useHistory } from '../../lib/history-context';
 import { useAuth } from '../../lib/auth-context';
 import { submitProduct } from '../../lib/submissions';
 import { CertificationResult, HalalStatus } from '../../lib/types';
@@ -35,6 +36,7 @@ export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { history, removeScan } = useHistory();
   const [product, setProduct] = useState<CertificationResult | null>(null);
   const [manualIngredients, setManualIngredients] = useState('');
   const [ingredientPhoto, setIngredientPhoto] = useState<string | null>(null);
@@ -157,6 +159,25 @@ export default function ProductDetailScreen() {
   }
 
   const tint = STATUS_TINT[product.status];
+  const isInHistory = history.some((h) => h.barcode === product.barcode);
+
+  const handleDeleteFromHistory = () => {
+    Alert.alert(
+      'Tarixçədən sil',
+      'Bu məhsul səhv tanınıbsa, onu skan tarixçənizdən silə bilərsiniz.',
+      [
+        { text: 'Ləğv et', style: 'cancel' },
+        {
+          text: 'Sil',
+          style: 'destructive',
+          onPress: async () => {
+            await removeScan(product.barcode);
+            router.back();
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -164,13 +185,20 @@ export default function ProductDetailScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.black} />
         </Pressable>
-        <Pressable onPress={() => toggleFavorite(product)} style={styles.backBtn}>
-          <Ionicons
-            name={isFavorite(product.barcode) ? 'heart' : 'heart-outline'}
-            size={22}
-            color={isFavorite(product.barcode) ? colors.danger : colors.black}
-          />
-        </Pressable>
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          {isInHistory && (
+            <Pressable onPress={handleDeleteFromHistory} style={styles.backBtn}>
+              <Ionicons name="trash-outline" size={20} color={colors.danger} />
+            </Pressable>
+          )}
+          <Pressable onPress={() => toggleFavorite(product)} style={styles.backBtn}>
+            <Ionicons
+              name={isFavorite(product.barcode) ? 'heart' : 'heart-outline'}
+              size={22}
+              color={isFavorite(product.barcode) ? colors.danger : colors.black}
+            />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }}>

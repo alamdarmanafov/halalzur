@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { createContext, useContext, useEffect, useMemo, useState, PropsWithChildren } from 'react';
 import { User } from './types';
-import { syncUser } from './userSync';
+import { syncUser, fetchRemotePlan } from './userSync';
 
 const STORAGE_KEY = 'halalzur.user';
 
@@ -18,6 +18,7 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
   setPlan: (plan: User['plan']) => Promise<void>;
   incrementScanCount: () => Promise<void>;
+  refreshPlan: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -28,8 +29,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
-      .then((raw) => {
-        if (raw) setUser(JSON.parse(raw));
+      .then(async (raw) => {
+        if (!raw) return;
+        const stored: User = JSON.parse(raw);
+        setUser(stored);
+        // An admin-panel plan change only ever lands in Supabase's `users`
+        // row — this is the one moment that change reaches the device.
+        const remotePlan = await fetchRemotePlan(stored.id);
+        if (remotePlan && remotePlan !== stored.plan) {
+          const next = { ...stored, plan: remotePlan };
+          setUser(next);
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        }
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -121,6 +132,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
         const today = new Date().toISOString().slice(0, 10);
         const scansToday = user.lastScanDate === today ? user.scansToday + 1 : 1;
         await persist({ ...user, scansToday, lastScanDate: today });
+      },
+      refreshPlan: async () => {
+        if (!user) return;
+        const remotePlan = await fetchRemotePlan(user.id);
+        if (remotePlan && remotePlan !== user.plan) {
+          await persist({ ...user, plan: remotePlan });
+        }
       },
     }),
     [user, isLoading]

@@ -9,6 +9,7 @@ type HistoryContextValue = {
   history: CertificationResult[];
   isLoading: boolean;
   addScan: (result: CertificationResult) => Promise<void>;
+  removeScan: (barcode: string) => Promise<void>;
   clear: () => Promise<void>;
 };
 
@@ -35,6 +36,11 @@ export function HistoryProvider({ children }: PropsWithChildren) {
           0,
           200
         );
+        setHistory(next);
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      },
+      removeScan: async (barcode) => {
+        const next = history.filter((h) => h.barcode !== barcode);
         setHistory(next);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       },
