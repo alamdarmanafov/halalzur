@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ScrollView, Ref
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useHistory } from '../../lib/history-context';
 import { searchProducts, getAllProducts, getManyByBarcode } from '../../lib/certification';
 import { PRODUCT_CATEGORIES } from '../../lib/categories';
@@ -89,28 +90,39 @@ export default function ProductsScreen() {
         />
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoryRow}
-        contentContainerStyle={{ gap: spacing.sm }}
-      >
-        {CATEGORIES.map((c) => {
-          const active = c.label === category;
-          return (
-            <Pressable
-              key={c.label}
-              style={[styles.categoryChip, active && styles.categoryChipActive]}
-              onPress={() => setCategory(c.label)}
-            >
-              <Ionicons name={c.icon} size={14} color={active ? colors.white : colors.primaryDark} />
-              <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>
-                {c.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      <View style={styles.categoryRowWrap}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoryRow}
+          contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.xl }}
+        >
+          {CATEGORIES.map((c) => {
+            const active = c.label === category;
+            return (
+              <Pressable
+                key={c.label}
+                style={[styles.categoryChip, active && styles.categoryChipActive]}
+                onPress={() => setCategory(c.label)}
+              >
+                <Ionicons name={c.icon} size={14} color={active ? colors.white : colors.primaryDark} />
+                <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>
+                  {c.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+        {/* Hints that the row scrolls, instead of the last chip just
+            slamming into the screen edge looking like a rendering glitch. */}
+        <LinearGradient
+          colors={['rgba(255,255,255,0)', colors.white]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.categoryFade}
+          pointerEvents="none"
+        />
+      </View>
 
       {!query && (
         <Text style={styles.sectionLabel}>
@@ -169,7 +181,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   searchInput: { flex: 1, fontSize: typography.body.fontSize, color: colors.black },
+  categoryRowWrap: { position: 'relative' },
   categoryRow: { marginTop: spacing.md, flexGrow: 0 },
+  categoryFade: { position: 'absolute', right: 0, top: spacing.md, bottom: 0, width: 28 },
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',
