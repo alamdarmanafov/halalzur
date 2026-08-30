@@ -1,5 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, TextInput, Image, Alert, Modal, FlatList } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+  Pressable,
+  TextInput,
+  Image,
+  Alert,
+  Modal,
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -249,7 +263,12 @@ export default function ProductDetailScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }} keyboardShouldPersistTaps="handled">
         <View style={styles.hero}>
           {product.imageUrl ? (
             <Image source={{ uri: product.imageUrl }} style={styles.productImage} resizeMode="contain" />
@@ -487,6 +506,7 @@ export default function ProductDetailScreen() {
           <Text style={styles.barcode}>{product.barcode}</Text>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal
         visible={ecodePickerVisible}
