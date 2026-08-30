@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
+import { useState } from 'react';
+import { View, Text, StyleSheet, FlatList, Pressable, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,7 +8,17 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 export default function FavoritesScreen() {
-  const { favorites } = useFavorites();
+  const { favorites, refresh } = useFavorites();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refresh();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -18,6 +29,9 @@ export default function FavoritesScreen() {
         keyExtractor={(item) => item.barcode}
         contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: spacing.xl }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="heart-outline" size={36} color={colors.grayLight} />

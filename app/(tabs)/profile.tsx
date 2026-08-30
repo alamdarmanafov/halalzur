@@ -90,6 +90,11 @@ export default function ProfileScreen() {
       onPress: () => router.push('/achievements'),
     },
     {
+      icon: 'globe-outline',
+      label: 'Dil',
+      onPress: () => Alert.alert('Dil seçimi', 'Hazırda yalnız Azərbaycan dili var. Digər dillər tezliklə əlçatan olacaq.'),
+    },
+    {
       icon: 'shield-checkmark-outline',
       label: 'Sertifikat orqanları haqqında',
       onPress: () =>

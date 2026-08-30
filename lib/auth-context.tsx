@@ -114,11 +114,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
             [credential.fullName?.givenName, credential.fullName?.familyName]
               .filter(Boolean)
               .join(' ') || 'Apple istifadəçisi';
+          const id = `apple-${credential.user}`;
+          // Apple sign-in re-creates this user object on every login (signOut
+          // wipes local storage), so without reading the plan back first this
+          // would always default to 'free' and immediately overwrite any
+          // admin-granted premium in Supabase via syncUser() below.
+          const remotePlan = await fetchRemotePlan(id);
           const appleUser: User = {
-            id: `apple-${credential.user}`,
+            id,
             name,
             email: credential.email ?? `${credential.user}@privaterelay.appleid.com`,
-            plan: 'free',
+            plan: remotePlan ?? 'free',
             scansToday: 0,
             lastScanDate: null,
             premiumExpiresAt: null,

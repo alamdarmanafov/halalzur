@@ -9,6 +9,7 @@ type FavoritesContextValue = {
   isLoading: boolean;
   isFavorite: (barcode: string) => boolean;
   toggleFavorite: (result: CertificationResult) => Promise<void>;
+  refresh: () => Promise<void>;
 };
 
 const FavoritesContext = createContext<FavoritesContextValue | null>(null);
@@ -17,12 +18,13 @@ export function FavoritesProvider({ children }: PropsWithChildren) {
   const [favorites, setFavorites] = useState<CertificationResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const load = () =>
+    AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
+      setFavorites(raw ? JSON.parse(raw) : []);
+    });
+
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY)
-      .then((raw) => {
-        if (raw) setFavorites(JSON.parse(raw));
-      })
-      .finally(() => setIsLoading(false));
+    load().finally(() => setIsLoading(false));
   }, []);
 
   const value = useMemo<FavoritesContextValue>(
@@ -38,6 +40,7 @@ export function FavoritesProvider({ children }: PropsWithChildren) {
         setFavorites(next);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       },
+      refresh: load,
     }),
     [favorites, isLoading]
   );
