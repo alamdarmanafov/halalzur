@@ -50,24 +50,14 @@ export default function WelcomeScreen() {
         </Text>
 
         <Pressable style={styles.primaryBtn} onPress={goToLogin}>
-          <Ionicons name="scan-outline" size={20} color={colors.white} />
-          <Text style={styles.primaryBtnText}>Barkodu skan et</Text>
+          <Ionicons name="log-in-outline" size={20} color={colors.white} />
+          <Text style={styles.primaryBtnText}>Daxil ol</Text>
         </Pressable>
 
-        <Pressable style={styles.secondaryBtn} onPress={goToLogin}>
-          <Ionicons name="cube-outline" size={20} color={colors.primaryDark} />
-          <Text style={styles.secondaryBtnText}>Məhsulları kəşf et</Text>
+        <Pressable style={styles.secondaryBtn} onPress={goToRegister}>
+          <Ionicons name="person-add-outline" size={20} color={colors.primaryDark} />
+          <Text style={styles.secondaryBtnText}>Qeydiyyatdan keç</Text>
         </Pressable>
-
-        <View style={styles.footerRow}>
-          <Pressable onPress={goToLogin}>
-            <Text style={styles.footerLink}>Daxil ol</Text>
-          </Pressable>
-          <View style={styles.footerDivider} />
-          <Pressable onPress={goToRegister}>
-            <Text style={styles.footerLink}>Qeydiyyatdan keç</Text>
-          </Pressable>
-        </View>
       </View>
     </SafeAreaView>
   );
@@ -81,7 +71,7 @@ const styles = StyleSheet.create({
   leafBottomRight: { position: 'absolute', bottom: 40, right: 10, opacity: 0.7 },
   langBtn: {
     position: 'absolute',
-    top: spacing.md,
+    top: spacing.xl,
     right: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
@@ -172,7 +162,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   secondaryBtnText: { ...typography.h3, color: colors.primaryDark },
-  footerRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.xl },
-  footerLink: { ...typography.body, color: colors.primaryDark, fontWeight: '700' },
-  footerDivider: { width: 1, height: 16, backgroundColor: colors.grayLight },
 });
