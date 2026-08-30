@@ -115,7 +115,10 @@ export default function ProfileScreen() {
     {
       icon: 'log-out-outline',
       label: 'Çıxış et',
-      onPress: () => signOut(),
+      onPress: async () => {
+        await signOut();
+        router.replace('/(auth)/welcome');
+      },
       danger: true,
     },
   ];

@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, TextInput, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, TextInput, Image, Alert, Modal, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { lookupBarcode, statusDescription } from '../../lib/certification';
-import { extractECodesFromText } from '../../lib/eCodes';
+import { extractECodesFromText, searchECodes, eCodeStatusLabel } from '../../lib/eCodes';
 import { recognizeIngredientText } from '../../lib/ocr';
 import { hasInternetConnection } from '../../lib/network';
 import { useFavorites } from '../../lib/favorites-context';
@@ -49,6 +49,8 @@ export default function ProductDetailScreen() {
   const [submitStatus, setSubmitStatus] = useState<HalalStatus>('halal');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [ecodePickerVisible, setEcodePickerVisible] = useState(false);
+  const [ecodeQuery, setEcodeQuery] = useState('');
 
   useEffect(() => {
     if (!id) return;
@@ -77,6 +79,21 @@ export default function ProductDetailScreen() {
       ),
     [hasKnownIngredients, product, manualIngredients]
   );
+
+  const hasECode = (code: string) =>
+    manualIngredients
+      .split(',')
+      .map((s) => s.trim().toUpperCase().replace(/\s+/g, ''))
+      .includes(code.toUpperCase());
+
+  const toggleECode = (code: string) => {
+    const parts = manualIngredients.split(',').map((s) => s.trim()).filter(Boolean);
+    const norm = (s: string) => s.toUpperCase().replace(/\s+/g, '');
+    const next = hasECode(code)
+      ? parts.filter((p) => norm(p) !== norm(code))
+      : [...parts, code];
+    setManualIngredients(next.join(', '));
+  };
 
   const captureIngredientPhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -300,6 +317,11 @@ export default function ProductDetailScreen() {
               style={styles.manualInput}
             />
 
+            <Pressable style={styles.ecodePickerBtn} onPress={() => setEcodePickerVisible(true)}>
+              <Ionicons name="flask-outline" size={16} color={colors.primaryDark} />
+              <Text style={styles.ecodePickerBtnText}>Siyahıdan E-kod seç</Text>
+            </Pressable>
+
             <View style={styles.submitDivider} />
 
             {submitted ? (
@@ -384,6 +406,60 @@ export default function ProductDetailScreen() {
           <Text style={styles.barcode}>{product.barcode}</Text>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={ecodePickerVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEcodePickerVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>E-kod seç</Text>
+              <Pressable onPress={() => setEcodePickerVisible(false)}>
+                <Ionicons name="close" size={22} color={colors.gray} />
+              </Pressable>
+            </View>
+            <TextInput
+              value={ecodeQuery}
+              onChangeText={setEcodeQuery}
+              placeholder="Kod, ad və ya kateqoriya axtar (məs. E471, jelatin)"
+              placeholderTextColor={colors.gray}
+              style={styles.ecodeSearchInput}
+            />
+            <FlatList
+              data={searchECodes(ecodeQuery)}
+              keyExtractor={(item) => item.code}
+              renderItem={({ item }) => {
+                const selected = hasECode(item.code);
+                return (
+                  <Pressable style={styles.ecodeRow} onPress={() => toggleECode(item.code)}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.ecodeRowCode}>
+                        {item.code} · {item.name}
+                      </Text>
+                      <Text style={styles.ecodeRowMeta}>
+                        {item.category} · {eCodeStatusLabel[item.status]}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={selected ? 'checkmark-circle' : 'add-circle-outline'}
+                      size={22}
+                      color={selected ? colors.primary : colors.grayLight}
+                    />
+                  </Pressable>
+                );
+              }}
+              style={{ maxHeight: 360 }}
+            />
+            <Text style={[styles.eCodeIntro, { marginTop: spacing.sm, marginBottom: 0 }]}>
+              Seçdiyiniz kodlar yuxarıdakı tərkib sahəsinə əlavə olunur — admin baxıb doğruluğunu
+              yoxlayacaq.
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -486,6 +562,55 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     backgroundColor: colors.surface,
   },
+  ecodePickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+  },
+  ecodePickerBtnText: { ...typography.small, color: colors.primaryDark, fontWeight: '700' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modalCard: {
+    backgroundColor: colors.white,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: spacing.lg,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+  },
+  modalTitle: { ...typography.h2, color: colors.black },
+  ecodeSearchInput: {
+    height: 44,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.grayLight,
+    paddingHorizontal: spacing.md,
+    fontSize: typography.body.fontSize,
+    color: colors.black,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.sm,
+  },
+  ecodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surface,
+  },
+  ecodeRowCode: { ...typography.body, color: colors.black, fontWeight: '700' },
+  ecodeRowMeta: { ...typography.small, color: colors.gray, marginTop: 2 },
   submitDivider: { height: 1, backgroundColor: colors.surface, marginVertical: spacing.lg },
   submitInput: {
     height: 46,
