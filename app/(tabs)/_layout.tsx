@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../lib/auth-context';
 import { registerForPushNotifications, onForegroundMessage } from '../../lib/notifications';
 import { AnnouncementModal } from '../../components/AnnouncementModal';
+import { WelcomeModal } from '../../components/WelcomeModal';
 import { colors, radius } from '../../constants/theme';
 
 const TAB_ICON_SIZE = 24;
@@ -45,6 +46,7 @@ export default function TabsLayout() {
 
   return (
     <Fragment>
+      <WelcomeModal />
       <AnnouncementModal />
       <Tabs
         initialRouteName="index"

@@ -21,6 +21,11 @@ type AuthContextValue = {
   incrementScanCount: () => Promise<void>;
   refreshPlan: () => Promise<void>;
   grantAchievementPremium: (tier: AchievementTier) => Promise<void>;
+  // In-memory only (not persisted) — true for one app session right after
+  // signUp/first-time signInWithApple, so (tabs)/_layout.tsx's
+  // WelcomeModal knows to greet the new account exactly once.
+  justRegistered: boolean;
+  clearJustRegistered: () => void;
 };
 
 /** A timed achievement reward that has passed its expiry reverts to free. */
@@ -35,6 +40,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [justRegistered, setJustRegistered] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
@@ -91,6 +97,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           premiumExpiresAt: null,
           claimedAchievements: [],
         });
+        setJustRegistered(true);
       },
       signInWithApple: async () => {
         try {
@@ -119,6 +126,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
           };
           await persist(appleUser);
           syncUser(appleUser);
+          // Apple only hands back an email on the account's first
+          // authorization — the one reliable "this is a new sign-up" signal
+          // we have, since there's no real backend to check against.
+          if (credential.email) setJustRegistered(true);
         } catch (err: any) {
           if (err?.code === 'ERR_REQUEST_CANCELED') return;
           throw err;
@@ -170,8 +181,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
         await persist(next);
         syncUser(next);
       },
+      justRegistered,
+      clearJustRegistered: () => setJustRegistered(false),
     }),
-    [user, isLoading]
+    [user, isLoading, justRegistered]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

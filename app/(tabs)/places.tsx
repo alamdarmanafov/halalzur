@@ -25,6 +25,7 @@ import {
 import { useAuth } from '../../lib/auth-context';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Button } from '../../components/Button';
+import { BrandModal } from '../../components/BrandModal';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 const SUBMIT_CATEGORIES: PlaceCategory[] = ['restoran', 'kafe', 'coffee_shop'];
@@ -48,6 +49,7 @@ export default function PlacesScreen() {
   const [formAddress, setFormAddress] = useState('');
   const [formNote, setFormNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [submittedNotice, setSubmittedNotice] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -97,10 +99,7 @@ export default function PlacesScreen() {
       });
       setFormVisible(false);
       resetForm();
-      Alert.alert(
-        'Təşəkkürlər!',
-        'Məkan təklifiniz göndərildi — admin baxıb təsdiqləyəndən sonra siyahıda görünəcək.'
-      );
+      setSubmittedNotice(true);
     } catch (err: any) {
       Alert.alert('Göndərilmədi', err.message ?? 'Xəta baş verdi, yenidən cəhd edin.');
     } finally {
@@ -243,6 +242,15 @@ export default function PlacesScreen() {
           </View>
         </View>
       </Modal>
+
+      <BrandModal
+        visible={submittedNotice}
+        title="Təşəkkürlər!"
+        body="Məkan təklifiniz göndərildi — admin baxıb təsdiqləyəndən sonra siyahıda görünəcək."
+        ctaLabel="Əla"
+        onCta={() => setSubmittedNotice(false)}
+        onClose={() => setSubmittedNotice(false)}
+      />
     </SafeAreaView>
   );
 }
