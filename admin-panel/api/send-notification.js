@@ -42,12 +42,14 @@ export default async function handler(req, res) {
   }
 
   if (!process.env.NOTIFY_SECRET || req.headers['x-notify-secret'] !== process.env.NOTIFY_SECRET) {
+    console.error('send-notification: unauthorized — NOTIFY_SECRET missing or mismatched');
     res.status(401).json({ error: 'unauthorized' });
     return;
   }
 
   const { userId, title, body } = req.body || {};
   if (!userId || !title || !body) {
+    console.error('send-notification: missing_fields', { userId: !!userId, title: !!title, body: !!body });
     res.status(400).json({ error: 'missing_fields' });
     return;
   }
@@ -55,10 +57,19 @@ export default async function handler(req, res) {
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceRoleKey) {
+    console.error('send-notification: supabase_not_configured', {
+      hasUrl: !!supabaseUrl,
+      hasServiceRoleKey: !!serviceRoleKey,
+    });
     res.status(500).json({ error: 'supabase_not_configured' });
     return;
   }
   if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
+    console.error('send-notification: firebase_not_configured', {
+      hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
+      hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
+      hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
+    });
     res.status(500).json({ error: 'firebase_not_configured' });
     return;
   }
@@ -89,6 +100,7 @@ export default async function handler(req, res) {
 
     res.status(200).json({ sent });
   } catch (err) {
+    console.error('send-notification: unexpected error', err);
     res.status(500).json({ error: err.message });
   }
 }
