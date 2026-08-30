@@ -1,9 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useMemo, useState, PropsWithChildren } from 'react';
 import { CertificationResult } from './types';
+import { useAuth } from './auth-context';
 
 const STORAGE_KEY = 'halalzur.history';
 const FREE_HISTORY_LIMIT = 10;
+const PREMIUM_HISTORY_LIMIT = 200;
 
 type HistoryContextValue = {
   history: CertificationResult[];
@@ -16,8 +18,10 @@ type HistoryContextValue = {
 const HistoryContext = createContext<HistoryContextValue | null>(null);
 
 export function HistoryProvider({ children }: PropsWithChildren) {
+  const { user } = useAuth();
   const [history, setHistory] = useState<CertificationResult[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const limit = user?.plan === 'premium' ? PREMIUM_HISTORY_LIMIT : FREE_HISTORY_LIMIT;
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
@@ -34,7 +38,7 @@ export function HistoryProvider({ children }: PropsWithChildren) {
       addScan: async (result) => {
         const next = [result, ...history.filter((h) => h.barcode !== result.barcode)].slice(
           0,
-          200
+          limit
         );
         setHistory(next);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -49,7 +53,7 @@ export function HistoryProvider({ children }: PropsWithChildren) {
         await AsyncStorage.removeItem(STORAGE_KEY);
       },
     }),
-    [history, isLoading]
+    [history, isLoading, limit]
   );
 
   return <HistoryContext.Provider value={value}>{children}</HistoryContext.Provider>;

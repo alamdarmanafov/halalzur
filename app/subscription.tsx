@@ -57,12 +57,21 @@ const PLANS = {
 
 const PLAN_SKUS = Object.values(PLANS).map((p) => p.id);
 
+/**
+ * Every claim here must map to something the app actually enforces —
+ * halal/certificate info itself is never premium-gated (that would be
+ * withholding safety information from free users, which this app's
+ * whole purpose is to surface). What premium genuinely buys is
+ * convenience: no daily scan cap (app/(tabs)/index.tsx FREE_DAILY_SCAN_LIMIT)
+ * and full scan history instead of the last 10 (lib/history-context.tsx
+ * FREE_HISTORY_LIMIT) — both real gates. The last two rows are honest
+ * service-level promises, not technical claims.
+ */
 const FEATURES = [
   { icon: 'infinite-outline', free: '3 skan / gün', premium: 'Limitsiz skan' },
-  { icon: 'document-text-outline', free: 'Əsas nəticə', premium: 'Tam sertifikat detalları' },
-  { icon: 'time-outline', free: '10 tarixçə', premium: 'Limitsiz tarixçə' },
-  { icon: 'notifications-outline', free: '—', premium: 'Geri çağırma bildirişləri' },
-  { icon: 'shield-checkmark-outline', free: 'Standart', premium: 'Prioritet sertifikat yoxlaması' },
+  { icon: 'time-outline', free: 'Son 10 skan', premium: 'Limitsiz tarixçə' },
+  { icon: 'megaphone-outline', free: 'Adi bildirişlər', premium: 'Yeniliklər barədə ilk bildiriş' },
+  { icon: 'headset-outline', free: 'Standart dəstək', premium: 'Prioritet dəstək' },
 ] as const;
 
 export default function SubscriptionScreen() {
