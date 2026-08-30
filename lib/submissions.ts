@@ -72,6 +72,19 @@ export async function submitProduct(input: {
   if (error) throw error;
 }
 
+export async function hasSubmittedProduct(userId: string, barcode: string): Promise<boolean> {
+  const client = requireSupabase();
+  const { data, error } = await client
+    .from('product_submissions')
+    .select('id')
+    .eq('submitted_by', userId)
+    .eq('barcode', barcode)
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return !!data;
+}
+
 export async function fetchMySubmissions(userId: string): Promise<ProductSubmission[]> {
   const client = requireSupabase();
   const { data, error } = await client

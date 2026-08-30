@@ -11,7 +11,7 @@ import { hasInternetConnection } from '../../lib/network';
 import { useFavorites } from '../../lib/favorites-context';
 import { useHistory } from '../../lib/history-context';
 import { useAuth } from '../../lib/auth-context';
-import { submitProduct } from '../../lib/submissions';
+import { submitProduct, hasSubmittedProduct } from '../../lib/submissions';
 import { sendPushNotification } from '../../lib/pushNotify';
 import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -66,6 +66,20 @@ export default function ProductDetailScreen() {
       cancelled = true;
     };
   }, [id, reloadTick]);
+
+  useEffect(() => {
+    if (!user || !id) return;
+    let cancelled = false;
+    setSubmitted(false);
+    hasSubmittedProduct(user.id, id)
+      .then((exists) => {
+        if (!cancelled && exists) setSubmitted(true);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user, id]);
 
   useEffect(() => {
     if (!product || product.status === 'halal' || !isPremium) {
