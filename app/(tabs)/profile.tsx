@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,15 +20,16 @@ type MenuItem = {
 };
 
 export default function ProfileScreen() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, refreshPlan } = useAuth();
   const { history, clear } = useHistory();
   const { favorites } = useFavorites();
   const isPremium = user?.plan === 'premium';
   const admin = isAdmin(user);
   const [points, setPoints] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
+  const loadProfileData = () => {
     if (!user) return;
     getPoints(user.id)
       .then(setPoints)
@@ -38,7 +39,19 @@ export default function ProfileScreen() {
         .then((list) => setPendingCount(list.length))
         .catch(() => {});
     }
-  }, [user, admin]);
+  };
+
+  useEffect(loadProfileData, [user, admin]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshPlan();
+      loadProfileData();
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const menuItems: MenuItem[] = [
     {
@@ -104,7 +117,12 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: spacing.xl }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+      >
         <Text style={styles.title}>Profil</Text>
 
         <View style={styles.userCard}>
@@ -112,7 +130,15 @@ export default function ProfileScreen() {
             <Text style={styles.avatarText}>{(user?.name ?? '?').slice(0, 1).toUpperCase()}</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.name}>{user?.name}</Text>
+            <View style={styles.nameRow}>
+              <Text style={styles.name}>{user?.name}</Text>
+              {isPremium && (
+                <View style={styles.premiumBadge}>
+                  <Ionicons name="star" size={11} color={colors.white} />
+                  <Text style={styles.premiumBadgeText}>PREMIUM</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.email}>{user?.email}</Text>
           </View>
           <View style={styles.pointsBadge}>
@@ -180,7 +206,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: { ...typography.h2, color: colors.primaryDark },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   name: { ...typography.h3, color: colors.black },
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  premiumBadgeText: { color: colors.white, fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
   email: { ...typography.small, color: colors.gray, marginTop: 2 },
   pointsBadge: {
     flexDirection: 'row',

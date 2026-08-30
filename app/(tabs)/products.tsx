@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ScrollView, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +23,7 @@ export default function ProductsScreen() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('Hamısı');
   const [results, setResults] = useState<CertificationResult[]>(getAllProducts());
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -33,6 +34,15 @@ export default function ProductsScreen() {
       active = false;
     };
   }, [query]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      setResults(await searchProducts(query));
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const data = useMemo(() => {
     const base = query ? results : history.length ? history : results;
@@ -88,6 +98,9 @@ export default function ProductsScreen() {
         keyExtractor={(item) => item.barcode}
         contentContainerStyle={{ paddingBottom: spacing.xl }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="search-outline" size={32} color={colors.grayLight} />

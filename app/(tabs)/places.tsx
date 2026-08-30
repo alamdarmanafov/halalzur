@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { getPlacesByCategory, Place, PLACE_CATEGORY_LABEL, PLACE_CATEGORY_ICON, PlaceCategory } from '../../lib/places';
@@ -17,6 +17,7 @@ export default function PlacesScreen() {
   const [filter, setFilter] = useState<PlaceCategory | 'hamısı'>('hamısı');
   const [data, setData] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -31,6 +32,15 @@ export default function PlacesScreen() {
       active = false;
     };
   }, [filter]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      setData(await getPlacesByCategory(filter));
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -63,6 +73,9 @@ export default function PlacesScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: spacing.xl, paddingTop: spacing.md }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
         ListEmptyComponent={
           loading ? (
             <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
