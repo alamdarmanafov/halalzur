@@ -40,6 +40,13 @@ const PLANS = {
     price: '$2.99',
     period: 'ay',
   },
+  sixMonth: {
+    id: 'com.halalzur.app.premium.sixmonth',
+    label: '6 Aylıq',
+    price: '$9.99',
+    period: '6 ay',
+    badge: '44% qənaət',
+  },
   yearly: {
     id: 'com.halalzur.app.premium.yearly',
     label: 'İllik',
@@ -52,11 +59,10 @@ const PLANS = {
 const PLAN_SKUS = Object.values(PLANS).map((p) => p.id);
 
 /**
- * The 4 real Premium features (see lib/premiumFeatures.ts for the gating
- * logic itself) — deliberately just these 4, per spec. Halal/certificate
- * status is never gated (app/product/[id].tsx always shows it to every
- * user); history, favorites, and ad-removal are explicitly NOT premium
- * differentiators here.
+ * The 4 real Premium features — deliberately just these 4, per spec.
+ * Halal/certificate status is never gated (app/product/[id].tsx always
+ * shows it to every user); history, favorites, and ad-removal are
+ * explicitly NOT premium differentiators here.
  */
 const FEATURES = [
   { icon: 'infinite-outline', label: 'Limitsiz Scan' },
