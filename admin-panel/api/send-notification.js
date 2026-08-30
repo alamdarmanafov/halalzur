@@ -83,6 +83,7 @@ export default async function handler(req, res) {
 
     if (error) throw error;
     if (!tokens || tokens.length === 0) {
+      console.error('send-notification: no_registered_device', { userId });
       res.status(200).json({ sent: 0, reason: 'no_registered_device' });
       return;
     }
@@ -94,10 +95,11 @@ export default async function handler(req, res) {
         await messaging.send({ token: fcm_token, notification: { title, body } });
         sent++;
       } catch (err) {
-        console.warn('FCM send failed:', err.message);
+        console.error('send-notification: FCM send failed', err.code, err.message);
       }
     }
 
+    console.log('send-notification: done', { userId, tokens: tokens.length, sent });
     res.status(200).json({ sent });
   } catch (err) {
     console.error('send-notification: unexpected error', err);
