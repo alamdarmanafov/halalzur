@@ -16,6 +16,7 @@
     "expo-build-properties": "~57.0.15",
     "expo-camera": "^57.0.4",
     "expo-constants": "^57.0.15",
+    "expo-dev-client": "~57.0.16",
     "expo-haptics": "^57.0.2",
     "expo-image-picker": "^57.0.14",
     "expo-linear-gradient": "^57.0.1",
