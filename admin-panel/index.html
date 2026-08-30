@@ -785,6 +785,16 @@
     card.querySelector('[data-action="approve"]').addEventListener("click", function (e) {
       var chosenStatus = card.querySelector('[data-role="status-select"]').value;
       var chosenCategory = card.querySelector('[data-role="category-input"]').value.trim();
+      // Status defaults to "Naməlum" until touched — easy to miss and
+      // approve a genuinely halal product as unclassified by accident.
+      if (
+        chosenStatus === "unknown" &&
+        !window.confirm(
+          'Status "Naməlum" seçilib qalıb (dəyişdirilməyib). Məhsulu "Naməlum/Şübhəli" statusla təsdiqləmək istədiyinizə əminsiniz? Əgər halaldırsa, əvvəlcə yuxarıdan "Halal" seçin.'
+        )
+      ) {
+        return;
+      }
       approveSubmission(row, card, e.target, chosenStatus, chosenCategory);
     });
     card.querySelector('[data-action="reject"]').addEventListener("click", function (e) {
@@ -914,12 +924,58 @@
         (row.barcode ? '<div class="pc-sub">Barkod: ' + esc(row.barcode) + '</div>' : '') +
         (row.certificate_number ? '<div class="pc-sub">Sertifikat: ' + esc(row.certificate_number) + '</div>' : '') +
       '</div>' +
-      '<button class="place-delete-btn" data-action="delete-product">Sil</button>';
+      '<div class="field" style="margin-top:8px; max-width:220px;">' +
+        '<label>Status</label>' +
+        '<select data-role="edit-status">' +
+          '<option value="halal">Halal</option>' +
+          '<option value="mushbooh">Şübhəli</option>' +
+          '<option value="haram">Tövsiyə edilmir</option>' +
+          '<option value="unknown">Naməlum</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="field" style="margin-top:8px; max-width:220px;">' +
+        '<label>Kateqoriya</label>' +
+        '<input type="text" data-role="edit-category" placeholder="Məs. Süd məhsulları" />' +
+      '</div>' +
+      '<div style="display:flex; gap:8px; margin-top:8px;">' +
+        '<button class="btn btn-approve" data-action="save-product">Yadda saxla</button>' +
+        '<button class="place-delete-btn" data-action="delete-product">Sil</button>' +
+      '</div>';
 
+    card.querySelector('[data-role="edit-status"]').value = row.status || "unknown";
+    card.querySelector('[data-role="edit-category"]').value = row.category || "";
+
+    card.querySelector('[data-action="save-product"]').addEventListener("click", function (e) {
+      var newStatus = card.querySelector('[data-role="edit-status"]').value;
+      var newCategory = card.querySelector('[data-role="edit-category"]').value.trim();
+      updateProduct(row, card, e.target, newStatus, newCategory);
+    });
     card.querySelector('[data-action="delete-product"]').addEventListener("click", function (e) {
       deleteProduct(row, card, e.target);
     });
     return card;
+  }
+
+  function updateProduct(row, card, btn, status, category) {
+    btn.disabled = true;
+    var originalText = btn.textContent;
+    btn.textContent = "Yadda saxlanır…";
+    sb("certified_entries?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { status: status, category: category || null, updated_at: new Date().toISOString() },
+    })
+      .then(function () {
+        toast("Yeniləndi: " + (row.product_name || row.brand));
+        row.status = status;
+        row.category = category || null;
+        loadProducts();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+        btn.textContent = originalText;
+      });
   }
 
   function deleteProduct(row, card, btn) {
