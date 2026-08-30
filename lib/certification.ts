@@ -236,6 +236,24 @@ export async function getHalalAlternatives(
   return (data ?? []).map((row) => mapRowToResult(row, row.barcode ?? ''));
 }
 
+/**
+ * Existing brand names already in certified_entries — powers the
+ * product-submission form's brand picker (search existing, or type a new
+ * one if it isn't there yet).
+ */
+export async function getDistinctBrands(): Promise<string[]> {
+  if (!isSupabaseConfigured || !supabase) {
+    return Array.from(new Set(Object.values(MOCK_DB).map((p) => p.brand))).sort();
+  }
+  const { data, error } = await supabase
+    .from('certified_entries')
+    .select('brand')
+    .not('brand', 'is', null)
+    .limit(1000);
+  if (error || !data) return [];
+  return Array.from(new Set(data.map((r) => r.brand).filter(Boolean))).sort();
+}
+
 export function getAllProducts(): CertificationResult[] {
   return Object.values(MOCK_DB);
 }

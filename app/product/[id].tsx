@@ -18,7 +18,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { lookupBarcode, statusDescription, getHalalAlternatives } from '../../lib/certification';
+import { lookupBarcode, statusDescription, getHalalAlternatives, getDistinctBrands } from '../../lib/certification';
+import { PRODUCT_CATEGORIES } from '../../lib/categories';
 import { extractECodesFromText, searchECodes, eCodeStatusLabel } from '../../lib/eCodes';
 import { recognizeIngredientText } from '../../lib/ocr';
 import { hasInternetConnection } from '../../lib/network';
@@ -61,6 +62,15 @@ export default function ProductDetailScreen() {
   const [submitted, setSubmitted] = useState(false);
   const [ecodePickerVisible, setEcodePickerVisible] = useState(false);
   const [ecodeQuery, setEcodeQuery] = useState('');
+  const [fieldPicker, setFieldPicker] = useState<'brand' | 'category' | null>(null);
+  const [fieldPickerQuery, setFieldPickerQuery] = useState('');
+  const [brandOptions, setBrandOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    getDistinctBrands()
+      .then(setBrandOptions)
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -131,6 +141,26 @@ export default function ProductDetailScreen() {
       ? parts.filter((p) => norm(p) !== norm(code))
       : [...parts, code];
     setManualIngredients(next.join(', '));
+  };
+
+  const fieldPickerOptions = fieldPicker === 'brand' ? brandOptions : [...PRODUCT_CATEGORIES];
+  const filteredFieldPickerOptions = fieldPickerOptions.filter((o) =>
+    o.toLowerCase().includes(fieldPickerQuery.trim().toLowerCase())
+  );
+  const fieldPickerExactMatch = filteredFieldPickerOptions.some(
+    (o) => o.toLowerCase() === fieldPickerQuery.trim().toLowerCase()
+  );
+
+  const openFieldPicker = (which: 'brand' | 'category') => {
+    setFieldPicker(which);
+    setFieldPickerQuery(which === 'brand' ? submitBrand : submitCategory);
+  };
+
+  const selectFieldPickerValue = (value: string) => {
+    if (fieldPicker === 'brand') setSubmitBrand(value);
+    if (fieldPicker === 'category') setSubmitCategory(value);
+    setFieldPicker(null);
+    setFieldPickerQuery('');
   };
 
   const captureIngredientPhoto = async () => {
@@ -440,20 +470,18 @@ export default function ProductDetailScreen() {
                   placeholderTextColor={colors.gray}
                   style={styles.submitInput}
                 />
-                <TextInput
-                  value={submitBrand}
-                  onChangeText={setSubmitBrand}
-                  placeholder="Marka"
-                  placeholderTextColor={colors.gray}
-                  style={styles.submitInput}
-                />
-                <TextInput
-                  value={submitCategory}
-                  onChangeText={setSubmitCategory}
-                  placeholder="Kateqoriya (məs. Şirniyyat)"
-                  placeholderTextColor={colors.gray}
-                  style={styles.submitInput}
-                />
+                <Pressable style={styles.submitPicker} onPress={() => openFieldPicker('brand')}>
+                  <Text style={submitBrand ? styles.submitPickerText : styles.submitPickerPlaceholder}>
+                    {submitBrand || 'Marka seçin və ya yeni yazın'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={16} color={colors.gray} />
+                </Pressable>
+                <Pressable style={styles.submitPicker} onPress={() => openFieldPicker('category')}>
+                  <Text style={submitCategory ? styles.submitPickerText : styles.submitPickerPlaceholder}>
+                    {submitCategory || 'Kateqoriya seçin və ya yeni yazın'}
+                  </Text>
+                  <Ionicons name="chevron-down" size={16} color={colors.gray} />
+                </Pressable>
                 <Text style={styles.eCodeIntro}>
                   Halallıq statusunu özünüz seçmirsiniz — komandamız yoxlayıb qərar verəcək.
                 </Text>
@@ -558,6 +586,58 @@ export default function ProductDetailScreen() {
               Seçdiyiniz kodlar yuxarıdakı tərkib sahəsinə əlavə olunur — admin baxıb doğruluğunu
               yoxlayacaq.
             </Text>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={fieldPicker !== null}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setFieldPicker(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {fieldPicker === 'brand' ? 'Marka seç' : 'Kateqoriya seç'}
+              </Text>
+              <Pressable onPress={() => setFieldPicker(null)}>
+                <Ionicons name="close" size={22} color={colors.gray} />
+              </Pressable>
+            </View>
+            <TextInput
+              value={fieldPickerQuery}
+              onChangeText={setFieldPickerQuery}
+              placeholder={fieldPicker === 'brand' ? 'Marka axtar və ya yeni yazın' : 'Kateqoriya axtar və ya yeni yazın'}
+              placeholderTextColor={colors.gray}
+              style={styles.ecodeSearchInput}
+              autoFocus
+            />
+            <FlatList
+              data={filteredFieldPickerOptions}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <Pressable style={styles.ecodeRow} onPress={() => selectFieldPickerValue(item)}>
+                  <Text style={styles.ecodeRowCode}>{item}</Text>
+                </Pressable>
+              )}
+              style={{ maxHeight: 280 }}
+              ListEmptyComponent={
+                <Text style={[styles.eCodeIntro, { marginTop: spacing.sm }]}>
+                  Uyğun nəticə tapılmadı — aşağıdan yenisini əlavə edə bilərsiniz.
+                </Text>
+              }
+            />
+            {fieldPickerQuery.trim().length > 0 && !fieldPickerExactMatch && (
+              <Pressable
+                style={styles.addNewRow}
+                onPress={() => selectFieldPickerValue(fieldPickerQuery.trim())}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+                <Text style={styles.addNewRowText}>"{fieldPickerQuery.trim()}" əlavə et (yeni)</Text>
+              </Pressable>
+            )}
           </View>
         </View>
       </Modal>
@@ -750,6 +830,30 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     marginBottom: spacing.sm,
   },
+  submitPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 46,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.grayLight,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.sm,
+  },
+  submitPickerText: { ...typography.body, color: colors.black },
+  submitPickerPlaceholder: { ...typography.body, color: colors.gray },
+  addNewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.surface,
+  },
+  addNewRowText: { ...typography.small, color: colors.primaryDark, fontWeight: '700' },
   submittedBox: {
     flexDirection: 'row',
     alignItems: 'center',

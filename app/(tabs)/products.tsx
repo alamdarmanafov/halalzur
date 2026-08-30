@@ -5,17 +5,22 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useHistory } from '../../lib/history-context';
 import { searchProducts, getAllProducts } from '../../lib/certification';
+import { PRODUCT_CATEGORIES } from '../../lib/categories';
 import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
+const CATEGORY_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
+  Şirniyyat: 'ice-cream-outline',
+  Çörək: 'nutrition-outline',
+  İçki: 'cafe-outline',
+  'Süd məhsulları': 'water-outline',
+  Kosmetika: 'sparkles-outline',
+};
+
 const CATEGORIES: { label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { label: 'Hamısı', icon: 'apps-outline' },
-  { label: 'Şirniyyat', icon: 'ice-cream-outline' },
-  { label: 'Çörək', icon: 'nutrition-outline' },
-  { label: 'İçki', icon: 'cafe-outline' },
-  { label: 'Süd məhsulları', icon: 'water-outline' },
-  { label: 'Kosmetika', icon: 'sparkles-outline' },
+  ...PRODUCT_CATEGORIES.map((label) => ({ label, icon: CATEGORY_ICON[label] })),
 ];
 
 export default function ProductsScreen() {
