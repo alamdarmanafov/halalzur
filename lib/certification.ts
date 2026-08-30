@@ -254,6 +254,33 @@ export async function getDistinctBrands(): Promise<string[]> {
   return Array.from(new Set(data.map((r) => r.brand).filter(Boolean))).sort();
 }
 
+/**
+ * Refreshes a set of barcodes against certified_entries in one query —
+ * used by the Products tab to re-check status/category for whatever's in
+ * local scan history, since history stores a frozen snapshot from scan
+ * time and never otherwise learns about a later admin approval/status
+ * change for the same barcode.
+ */
+export async function getManyByBarcode(barcodes: string[]): Promise<Record<string, CertificationResult>> {
+  if (!isSupabaseConfigured || !supabase || barcodes.length === 0) return {};
+
+  const { data, error } = await supabase
+    .from('certified_entries')
+    .select(
+      'barcode, product_name, brand, category, status, certificate_number, verified_at, ingredients, notes, certifiers(id, name, short_name, country)'
+    )
+    .eq('entry_type', 'product')
+    .in('barcode', barcodes)
+    .returns<CertifiedEntryRow[]>();
+
+  if (error || !data) return {};
+  const map: Record<string, CertificationResult> = {};
+  data.forEach((row) => {
+    if (row.barcode) map[row.barcode] = mapRowToResult(row, row.barcode);
+  });
+  return map;
+}
+
 export function getAllProducts(): CertificationResult[] {
   return Object.values(MOCK_DB);
 }

@@ -763,6 +763,10 @@
           '<option value="unknown">Naməlum</option>' +
         '</select>' +
       '</div>' +
+      '<div class="field" style="margin-top:10px; max-width:220px;">' +
+        '<label>Kateqoriya</label>' +
+        '<input type="text" data-role="category-input" placeholder="Məs. Şirniyyat" />' +
+      '</div>' +
       '<div class="sc-actions">' +
         '<button class="btn btn-approve" data-action="approve">Təsdiqlə (+' + POINTS_PER_APPROVAL + ' xal)</button>' +
         '<button class="btn btn-reject" data-action="reject">Rədd et</button>' +
@@ -772,10 +776,16 @@
     // longer lets a user self-declare halal status) — this select
     // defaults there and the admin picks the real value before approving.
     card.querySelector('[data-role="status-select"]').value = row.suggested_status || "unknown";
+    // Category is optional in the submission form, so older/blank
+    // submissions land here empty — the app's Products tab can only filter
+    // by category chip when this is a real value, so let the admin fill it
+    // in before approving instead of it staying blank forever.
+    card.querySelector('[data-role="category-input"]').value = row.category || "";
 
     card.querySelector('[data-action="approve"]').addEventListener("click", function (e) {
       var chosenStatus = card.querySelector('[data-role="status-select"]').value;
-      approveSubmission(row, card, e.target, chosenStatus);
+      var chosenCategory = card.querySelector('[data-role="category-input"]').value.trim();
+      approveSubmission(row, card, e.target, chosenStatus, chosenCategory);
     });
     card.querySelector('[data-action="reject"]').addEventListener("click", function (e) {
       rejectSubmission(row, card, e.target);
@@ -788,7 +798,7 @@
     card.querySelectorAll("button").forEach(function (b) { b.disabled = busy; });
   }
 
-  function approveSubmission(row, card, btn, chosenStatus) {
+  function approveSubmission(row, card, btn, chosenStatus, chosenCategory) {
     setCardBusy(card, true);
     btn.textContent = "Təsdiqlənir…";
 
@@ -799,7 +809,7 @@
         barcode: row.barcode,
         product_name: row.product_name,
         brand: row.brand,
-        category: row.category,
+        category: chosenCategory || row.category || null,
         status: chosenStatus || row.suggested_status || "unknown",
         certifier_id: "halalzur",
         certificate_number: null,

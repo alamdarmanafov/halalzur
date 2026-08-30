@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useHistory } from '../../lib/history-context';
-import { searchProducts, getAllProducts } from '../../lib/certification';
+import { searchProducts, getAllProducts, getManyByBarcode } from '../../lib/certification';
 import { PRODUCT_CATEGORIES } from '../../lib/categories';
 import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -29,6 +29,10 @@ export default function ProductsScreen() {
   const [category, setCategory] = useState('Hamısı');
   const [results, setResults] = useState<CertificationResult[]>(getAllProducts());
   const [refreshing, setRefreshing] = useState(false);
+  // History stores a frozen snapshot from scan time, so a product admin
+  // approves/re-statuses later never updates there on its own — this
+  // refreshes each history barcode against the live data.
+  const [liveHistory, setLiveHistory] = useState<Record<string, CertificationResult>>({});
 
   useEffect(() => {
     let active = true;
@@ -40,20 +44,36 @@ export default function ProductsScreen() {
     };
   }, [query]);
 
+  useEffect(() => {
+    if (history.length === 0) return;
+    let active = true;
+    getManyByBarcode(history.map((h) => h.barcode)).then((map) => {
+      if (active) setLiveHistory(map);
+    });
+    return () => {
+      active = false;
+    };
+  }, [history]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     try {
       setResults(await searchProducts(query));
+      if (history.length) setLiveHistory(await getManyByBarcode(history.map((h) => h.barcode)));
     } finally {
       setRefreshing(false);
     }
   };
 
   const data = useMemo(() => {
-    const base = query ? results : history.length ? history : results;
+    const base = query
+      ? results
+      : history.length
+      ? history.map((h) => liveHistory[h.barcode] ?? h)
+      : results;
     if (category === 'Hamısı') return base;
     return base.filter((item) => item.category.toLowerCase().includes(category.toLowerCase()));
-  }, [query, results, history, category]);
+  }, [query, results, history, liveHistory, category]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>

@@ -191,8 +191,8 @@ export default function ProductDetailScreen() {
 
   const handleSubmitProduct = async () => {
     if (!user || !product) return;
-    if (!submitName.trim() || !submitBrand.trim()) {
-      Alert.alert('Doldurun', 'Məhsulun adı və markası tələb olunur.');
+    if (!submitName.trim() || !submitBrand.trim() || !submitCategory.trim()) {
+      Alert.alert('Doldurun', 'Məhsulun adı, markası və kateqoriyası tələb olunur.');
       return;
     }
     setSubmitting(true);
