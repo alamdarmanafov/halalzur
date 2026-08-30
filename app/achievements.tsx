@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../lib/auth-context';
 import { getApprovedCount } from '../lib/submissions';
 import { ACHIEVEMENT_TIERS, highestUnclaimedTier } from '../lib/achievements';
+import { sendPushNotification } from '../lib/pushNotify';
 import { BrandModal } from '../components/BrandModal';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
@@ -24,6 +25,7 @@ export default function AchievementsScreen() {
       if (tier) {
         await grantAchievementPremium(tier);
         setUnlocked({ label: tier.label });
+        sendPushNotification(user.id, 'Təbriklər! 🎉', `${tier.label} qazandınız — hesabınıza əlavə olundu.`);
       }
     } catch {
       setApprovedCount(0);

@@ -12,6 +12,7 @@ import { useFavorites } from '../../lib/favorites-context';
 import { useHistory } from '../../lib/history-context';
 import { useAuth } from '../../lib/auth-context';
 import { submitProduct } from '../../lib/submissions';
+import { sendPushNotification } from '../../lib/pushNotify';
 import { CertificationResult, HalalStatus } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
 import { ECodeCard } from '../../components/ECodeCard';
@@ -143,6 +144,11 @@ export default function ProductDetailScreen() {
         notes: manualIngredients,
       });
       setSubmitted(true);
+      sendPushNotification(
+        user.id,
+        'Təklif göndərildi ✅',
+        `"${submitName.trim()}" təklifiniz baxılmaq üçün göndərildi.`
+      );
     } catch (err: any) {
       Alert.alert('Göndərilmədi', err.message ?? 'Xəta baş verdi, yenidən cəhd edin.');
     } finally {

@@ -8,6 +8,7 @@ import { Logo } from '../components/Logo';
 import { Button } from '../components/Button';
 import { PremiumSuccessOverlay } from '../components/PremiumSuccessOverlay';
 import { useAuth } from '../lib/auth-context';
+import { sendPushNotification } from '../lib/pushNotify';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
 /**
@@ -96,6 +97,9 @@ export default function SubscriptionScreen() {
         await finishTransaction({ purchase, isConsumable: false });
         await setPlan('premium');
         setShowSuccess(true);
+        if (user) {
+          sendPushNotification(user.id, 'Premium aktivləşdi! 💎', 'İndi limitsiz skan və tam tarixçədən istifadə edə bilərsiniz.');
+        }
       } finally {
         setPurchasing(false);
       }

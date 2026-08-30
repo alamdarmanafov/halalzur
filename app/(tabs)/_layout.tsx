@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../lib/auth-context';
 import { registerForPushNotifications, onForegroundMessage } from '../../lib/notifications';
+import { sendPushNotification } from '../../lib/pushNotify';
 import { AnnouncementModal } from '../../components/AnnouncementModal';
 import { WelcomeModal } from '../../components/WelcomeModal';
 import { colors, radius } from '../../constants/theme';
@@ -33,16 +34,27 @@ function ScanTabButton({ onPress, accessibilityState }: ScanTabButtonProps) {
 }
 
 export default function TabsLayout() {
-  const { user } = useAuth();
+  const { user, justRegistered } = useAuth();
 
   useEffect(() => {
     if (!user) return;
-    registerForPushNotifications(user.id);
+    // Only after the token is actually registered can a push reach this
+    // device — at signUp/signInWithApple time (where justRegistered gets
+    // set) there's no device_tokens row yet.
+    registerForPushNotifications(user.id).then((token) => {
+      if (token && justRegistered) {
+        sendPushNotification(
+          user.id,
+          'Xoş gəldiniz, Halalzur-a! 👋',
+          'Barkodu skan edərək məhsulun halal statusunu dərhal görə bilərsiniz.'
+        );
+      }
+    });
     const unsubscribe = onForegroundMessage((title, body) => {
       Alert.alert(title, body);
     });
     return unsubscribe;
-  }, [user]);
+  }, [user, justRegistered]);
 
   return (
     <Fragment>

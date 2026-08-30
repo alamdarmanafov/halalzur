@@ -26,6 +26,7 @@ import { useAuth } from '../../lib/auth-context';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Button } from '../../components/Button';
 import { BrandModal } from '../../components/BrandModal';
+import { sendPushNotification } from '../../lib/pushNotify';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 const SUBMIT_CATEGORIES: PlaceCategory[] = ['restoran', 'kafe', 'coffee_shop'];
@@ -87,12 +88,13 @@ export default function PlacesScreen() {
       Alert.alert('Doldurun', 'Məkanın adı və ünvanı tələb olunur.');
       return;
     }
+    const submittedName = formName.trim();
     setSubmitting(true);
     try {
       await submitPlace({
         userId: user.id,
         userName: user.name,
-        name: formName.trim(),
+        name: submittedName,
         category: formCategory,
         address: formAddress.trim(),
         note: formNote.trim(),
@@ -100,6 +102,7 @@ export default function PlacesScreen() {
       setFormVisible(false);
       resetForm();
       setSubmittedNotice(true);
+      sendPushNotification(user.id, 'Məkan təklifi göndərildi ✅', `"${submittedName}" baxılmaq üçün göndərildi.`);
     } catch (err: any) {
       Alert.alert('Göndərilmədi', err.message ?? 'Xəta baş verdi, yenidən cəhd edin.');
     } finally {
