@@ -738,7 +738,6 @@
     var card = document.createElement("div");
     card.className = "submission-card";
 
-    var statusClass = row.suggested_status || "unknown";
     var ingredients = (row.ingredients || []).join(", ");
 
     card.innerHTML =
@@ -747,7 +746,6 @@
           '<div class="sc-title">' + esc(row.product_name) + '</div>' +
           '<div class="sc-sub">' + esc(row.brand) + (row.category ? " · " + esc(row.category) : "") + '</div>' +
         '</div>' +
-        '<span class="status-pill ' + statusClass + '">' + (STATUS_LABEL[statusClass] || statusClass) + '</span>' +
       '</div>' +
       '<div class="sc-meta">' +
         '<span><b>Barkod:</b> ' + esc(row.barcode) + '</span>' +
@@ -756,13 +754,28 @@
       '</div>' +
       (ingredients ? '<div class="sc-ingredients"><b>Tərkib:</b> ' + esc(ingredients) + '</div>' : '') +
       (row.notes ? '<div class="sc-notes">' + esc(row.notes) + '</div>' : '') +
+      '<div class="field" style="margin-top:10px; max-width:220px;">' +
+        '<label>Halallıq statusu (siz təyin edin)</label>' +
+        '<select data-role="status-select">' +
+          '<option value="halal">Halal</option>' +
+          '<option value="mushbooh">Şübhəli</option>' +
+          '<option value="haram">Tövsiyə edilmir</option>' +
+          '<option value="unknown">Naməlum</option>' +
+        '</select>' +
+      '</div>' +
       '<div class="sc-actions">' +
         '<button class="btn btn-approve" data-action="approve">Təsdiqlə (+' + POINTS_PER_APPROVAL + ' xal)</button>' +
         '<button class="btn btn-reject" data-action="reject">Rədd et</button>' +
       '</div>';
 
+    // Suggested_status only ever arrives as 'unknown' now (the app no
+    // longer lets a user self-declare halal status) — this select
+    // defaults there and the admin picks the real value before approving.
+    card.querySelector('[data-role="status-select"]').value = row.suggested_status || "unknown";
+
     card.querySelector('[data-action="approve"]').addEventListener("click", function (e) {
-      approveSubmission(row, card, e.target);
+      var chosenStatus = card.querySelector('[data-role="status-select"]').value;
+      approveSubmission(row, card, e.target, chosenStatus);
     });
     card.querySelector('[data-action="reject"]').addEventListener("click", function (e) {
       rejectSubmission(row, card, e.target);
@@ -775,7 +788,7 @@
     card.querySelectorAll("button").forEach(function (b) { b.disabled = busy; });
   }
 
-  function approveSubmission(row, card, btn) {
+  function approveSubmission(row, card, btn, chosenStatus) {
     setCardBusy(card, true);
     btn.textContent = "Təsdiqlənir…";
 
@@ -787,7 +800,7 @@
         product_name: row.product_name,
         brand: row.brand,
         category: row.category,
-        status: row.suggested_status,
+        status: chosenStatus || row.suggested_status || "unknown",
         certifier_id: "halalzur",
         certificate_number: null,
         verified_at: new Date().toISOString().slice(0, 10),

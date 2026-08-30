@@ -13,7 +13,7 @@ import { useHistory } from '../../lib/history-context';
 import { useAuth } from '../../lib/auth-context';
 import { submitProduct } from '../../lib/submissions';
 import { sendPushNotification } from '../../lib/pushNotify';
-import { CertificationResult, HalalStatus } from '../../lib/types';
+import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
 import { ECodeCard } from '../../components/ECodeCard';
 import { Button } from '../../components/Button';
@@ -26,12 +26,6 @@ const STATUS_TINT: Record<CertificationResult['status'], string> = {
   mushbooh: colors.warning,
   unknown: colors.warning,
 };
-
-const SUBMIT_STATUS_OPTIONS: { value: HalalStatus; label: string }[] = [
-  { value: 'halal', label: 'Halal' },
-  { value: 'mushbooh', label: 'Şübhəli' },
-  { value: 'haram', label: 'Tövsiyə edilmir' },
-];
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -49,7 +43,6 @@ export default function ProductDetailScreen() {
   const [submitName, setSubmitName] = useState('');
   const [submitBrand, setSubmitBrand] = useState('');
   const [submitCategory, setSubmitCategory] = useState('');
-  const [submitStatus, setSubmitStatus] = useState<HalalStatus>('halal');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [ecodePickerVisible, setEcodePickerVisible] = useState(false);
@@ -153,7 +146,9 @@ export default function ProductDetailScreen() {
         productName: submitName.trim(),
         brand: submitBrand.trim(),
         category: submitCategory.trim(),
-        suggestedStatus: submitStatus,
+        // Halal status is never a user self-declaration — admin decides
+        // it in the admin panel's Təkliflər review before approving.
+        suggestedStatus: 'unknown',
         ingredients: manualIngredients
           ? manualIngredients.split(',').map((s) => s.trim()).filter(Boolean)
           : [],
@@ -426,24 +421,9 @@ export default function ProductDetailScreen() {
                   placeholderTextColor={colors.gray}
                   style={styles.submitInput}
                 />
-                <View style={styles.statusPillRow}>
-                  {SUBMIT_STATUS_OPTIONS.map((opt) => (
-                    <Pressable
-                      key={opt.value}
-                      style={[styles.statusPill, submitStatus === opt.value && styles.statusPillActive]}
-                      onPress={() => setSubmitStatus(opt.value)}
-                    >
-                      <Text
-                        style={[
-                          styles.statusPillText,
-                          submitStatus === opt.value && styles.statusPillTextActive,
-                        ]}
-                      >
-                        {opt.label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+                <Text style={styles.eCodeIntro}>
+                  Halallıq statusunu özünüz seçmirsiniz — komandamız yoxlayıb qərar verəcək.
+                </Text>
                 <Button
                   title={submitting ? 'Göndərilir…' : 'Təklif et'}
                   onPress={handleSubmitProduct}
@@ -736,18 +716,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     marginBottom: spacing.sm,
   },
-  statusPillRow: { flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm },
-  statusPill: {
-    flex: 1,
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    borderColor: colors.grayLight,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-  },
-  statusPillActive: { borderColor: colors.primary, backgroundColor: colors.surface },
-  statusPillText: { ...typography.small, color: colors.gray, fontWeight: '700' },
-  statusPillTextActive: { color: colors.primaryDark },
   submittedBox: {
     flexDirection: 'row',
     alignItems: 'center',
