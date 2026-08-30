@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ScrollView, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,7 +25,7 @@ const CATEGORIES: { label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
 ];
 
 export default function ProductsScreen() {
-  const { history } = useHistory();
+  const { history, removeScan } = useHistory();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('Hamısı');
   const [results, setResults] = useState<CertificationResult[]>(getAllProducts());
@@ -75,6 +75,17 @@ export default function ProductsScreen() {
     if (category === 'Hamısı') return base;
     return base.filter((item) => item.category.toLowerCase().includes(category.toLowerCase()));
   }, [query, results, history, liveHistory, category]);
+
+  // Only history-backed rows are deletable — search/browse results are the
+  // shared product database, not something a personal "wrong scan" delete
+  // applies to.
+  const isHistoryView = !query && history.length > 0;
+  const confirmDelete = (item: CertificationResult) => {
+    Alert.alert('Tarixçədən sil', `"${item.productName}" səhv skan edilibsə, tarixçədən silə bilərsiniz.`, [
+      { text: 'Ləğv et', style: 'cancel' },
+      { text: 'Sil', style: 'destructive', onPress: () => removeScan(item.barcode) },
+    ]);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -148,6 +159,7 @@ export default function ProductsScreen() {
           <Pressable
             style={styles.card}
             onPress={() => router.push({ pathname: '/product/[id]', params: { id: item.barcode } })}
+            onLongPress={isHistoryView ? () => confirmDelete(item) : undefined}
           >
             <Text style={styles.emoji}>{item.imageEmoji}</Text>
             <View style={{ flex: 1 }}>
@@ -159,7 +171,13 @@ export default function ProductsScreen() {
               </Text>
               <StatusBadge status={item.status} size="sm" />
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.grayLight} />
+            {isHistoryView ? (
+              <Pressable hitSlop={8} onPress={() => confirmDelete(item)}>
+                <Ionicons name="trash-outline" size={18} color={colors.grayLight} />
+              </Pressable>
+            ) : (
+              <Ionicons name="chevron-forward" size={20} color={colors.grayLight} />
+            )}
           </Pressable>
         )}
       />

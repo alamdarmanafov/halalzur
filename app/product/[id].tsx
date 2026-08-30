@@ -293,12 +293,11 @@ export default function ProductDetailScreen() {
         </View>
       </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: spacing.xl }}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
       >
-      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }} keyboardShouldPersistTaps="handled">
         <View style={styles.hero}>
           {product.imageUrl ? (
             <Image source={{ uri: product.imageUrl }} style={styles.productImage} resizeMode="contain" />
@@ -534,7 +533,6 @@ export default function ProductDetailScreen() {
           <Text style={styles.barcode}>{product.barcode}</Text>
         </View>
       </ScrollView>
-      </KeyboardAvoidingView>
 
       <Modal
         visible={ecodePickerVisible}
@@ -542,7 +540,10 @@ export default function ProductDetailScreen() {
         transparent
         onRequestClose={() => setEcodePickerVisible(false)}
       >
-        <View style={styles.modalBackdrop}>
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>E-kod seç</Text>
@@ -587,7 +588,7 @@ export default function ProductDetailScreen() {
               yoxlayacaq.
             </Text>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <Modal
@@ -596,7 +597,10 @@ export default function ProductDetailScreen() {
         transparent
         onRequestClose={() => setFieldPicker(null)}
       >
-        <View style={styles.modalBackdrop}>
+        <KeyboardAvoidingView
+          style={styles.modalBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
@@ -639,7 +643,7 @@ export default function ProductDetailScreen() {
               </Pressable>
             )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
