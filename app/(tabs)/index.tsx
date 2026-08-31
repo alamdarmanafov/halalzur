@@ -9,6 +9,7 @@ import { Button } from '../../components/Button';
 import { BrandModal } from '../../components/BrandModal';
 import { useAuth } from '../../lib/auth-context';
 import { useHistory } from '../../lib/history-context';
+import { useLanguage } from '../../lib/i18n-context';
 import { lookupBarcode } from '../../lib/certification';
 import { logScanEvent } from '../../lib/scanEvents';
 import { hasInternetConnection } from '../../lib/network';
@@ -21,6 +22,7 @@ const DEMO_BARCODES = ['8690504048068', '8690506042027', '4006381333931', '54490
 export default function ScanScreen() {
   const { user, incrementScanCount } = useAuth();
   const { addScan } = useHistory();
+  const { t } = useLanguage();
   const [permission, requestPermission] = useCameraPermissions();
   const [isBusy, setIsBusy] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
@@ -44,10 +46,7 @@ export default function ScanScreen() {
       try {
         const online = await hasInternetConnection();
         if (!online) {
-          Alert.alert(
-            'İnternet yoxdur',
-            'Halallıq sertifikatını yoxlamaq üçün internetə qoşulun — nəticə heç vaxt offline keşdən göstərilmir.'
-          );
+          Alert.alert(t('scanOfflineTitle'), t('scanOfflineBody'));
           return;
         }
         const result = await lookupBarcode(barcode);
@@ -85,11 +84,9 @@ export default function ScanScreen() {
     return (
       <LinearGradient colors={[colors.primaryDark, colors.primary]} style={styles.permissionWrap}>
         <Logo size={72} />
-        <Text style={styles.permissionTitle}>Kameraya icazə lazımdır</Text>
-        <Text style={styles.permissionBody}>
-          Məhsulun barkodunu skan edib halallıq statusunu dərhal görmək üçün kameraya icazə verin.
-        </Text>
-        <Button title="İcazə ver" onPress={requestPermission} style={{ marginTop: spacing.lg, width: '100%' }} />
+        <Text style={styles.permissionTitle}>{t('scanPermissionTitle')}</Text>
+        <Text style={styles.permissionBody}>{t('scanPermissionBody')}</Text>
+        <Button title={t('scanGrantPermission')} onPress={requestPermission} style={{ marginTop: spacing.lg, width: '100%' }} />
       </LinearGradient>
     );
   }
@@ -132,7 +129,7 @@ export default function ScanScreen() {
             </Pressable>
           </View>
         </View>
-        <Text style={styles.headerSubtitle}>Barkodu çərçivəyə salın</Text>
+        <Text style={styles.headerSubtitle}>{t('scanFrameHint')}</Text>
       </LinearGradient>
 
       <View style={styles.frameWrap} pointerEvents="none">
@@ -140,7 +137,7 @@ export default function ScanScreen() {
         {isBusy && (
           <View style={styles.busyBadge}>
             <ActivityIndicator color={colors.white} size="small" />
-            <Text style={styles.busyText}>Sertifikat yoxlanılır…</Text>
+            <Text style={styles.busyText}>{t('scanChecking')}</Text>
           </View>
         )}
       </View>
@@ -148,10 +145,10 @@ export default function ScanScreen() {
       <LinearGradient colors={['transparent', 'rgba(10,77,46,0.9)']} style={styles.bottomOverlay}>
         {!isPremium && (
           <Text style={styles.quota}>
-            Bu gün {scansToday}/{FREE_DAILY_SCAN_LIMIT} pulsuz skan istifadə olunub
+            {t('scanQuota').replace('{used}', String(scansToday)).replace('{limit}', String(FREE_DAILY_SCAN_LIMIT))}
           </Text>
         )}
-        <Text style={styles.demoLabel}>Nümunə üçün toxunun:</Text>
+        <Text style={styles.demoLabel}>{t('scanTryDemo')}</Text>
         <View style={styles.demoRow}>
           {DEMO_BARCODES.map((code) => (
             <Pressable key={code} style={styles.demoChip} onPress={() => handleBarcode(code)}>
@@ -163,9 +160,9 @@ export default function ScanScreen() {
 
       <BrandModal
         visible={showLimitModal}
-        title="Bugünkü limit bitdi"
-        body="Pulsuz planda gündə 3 skan hüququnuz var. Sabah yenidən 3 pulsuz skan əldə edəcəksiniz — və ya limitsiz istifadə üçün Premium-a keçin."
-        ctaLabel="Premium al"
+        title={t('scanLimitReachedTitle')}
+        body={t('scanLimitReachedBody')}
+        ctaLabel={t('scanBuyPremium')}
         onCta={() => {
           setShowLimitModal(false);
           router.push('/subscription');

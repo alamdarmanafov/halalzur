@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../lib/auth-context';
+import { useLanguage } from '../lib/i18n-context';
 import { isAdmin } from '../lib/admin';
 import { fetchPendingSubmissions, approveSubmission, rejectSubmission } from '../lib/submissions';
 import { ProductSubmission } from '../lib/types';
@@ -12,6 +13,7 @@ import { colors, radius, spacing, typography } from '../constants/theme';
 
 export default function AdminScreen() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [submissions, setSubmissions] = useState<ProductSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -22,11 +24,11 @@ export default function AdminScreen() {
       const data = await fetchPendingSubmissions();
       setSubmissions(data);
     } catch (err: any) {
-      Alert.alert('Xəta', err.message ?? 'Siyahı yüklənmədi.');
+      Alert.alert(t('adminErrorTitle'), err.message ?? t('adminListFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (isAdmin(user)) load();
@@ -37,9 +39,12 @@ export default function AdminScreen() {
     try {
       await approveSubmission(submission);
       setSubmissions((prev) => prev.filter((s) => s.id !== submission.id));
-      Alert.alert('Təsdiqləndi', `${submission.productName} bazaya əlavə olundu, ${submission.submittedByName ?? 'istifadəçi'} xal qazandı.`);
+      Alert.alert(
+        t('adminApprovedTitle'),
+        `${submission.productName} ${t('adminApprovedBody')} ${submission.submittedByName ?? t('adminUnknownUser')} ${t('adminApprovedBodyEnd')}`
+      );
     } catch (err: any) {
-      Alert.alert('Xəta', err.message ?? 'Təsdiqlənmədi.');
+      Alert.alert(t('adminErrorTitle'), err.message ?? t('adminApproveFailed'));
     } finally {
       setBusyId(null);
     }
@@ -51,7 +56,7 @@ export default function AdminScreen() {
       await rejectSubmission(submission.id, null);
       setSubmissions((prev) => prev.filter((s) => s.id !== submission.id));
     } catch (err: any) {
-      Alert.alert('Xəta', err.message ?? 'Rədd edilmədi.');
+      Alert.alert(t('adminErrorTitle'), err.message ?? t('adminRejectFailed'));
     } finally {
       setBusyId(null);
     }
@@ -61,7 +66,7 @@ export default function AdminScreen() {
     return (
       <SafeAreaView style={styles.center}>
         <Ionicons name="lock-closed-outline" size={40} color={colors.gray} />
-        <Text style={styles.deniedText}>Bu ekran yalnız admin üçündür.</Text>
+        <Text style={styles.deniedText}>{t('adminDeniedText')}</Text>
       </SafeAreaView>
     );
   }
@@ -72,7 +77,7 @@ export default function AdminScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.black} />
         </Pressable>
-        <Text style={styles.title}>Təsdiq gözləyənlər</Text>
+        <Text style={styles.title}>{t('adminTitle')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -88,7 +93,7 @@ export default function AdminScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Ionicons name="checkmark-done-outline" size={36} color={colors.grayLight} />
-              <Text style={styles.emptyText}>Gözləyən təklif yoxdur</Text>
+              <Text style={styles.emptyText}>{t('adminEmpty')}</Text>
             </View>
           }
           renderItem={({ item }) => (
@@ -101,7 +106,7 @@ export default function AdminScreen() {
                 {item.brand} · {item.category ?? '—'} · {item.barcode}
               </Text>
               <Text style={styles.submitter}>
-                Göndərən: {item.submittedByName ?? item.submittedBy}
+                {t('adminSubmittedBy')} {item.submittedByName ?? item.submittedBy}
               </Text>
               {item.notes && (
                 <Text style={styles.notes} numberOfLines={4}>
@@ -118,7 +123,7 @@ export default function AdminScreen() {
                   {busyId === item.id ? (
                     <ActivityIndicator color={colors.danger} size="small" />
                   ) : (
-                    <Text style={styles.rejectText}>Rədd et</Text>
+                    <Text style={styles.rejectText}>{t('adminReject')}</Text>
                   )}
                 </Pressable>
                 <Pressable
@@ -129,7 +134,7 @@ export default function AdminScreen() {
                   {busyId === item.id ? (
                     <ActivityIndicator color={colors.white} size="small" />
                   ) : (
-                    <Text style={styles.approveText}>Təsdiqlə</Text>
+                    <Text style={styles.approveText}>{t('adminApprove')}</Text>
                   )}
                 </Pressable>
               </View>

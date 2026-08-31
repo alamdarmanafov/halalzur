@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAudioPlayer } from 'expo-audio';
 import { Button } from './Button';
+import { useLanguage } from '../lib/i18n-context';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
 const successSound = require('../assets/sounds/success.wav');
@@ -15,6 +16,7 @@ export function PremiumSuccessOverlay({
   visible: boolean;
   onDone: () => void;
 }) {
+  const { t } = useLanguage();
   const player = useAudioPlayer(successSound);
   const scale = useRef(new Animated.Value(0.4)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -61,11 +63,11 @@ export function PremiumSuccessOverlay({
             </Animated.View>
           </View>
 
-          <Text style={styles.title}>Təbriklər! 🎉</Text>
-          <Text style={styles.subtitle}>Premium abunəliyiniz aktivləşdi</Text>
-          <Text style={styles.thanks}>Bizə dəstək olduğunuz üçün təşəkkür edirik</Text>
+          <Text style={styles.title}>{t('premiumSuccessTitle')}</Text>
+          <Text style={styles.subtitle}>{t('premiumSuccessSubtitle')}</Text>
+          <Text style={styles.thanks}>{t('premiumSuccessThanks')}</Text>
 
-          <Button title="Davam et" onPress={onDone} style={{ marginTop: spacing.xl, width: '100%' }} />
+          <Button title={t('premiumSuccessContinue')} onPress={onDone} style={{ marginTop: spacing.xl, width: '100%' }} />
         </Animated.View>
       </View>
     </Modal>

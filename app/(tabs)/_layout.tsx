@@ -59,8 +59,8 @@ export default function TabsLayout() {
       if (token && justRegistered) {
         sendPushNotification(
           user.id,
-          'Xoş gəldiniz, Halalzur-a! 👋',
-          'Barkodu skan edərək məhsulun halal statusunu dərhal görə bilərsiniz.',
+          t('scanWelcomePushTitle'),
+          t('scanWelcomePushBody'),
           { route: '/(tabs)/products' }
         );
       }
@@ -69,7 +69,9 @@ export default function TabsLayout() {
       Alert.alert(
         title,
         body,
-        route ? [{ text: 'Bax', onPress: () => router.push(route as any) }, { text: 'Bağla', style: 'cancel' }] : undefined
+        route
+          ? [{ text: t('scanNotifView'), onPress: () => router.push(route as any) }, { text: t('scanNotifClose'), style: 'cancel' }]
+          : undefined
       );
     });
     // Handles the tap itself when the notification arrived while
@@ -80,7 +82,7 @@ export default function TabsLayout() {
       unsubscribeForeground();
       unsubscribeOpened();
     };
-  }, [user, justRegistered]);
+  }, [user, justRegistered, t]);
 
   return (
     <Fragment>

@@ -1,12 +1,14 @@
 import { Pressable, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '../lib/i18n-context';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
 export function GoogleSignInButton({ onPress }: { onPress: () => void }) {
+  const { t } = useLanguage();
   return (
     <Pressable style={styles.button} onPress={onPress}>
       <Ionicons name="logo-google" size={18} color={colors.black} />
-      <Text style={styles.label}>Google ilə davam et</Text>
+      <Text style={styles.label}>{t('googleContinue')}</Text>
     </Pressable>
   );
 }

@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { useNetworkState } from 'expo-network';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '../lib/i18n-context';
 import { colors, spacing, typography } from '../constants/theme';
 
 /**
@@ -10,6 +11,7 @@ import { colors, spacing, typography } from '../constants/theme';
  */
 export function OfflineBanner() {
   const network = useNetworkState();
+  const { t } = useLanguage();
   const isOffline = network.isConnected === false || network.isInternetReachable === false;
 
   if (!isOffline) return null;
@@ -17,7 +19,7 @@ export function OfflineBanner() {
   return (
     <View style={styles.banner}>
       <Ionicons name="cloud-offline" size={15} color={colors.white} />
-      <Text style={styles.text}>İnternet yoxdur — sertifikat nəticələri yenilənə bilməz</Text>
+      <Text style={styles.text}>{t('offlineBannerText')}</Text>
     </View>
   );
 }
