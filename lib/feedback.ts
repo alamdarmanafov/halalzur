@@ -38,9 +38,13 @@ async function uploadScreenshot(uri: string): Promise<string | null> {
     const { error } = await supabase.storage
       .from('feedback-screenshots')
       .upload(path, blob, { contentType: 'image/jpeg' });
-    if (error) return null;
+    if (error) {
+      console.warn('uploadScreenshot failed:', error.message);
+      return null;
+    }
     return supabase.storage.from('feedback-screenshots').getPublicUrl(path).data.publicUrl;
-  } catch {
+  } catch (err) {
+    console.warn('uploadScreenshot failed:', err);
     return null;
   }
 }
