@@ -49,7 +49,14 @@ export default function ProductsScreen() {
     if (history.length === 0) return;
     let active = true;
     getManyByBarcode(history.map((h) => h.barcode)).then((map) => {
-      if (active) setLiveHistory(map);
+      if (!active) return;
+      setLiveHistory(map);
+      // A history entry scanned while still unclassified that has since
+      // been approved (admin gave it a real status) no longer needs to sit
+      // in "my scans" — it's now a real product in the database.
+      history
+        .filter((h) => h.status === 'unknown' && map[h.barcode] && map[h.barcode].status !== 'unknown')
+        .forEach((h) => removeScan(h.barcode));
     });
     return () => {
       active = false;
