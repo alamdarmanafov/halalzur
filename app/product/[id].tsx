@@ -399,7 +399,7 @@ export default function ProductDetailScreen() {
           </View>
         )}
 
-        {!hasKnownIngredients && (
+        {product.status === 'unknown' && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Tərkibi yoxlayın</Text>
             <Text style={styles.eCodeIntro}>
