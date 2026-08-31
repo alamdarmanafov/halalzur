@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert, Image,
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '../lib/auth-context';
 import { useLanguage } from '../lib/i18n-context';
 import { submitFeedback } from '../lib/feedback';
@@ -14,8 +15,24 @@ export default function FeedbackScreen() {
   const { t } = useLanguage();
   const { screenshot } = useLocalSearchParams<{ screenshot?: string }>();
   const [message, setMessage] = useState('');
+  const [image, setImage] = useState<string | null>(screenshot ?? null);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+
+  const pickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert(t('feedbackPermissionTitle'), t('feedbackPermissionBody'));
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.6,
+      allowsEditing: true,
+    });
+    if (result.canceled || !result.assets[0]) return;
+    setImage(result.assets[0].uri);
+  };
 
   const onSubmit = async () => {
     if (!message.trim()) {
@@ -24,7 +41,7 @@ export default function FeedbackScreen() {
     }
     setSubmitting(true);
     try {
-      await submitFeedback(user?.id ?? null, user?.name ?? null, message, screenshot ?? null);
+      await submitFeedback(user?.id ?? null, user?.name ?? null, message, image);
       setSent(true);
       setMessage('');
     } catch (err: any) {
@@ -60,12 +77,30 @@ export default function FeedbackScreen() {
         ) : (
           <>
             <Text style={styles.intro}>{t('feedbackIntro')}</Text>
-            {screenshot && (
+            {image && (
               <View style={styles.screenshotBox}>
-                <Image source={{ uri: screenshot }} style={styles.screenshot} resizeMode="contain" />
-                <Text style={styles.screenshotCaption}>{t('feedbackScreenshotCaption')}</Text>
+                <Image source={{ uri: image }} style={styles.screenshot} resizeMode="contain" />
+                {!!screenshot && image === screenshot && (
+                  <Text style={styles.screenshotCaption}>{t('feedbackScreenshotCaption')}</Text>
+                )}
               </View>
             )}
+            <View style={styles.photoActions}>
+              <Pressable onPress={pickImage} style={styles.photoActionBtn}>
+                <Ionicons name="image-outline" size={18} color={colors.primaryDark} />
+                <Text style={styles.photoActionText}>
+                  {image ? t('feedbackChangePhoto') : t('feedbackAddPhoto')}
+                </Text>
+              </Pressable>
+              {image && (
+                <Pressable onPress={() => setImage(null)} style={styles.photoActionBtn}>
+                  <Ionicons name="trash-outline" size={18} color={colors.gray} />
+                  <Text style={[styles.photoActionText, { color: colors.gray }]}>
+                    {t('feedbackRemovePhoto')}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
             <TextInput
               value={message}
               onChangeText={setMessage}
@@ -115,6 +150,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   screenshotCaption: { ...typography.small, color: colors.gray, marginTop: spacing.xs, textAlign: 'center' },
+  photoActions: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
+  photoActionBtn: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  photoActionText: { ...typography.small, color: colors.primaryDark, fontWeight: '600' },
   input: {
     minHeight: 140,
     borderRadius: radius.md,

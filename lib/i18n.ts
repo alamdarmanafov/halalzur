@@ -201,6 +201,11 @@ export const translations: Record<Language, Dict> = {
     feedbackIntro:
       'Bir xəta ilə qarşılaşdınız, ya da təklifiniz var? Aşağıda yazın — birbaşa komandamıza gedəcək. Telefonu silkələməklə də bu ekranı istənilən vaxt aça bilərsiniz.',
     feedbackScreenshotCaption: 'Bu ekranın şəkli mesajınızla göndəriləcək',
+    feedbackAddPhoto: 'Şəkil əlavə et',
+    feedbackChangePhoto: 'Şəkli dəyiş',
+    feedbackRemovePhoto: 'Şəkli sil',
+    feedbackPermissionTitle: 'İcazə lazımdır',
+    feedbackPermissionBody: 'Şəkil əlavə etmək üçün qalereya icazəsi lazımdır.',
     feedbackPlaceholder: 'Nə baş verdi, ya da nə təklif edirsiniz?',
     feedbackSend: 'Göndər',
     feedbackSending: 'Göndərilir…',
@@ -549,6 +554,11 @@ export const translations: Record<Language, Dict> = {
     feedbackIntro:
       "Ran into a bug, or have a suggestion? Write it below — it goes straight to our team. You can also open this screen anytime by shaking your phone.",
     feedbackScreenshotCaption: "A screenshot of this screen will be sent with your message",
+    feedbackAddPhoto: 'Add a photo',
+    feedbackChangePhoto: 'Change photo',
+    feedbackRemovePhoto: 'Remove photo',
+    feedbackPermissionTitle: 'Permission needed',
+    feedbackPermissionBody: 'Photo library access is needed to attach a photo.',
     feedbackPlaceholder: 'What happened, or what are you suggesting?',
     feedbackSend: 'Send',
     feedbackSending: 'Sending…',
