@@ -19,21 +19,27 @@ const USER_AGENT = 'Halalzur/1.0 (+https://halalzur.app; contact: alamdarmanafov
 const PAGE_SIZE = 100;
 const PAGES_PER_QUERY = 5; // 500 products per category/country combination, at most
 
-// Food categories likely to matter to a halal-conscious shopper.
-const CATEGORIES = [
-  'confectioneries',
-  'dairies',
-  'beverages',
-  'meats',
-  'snacks',
-  'biscuits-and-cakes',
-  'breakfast-cereals',
-  'sauces',
-  'canned-foods',
-  'frozen-foods',
-  'condiments',
-  'chocolates',
-];
+// Food categories likely to matter to a halal-conscious shopper, mapped to
+// the app's own PRODUCT_CATEGORIES (lib/categories.ts) so imported products
+// land in the same category chips/filters as manually added ones — using
+// the query slug directly is far more reliable than parsing Open Food
+// Facts' own (often non-Azerbaijani, sometimes non-English) category tags.
+const CATEGORY_LABELS: Record<string, string> = {
+  confectioneries: 'Şirniyyat',
+  chocolates: 'Şirniyyat',
+  'biscuits-and-cakes': 'Şirniyyat',
+  dairies: 'Süd məhsulları',
+  beverages: 'İçki',
+  meats: 'Ət məhsulları',
+  snacks: 'Qəlyanaltılar',
+  'breakfast-cereals': 'Dənli məhsullar',
+  sauces: 'Souslar',
+  condiments: 'Souslar',
+  'canned-foods': 'Konservlər',
+  'frozen-foods': 'Dondurulmuş məhsullar',
+};
+
+const CATEGORIES = Object.keys(CATEGORY_LABELS);
 
 // Biases results toward products that actually show up in Azerbaijani
 // markets (mostly Turkish/Russian imports) rather than a random global
@@ -44,7 +50,6 @@ type OffProduct = {
   code?: string;
   product_name?: string;
   brands?: string;
-  categories_tags?: string[];
   ingredients_text?: string;
   image_front_url?: string;
 };
@@ -63,12 +68,6 @@ function splitIngredients(text: string): string[] {
     .filter(Boolean);
 }
 
-function mapCategory(tags: string[] | undefined): string | null {
-  if (!tags || tags.length === 0) return null;
-  const last = tags[tags.length - 1]; // most specific tag, e.g. "en:milk-chocolates"
-  return last.includes(':') ? last.split(':')[1].replace(/-/g, ' ') : last;
-}
-
 async function fetchCategoryPage(
   category: string,
   country: string,
@@ -77,7 +76,7 @@ async function fetchCategoryPage(
   const url = new URL('https://world.openfoodfacts.org/api/v2/search');
   url.searchParams.set('categories_tags_en', category);
   url.searchParams.set('countries_tags_en', country);
-  url.searchParams.set('fields', 'code,product_name,brands,categories_tags,ingredients_text,image_front_url');
+  url.searchParams.set('fields', 'code,product_name,brands,ingredients_text,image_front_url');
   url.searchParams.set('page_size', String(PAGE_SIZE));
   url.searchParams.set('page', String(page));
 
@@ -110,7 +109,7 @@ export async function fetchOpenFoodFactsEntries(maxEntries: number): Promise<Syn
             barcode: p.code,
             product_name: p.product_name.trim(),
             brand: p.brands?.split(',')[0]?.trim() || 'Naməlum',
-            category: mapCategory(p.categories_tags),
+            category: CATEGORY_LABELS[category] ?? null,
             status: 'unknown',
             certifier_id: 'openfoodfacts',
             certificate_number: null,

@@ -9,5 +9,11 @@ export const PRODUCT_CATEGORIES = [
   'Çörək',
   'İçki',
   'Süd məhsulları',
+  'Ət məhsulları',
+  'Konservlər',
+  'Dondurulmuş məhsullar',
+  'Souslar',
+  'Qəlyanaltılar',
+  'Dənli məhsullar',
   'Kosmetika',
 ] as const;
