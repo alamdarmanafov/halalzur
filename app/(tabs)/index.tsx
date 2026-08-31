@@ -98,7 +98,7 @@ export default function ScanScreen() {
         facing="back"
         enableTorch={torchOn}
         barcodeScannerSettings={{
-          barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'qr', 'code128'],
+          barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128'],
         }}
         onBarcodeScanned={isBusy ? undefined : onScanned}
       />

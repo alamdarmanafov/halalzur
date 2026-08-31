@@ -1144,7 +1144,14 @@
     wrap.textContent = "Yüklənir…";
     sb("unclassified_scan_counts?order=scan_count.desc&limit=25")
       .then(function (rows) {
-        rows = rows || [];
+        // Older scans logged before QR codes were excluded from the
+        // barcode scanner can include non-barcode junk (dev-client
+        // connection links, YouTube/Instagram QR codes, etc.) — hide
+        // anything that isn't barcode-shaped rather than showing it as a
+        // "product to review".
+        rows = (rows || []).filter(function (row) {
+          return /^\d{6,14}$/.test(row.barcode || "");
+        });
         wrap.innerHTML = "";
         if (!rows.length) {
           var empty = document.createElement("div");
