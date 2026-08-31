@@ -47,6 +47,12 @@
           "cameraPermission": "Halalzur tərkib siyahısının şəklini çəkmək üçün kameraya ehtiyac duyur."
         }
       ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Halalzur yaxınlıqdakı halal sertifikatlı məkanları göstərmək üçün məkan icazəsinə ehtiyac duyur."
+        }
+      ],
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
       "@react-native-google-signin/google-signin",

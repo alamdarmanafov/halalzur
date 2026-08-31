@@ -83,7 +83,22 @@ export default function ProductDetailScreen() {
         return;
       }
       lookupBarcode(id).then((result) => {
-        if (!cancelled) setProduct(result);
+        if (cancelled) return;
+        setProduct(result);
+        // External lookups (Open Food Facts/UPCitemdb) often already know
+        // the name/brand/category even when they don't know the halal
+        // status — prefilling these saves retyping what we already have.
+        if (result.status === 'unknown') {
+          if (result.productName && result.productName !== 'Naməlum məhsul') {
+            setSubmitName((prev) => prev || result.productName);
+          }
+          if (result.brand && result.brand !== '—') {
+            setSubmitBrand((prev) => prev || result.brand);
+          }
+          if (result.category && result.category !== '—') {
+            setSubmitCategory((prev) => prev || result.category);
+          }
+        }
       });
     });
     return () => {

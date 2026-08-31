@@ -1,11 +1,12 @@
 import { Fragment, useEffect } from 'react';
-import { router, Tabs } from 'expo-router';
+import { router, Tabs, usePathname } from 'expo-router';
 import { Pressable, StyleSheet, GestureResponderEvent, AccessibilityState, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../lib/auth-context';
 import { registerForPushNotifications, onForegroundMessage, setupNotificationNavigation } from '../../lib/notifications';
 import { sendPushNotification } from '../../lib/pushNotify';
+import { onShake } from '../../lib/shake';
 import { AnnouncementModal } from '../../components/AnnouncementModal';
 import { WelcomeModal } from '../../components/WelcomeModal';
 import { colors, radius } from '../../constants/theme';
@@ -35,6 +36,14 @@ function ScanTabButton({ onPress, accessibilityState }: ScanTabButtonProps) {
 
 export default function TabsLayout() {
   const { user, justRegistered } = useAuth();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const unsubscribeShake = onShake(() => {
+      if (pathname !== '/feedback') router.push('/feedback');
+    });
+    return unsubscribeShake;
+  }, [pathname]);
 
   useEffect(() => {
     if (!user) return;

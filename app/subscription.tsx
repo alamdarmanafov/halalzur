@@ -9,6 +9,7 @@ import { Button } from '../components/Button';
 import { PremiumSuccessOverlay } from '../components/PremiumSuccessOverlay';
 import { useAuth } from '../lib/auth-context';
 import { sendPushNotification } from '../lib/pushNotify';
+import { maybeRequestReview } from '../lib/reviewPrompt';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
 /**
@@ -100,6 +101,7 @@ export default function SubscriptionScreen() {
             'İndi limitsiz skan və tam tarixçədən istifadə edə bilərsiniz.',
             { route: '/(tabs)/profile' }
           );
+          maybeRequestReview();
         }
       } finally {
         setPurchasing(false);

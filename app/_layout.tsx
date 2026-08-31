@@ -41,6 +41,14 @@ export default function RootLayout() {
               name="admin"
               options={{ presentation: 'card', animation: 'slide_from_right' }}
             />
+            <Stack.Screen
+              name="feedback"
+              options={{ presentation: 'card', animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="referrals"
+              options={{ presentation: 'card', animation: 'slide_from_right' }}
+            />
           </Stack>
         </FavoritesProvider>
       </HistoryProvider>

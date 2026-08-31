@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import {
   getPlacesByCategory,
   submitPlace,
@@ -23,6 +24,7 @@ import {
   PlaceCategory,
 } from '../../lib/places';
 import { useAuth } from '../../lib/auth-context';
+import { distanceKm } from '../../lib/geo';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Button } from '../../components/Button';
 import { BrandModal } from '../../components/BrandModal';
@@ -51,6 +53,7 @@ export default function PlacesScreen() {
   const [formNote, setFormNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submittedNotice, setSubmittedNotice] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -65,6 +68,28 @@ export default function PlacesScreen() {
       active = false;
     };
   }, [filter]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setUserLocation({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+      } catch {
+        // No location — list just stays in default (newest-first) order.
+      }
+    })();
+  }, []);
+
+  const sortedData = useMemo(() => {
+    if (!userLocation) return data;
+    const dist = (p: Place) =>
+      p.latitude != null && p.longitude != null
+        ? distanceKm(userLocation.latitude, userLocation.longitude, p.latitude, p.longitude)
+        : Infinity;
+    return [...data].sort((a, b) => dist(a) - dist(b));
+  }, [data, userLocation]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -146,7 +171,7 @@ export default function PlacesScreen() {
       </ScrollView>
 
       <FlatList
-        data={data}
+        data={sortedData}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: spacing.xl, paddingTop: spacing.md }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
@@ -174,6 +199,9 @@ export default function PlacesScreen() {
               </Text>
               <Text style={styles.address} numberOfLines={1}>
                 {PLACE_CATEGORY_LABEL[item.category]} · {item.address}
+                {userLocation && item.latitude != null && item.longitude != null
+                  ? ` · ${distanceKm(userLocation.latitude, userLocation.longitude, item.latitude, item.longitude).toFixed(1)} km`
+                  : ''}
               </Text>
               <StatusBadge status={item.status} size="sm" />
               {item.note && (

@@ -107,6 +107,16 @@ export default function ProfileScreen() {
           'Halalzur GIMDES, Helal Akreditasyon Kurumu (HAK), SMIIC, JAKIM və AZSTANDART Halal (Azərbaycan) qeydiyyatları ilə çarpaz yoxlama aparır.'
         ),
     },
+    {
+      icon: 'gift-outline',
+      label: 'Dostunu dəvət et',
+      onPress: () => router.push('/referrals'),
+    },
+    {
+      icon: 'chatbox-ellipses-outline',
+      label: 'Xəta bildir / Rəy',
+      onPress: () => router.push('/feedback'),
+    },
     ...(admin
       ? [
           {

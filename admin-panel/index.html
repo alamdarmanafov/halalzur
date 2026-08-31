@@ -965,7 +965,7 @@
             '</div>' +
             '<div style="display: flex; gap: 8px; align-items: center;">' +
               '<span class="btn" data-role="copy-btn">Formaya köçür</span>' +
-              '<button type="button" class="place-delete-btn" data-role="dismiss-btn">Gizlət</button>' +
+              '<button type="button" class="place-delete-btn" data-role="dismiss-btn">Sil</button>' +
             '</div>';
           var copyHandler = function () { copyUnclassifiedToForm(row); };
           item.querySelector('[data-role="copy-target"]').addEventListener("click", copyHandler);
@@ -993,17 +993,17 @@
   }
 
   function dismissUnclassified(barcode, item) {
-    if (!window.confirm('"' + barcode + '" siyahıdan gizlədilsin? Bir daha görünməyəcək.')) return;
-    sb("ignored_scan_barcodes", {
-      method: "POST",
+    if (!window.confirm('"' + barcode + '" üçün bütün skan qeydləri silinsin? Bu geri qaytarıla bilməz — amma barkod yenidən skan edilsə, siyahıda təzədən çıxa bilər.')) return;
+    sb("scan_events?barcode=eq." + encodeURIComponent(barcode), {
+      method: "DELETE",
       headers: { "Prefer": "return=minimal" },
-      body: { barcode: barcode },
     })
       .then(function () {
+        toast("Silindi: " + barcode);
         item.remove();
       })
       .catch(function (err) {
-        toast("Gizlədilmədi: " + err.message);
+        toast("Silinmədi: " + err.message);
       });
   }
 

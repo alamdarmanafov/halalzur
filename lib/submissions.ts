@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { HalalStatus, ProductSubmission, ReviewStatus } from './types';
+import { awardPoints } from './points';
 
 const POINTS_PER_APPROVAL = 10;
 
@@ -129,24 +130,6 @@ export async function getPoints(userId: string): Promise<number> {
   return data?.points ?? 0;
 }
 
-async function awardPoints(client: NonNullable<typeof supabase>, userId: string, userName: string | null) {
-  const { data: existing } = await client
-    .from('user_points')
-    .select('points')
-    .eq('user_id', userId)
-    .maybeSingle();
-
-  await client.from('user_points').upsert(
-    {
-      user_id: userId,
-      user_name: userName,
-      points: (existing?.points ?? 0) + POINTS_PER_APPROVAL,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: 'user_id' }
-  );
-}
-
 export async function approveSubmission(submission: ProductSubmission): Promise<void> {
   const client = requireSupabase();
 
@@ -172,7 +155,7 @@ export async function approveSubmission(submission: ProductSubmission): Promise<
     .eq('id', submission.id);
   if (reviewError) throw reviewError;
 
-  await awardPoints(client, submission.submittedBy, submission.submittedByName);
+  await awardPoints(submission.submittedBy, submission.submittedByName, POINTS_PER_APPROVAL);
 }
 
 export async function rejectSubmission(submissionId: string, adminNotes: string | null): Promise<void> {

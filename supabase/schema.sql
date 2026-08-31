@@ -306,6 +306,9 @@ create policy "Public insert" on scan_events
 create policy "Public read" on scan_events
   for select using (true);
 
+create policy "Public delete" on scan_events
+  for delete using (true);
+
 -- Favorites for a signed-in (Apple/Google) account (lib/favorites.ts,
 -- lib/favorites-context.tsx) — lets Favoritlər survive a reinstall or
 -- device change instead of only living in local AsyncStorage. `data`
@@ -393,3 +396,48 @@ group by barcode
 order by count(*) desc;
 
 grant select on unclassified_scan_counts to anon;
+
+-- Manual bug reports/feedback (Profil → "Xəta bildir / Rəy", and shaking
+-- the device from anywhere in the app — lib/shake.ts). Not a replacement
+-- for real crash reporting (nothing here captures an actual crash/stack
+-- trace) — just a lightweight channel for a user to describe a problem.
+create table feedback_reports (
+  id uuid primary key default gen_random_uuid(),
+  user_id text,
+  user_name text,
+  message text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table feedback_reports enable row level security;
+
+create policy "Public insert" on feedback_reports
+  for insert with check (true);
+
+create policy "Public select" on feedback_reports
+  for select using (true);
+
+create policy "Public delete" on feedback_reports
+  for delete using (true);
+
+-- Referral system (lib/referrals.ts, app/referrals.tsx). Each account
+-- gets a short code lazily on first visit to the "Dostunu dəvət et"
+-- screen; a new user enters a friend's code once, and both sides get a
+-- points bonus via the same user_points table product-submission
+-- approvals already award into.
+alter table users add column referral_code text unique;
+
+create table referrals (
+  id uuid primary key default gen_random_uuid(),
+  referrer_id text not null,
+  referred_id text not null unique,
+  created_at timestamptz not null default now()
+);
+
+alter table referrals enable row level security;
+
+create policy "Public select" on referrals
+  for select using (true);
+
+create policy "Public insert" on referrals
+  for insert with check (true);
