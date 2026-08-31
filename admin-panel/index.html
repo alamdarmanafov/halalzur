@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
 
 <style>
   :root {
@@ -332,6 +333,40 @@
       <div class="stat-card"><div class="num" id="dashProdMonth">–</div><div class="label">Bu ay</div></div>
       <div class="stat-card"><div class="num" id="dashProdYear">–</div><div class="label">Bu il</div></div>
     </div>
+
+    <div class="panel-head" style="margin-top: 32px;">
+      <h2>Sync tarixçəsi</h2>
+      <button type="button" class="btn" id="syncLogRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+        Yenilə
+      </button>
+    </div>
+    <div id="syncLogList"></div>
+
+    <div class="panel-head" style="margin-top: 32px;">
+      <h2>Versiya tarixçəsi</h2>
+    </div>
+    <form class="place-form" id="versionForm" style="margin-bottom: 16px;">
+      <div class="field-grid">
+        <div class="field">
+          <label for="versionNumber">Versiya</label>
+          <input type="text" id="versionNumber" placeholder="Məs. 1.1.0" required />
+        </div>
+        <div class="field field-wide">
+          <label for="versionNotes">Yeniliklər</label>
+          <textarea id="versionNotes" rows="2" placeholder="Məs. Məkanlar bölməsinə xəritə əlavə olundu." required></textarea>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-approve" style="margin-top: 12px;">Əlavə et</button>
+      <div class="gate-error" id="versionFormError"></div>
+    </form>
+    <div class="cards" id="versionCards"></div>
+    <div class="empty-state" id="versionsEmptyState" hidden>Hələ heç bir versiya qeyd olunmayıb.</div>
+
+    <div class="panel-head" style="margin-top: 32px;">
+      <h2>Backup</h2>
+    </div>
+    <p class="hint">Bütün cədvəllərin (məhsullar, məkanlar, istifadəçilər və s.) tam nüsxəsini JSON faylı kimi yüklə.</p>
+    <button type="button" class="btn btn-approve" id="backupDownloadBtn">Backup yüklə</button>
     </section>
 
     <section class="section" id="section-submissions" hidden>
@@ -371,6 +406,14 @@
           <option value="unknown">Naməlum</option>
         </select>
       </div>
+      <div class="field" style="min-width: 140px; margin-bottom: 0;">
+        <label for="productEcodeFilter">Tərkibdə E-kod</label>
+        <input type="text" id="productEcodeFilter" placeholder="Məs. E471" />
+      </div>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--ink-muted); padding-bottom: 10px;">
+        <input type="checkbox" id="productFeaturedFilter" style="width: 16px; height: 16px;" />
+        Yalnız tövsiyə olunanlar
+      </label>
       <button type="button" class="btn" id="productSelectToggleBtn">Seç</button>
     </div>
 
@@ -378,12 +421,23 @@
       class="place-form"
       id="productBulkBar"
       hidden
-      style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center;"
+      style="margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px;"
     >
-      <span id="productBulkCount">0 məhsul seçilib</span>
-      <button type="button" class="btn btn-approve" id="productBulkSelectAllBtn">Hamısını seç</button>
-      <button type="button" class="place-delete-btn" id="productBulkDeleteBtn" disabled>Seçilənləri sil</button>
-      <button type="button" class="btn" id="productBulkCancelBtn">Ləğv et</button>
+      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+        <span id="productBulkCount">0 məhsul seçilib</span>
+        <button type="button" class="btn btn-approve" id="productBulkSelectAllBtn">Bu səhifəni seç</button>
+        <button type="button" class="btn" id="productBulkSelectFilteredBtn">Filterə uyğun hamısını seç</button>
+        <button type="button" class="place-delete-btn" id="productBulkDeleteBtn" disabled>Seçilənləri sil</button>
+        <button type="button" class="btn" id="productBulkCancelBtn">Ləğv et</button>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <input type="text" id="productBulkEcodeInput" placeholder="Məs. E471" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; width: 120px;" />
+        <button type="button" class="btn" id="productBulkAddEcodeBtn" disabled>Seçilənlərə E-kod əlavə et</button>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <input type="text" id="productBulkImageInput" placeholder="Şəkil linki (boş = şəkli sil)" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; flex: 1; min-width: 200px;" />
+        <button type="button" class="btn" id="productBulkSetImageBtn" disabled>Seçilənlərin şəklini dəyiş</button>
+      </div>
     </div>
 
     <div class="place-form" id="unclassifiedWrap" style="margin-bottom: 16px;">
@@ -487,6 +541,29 @@
       <span id="placesCountLabel"></span>
     </div>
 
+    <div id="placesMap" style="height: 360px; border-radius: 16px; margin-bottom: 16px; border: 1px solid var(--border);"></div>
+
+    <div class="place-form" style="margin-bottom: 16px;">
+      <div class="panel-head" style="margin-bottom: 8px;">
+        <h3 style="margin: 0; font-size: 15px;">Kateqoriya ikonları (xəritə üçün)</h3>
+      </div>
+      <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end;">
+        <div class="field" style="margin: 0; width: 90px;">
+          <label for="iconRestoran">Restoran</label>
+          <input type="text" id="iconRestoran" maxlength="4" />
+        </div>
+        <div class="field" style="margin: 0; width: 90px;">
+          <label for="iconKafe">Kafe</label>
+          <input type="text" id="iconKafe" maxlength="4" />
+        </div>
+        <div class="field" style="margin: 0; width: 90px;">
+          <label for="iconCoffee">Coffee Shop</label>
+          <input type="text" id="iconCoffee" maxlength="4" />
+        </div>
+        <button type="button" class="btn btn-approve" id="saveCategoryIconsBtn">Yadda saxla</button>
+      </div>
+    </div>
+
     <form class="place-form" id="placeForm">
       <div class="field-grid">
         <div class="field">
@@ -544,6 +621,30 @@
       <div class="gate-error" id="placeFormError"></div>
     </form>
 
+    <div style="margin-top: 16px;">
+      <button type="button" class="btn" id="placeBulkToggleBtn">Toplu əlavə et</button>
+    </div>
+    <div class="place-form" id="placeBulkAddWrap" hidden style="margin-top: 12px;">
+      <p class="hint">
+        Hər sətirdə bir məkan, sahələri <code>|</code> işarəsi ilə ayırın:<br />
+        <code>ad|kateqoriya|status|ünvan|google maps linki|sertifikat|qeyd</code><br />
+        Kateqoriya: <code>restoran</code>, <code>kafe</code>, <code>coffee_shop</code>. Status:
+        <code>halal</code>, <code>mushbooh</code>, <code>haram</code>, <code>unknown</code>. Sertifikat və qeyd
+        istəyə bağlıdır. Google Maps linki olmayan və ya koordinatı tapılmayan sətirlər keçilir.
+      </p>
+      <div class="field">
+        <textarea
+          id="placeBulkAddInput"
+          rows="6"
+          placeholder="Şirvanşah Restoranı|restoran|halal|Nizami küç. 14, Bakı|https://www.google.com/maps/place/...@40.3728,49.8442,17z/...|GIMDES|"
+        ></textarea>
+      </div>
+      <button type="button" class="btn btn-approve" id="placeBulkAddSubmit" style="margin-top: 12px;">
+        Hamısını əlavə et
+      </button>
+      <div class="gate-error" id="placeBulkAddError"></div>
+    </div>
+
     <div class="cards" id="placeCards" style="margin-top: 20px;"></div>
     <div class="empty-state" id="placesEmptyState" hidden>Hələ heç bir məkan əlavə edilməyib.</div>
     </section>
@@ -582,12 +683,43 @@
           </select>
         </div>
       </div>
-      <button type="submit" class="btn btn-approve" style="margin-top: 12px;">Bildirişi dərc et</button>
+      <div style="display: flex; gap: 10px; margin-top: 12px;">
+        <button type="submit" class="btn btn-approve">Bildirişi dərc et</button>
+        <button type="button" class="btn" id="annPreviewToggleBtn">Önizlə</button>
+      </div>
       <div class="gate-error" id="announcementFormError"></div>
     </form>
 
+    <div id="annPreviewWrap" hidden style="margin-top: 16px; display: flex; justify-content: center;">
+      <div style="width: 280px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 22px; box-shadow: 0 24px 48px -24px rgba(var(--shadow-color), 0.35);">
+        <div id="annPreviewTitle" style="font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 17px; margin-bottom: 8px;"></div>
+        <div id="annPreviewBody" style="font-size: 13.5px; color: var(--ink-muted); line-height: 1.5; margin-bottom: 14px;"></div>
+        <div id="annPreviewCta" style="background: var(--brand); color: #fff; text-align: center; padding: 10px; border-radius: 10px; font-weight: 700; font-size: 13.5px;"></div>
+      </div>
+    </div>
+
     <div class="cards" id="announcementCards" style="margin-top: 20px;"></div>
     <div class="empty-state" id="announcementsEmptyState" hidden>Hələ heç bir bildiriş yaradılmayıb.</div>
+
+    <div class="place-form" style="margin-top: 28px;">
+      <div class="panel-head" style="margin-bottom: 8px;">
+        <h3 style="margin: 0; font-size: 15px;">📱 Push bildirişi (bütün istifadəçilərə)</h3>
+      </div>
+      <p class="hint">
+        Bu, yuxarıdakı popup-dan fərqli olaraq real OS push bildirişidir — hər cihaza dərhal göndərilir. Firebase
+        konfiqurasiyası (FIREBASE_* environment variable-ları) Vercel-də qurulmalıdır.
+      </p>
+      <div class="field">
+        <label for="broadcastTitle">Başlıq</label>
+        <input type="text" id="broadcastTitle" placeholder="Məs. Yeni versiya çıxdı!" />
+      </div>
+      <div class="field">
+        <label for="broadcastBody">Mətn</label>
+        <textarea id="broadcastBody" rows="2" placeholder="Məs. Halalzur-a Məkanlar bölməsi əlavə olundu."></textarea>
+      </div>
+      <button type="button" class="btn btn-approve" id="broadcastSendBtn" style="margin-top: 8px;">Göndər</button>
+      <div class="gate-error" id="broadcastError"></div>
+    </div>
     </section>
 
     <section class="section" id="section-users" hidden>
@@ -605,6 +737,20 @@
     </p>
     <div class="cards" id="userCards"></div>
     <div class="empty-state" id="usersEmptyState" hidden>Hələ heç bir istifadəçi sinxronlaşmayıb.</div>
+
+    <div class="place-form" style="margin-top: 28px;">
+      <div class="panel-head" style="margin-bottom: 8px;">
+        <h3 style="margin: 0; font-size: 15px;">Referral hesabatı</h3>
+        <button type="button" class="btn" id="referralReportRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+          Yenilə
+        </button>
+      </div>
+      <p class="hint">
+        Kim neçə dostunu dəvət edib. Qısa müddətdə qeyri-adi çox dəvət göndərən hesablar fırıldaqçılıq şübhəsi ilə
+        işarələnir (real cihaz/IP izlənilmir — bu yalnız sayğac əsaslı təxmindir).
+      </p>
+      <div id="referralReportList"></div>
+    </div>
     </section>
 
     <section class="section" id="section-feedback" hidden>
@@ -628,6 +774,7 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
   // ---- config ----
   var SUPABASE_URL = "https://szizepjcospoygnjmxwz.supabase.co";
@@ -716,15 +863,25 @@
   // section only ever showed whatever was loaded once at login, and
   // looked "stuck" until a full browser refresh re-ran enterApp().
   var sectionLoaders = {
-    dashboard: loadDashboard,
+    dashboard: function () {
+      loadDashboard();
+      loadSyncLog();
+      loadVersions();
+    },
     submissions: loadAll,
     products: function () {
       loadProducts();
       loadUnclassified();
     },
-    places: loadPlaces,
+    places: function () {
+      loadPlaces();
+      loadCategoryIcons();
+    },
     announcements: loadAnnouncements,
-    users: loadUsers,
+    users: function () {
+      loadUsers();
+      loadReferralReport();
+    },
     feedback: loadFeedback,
   };
 
@@ -734,6 +891,12 @@
       navItems.forEach(function (b) { b.classList.toggle("active", b === btn); });
       Object.keys(sections).forEach(function (k) { sections[k].hidden = k !== key; });
       if (sectionLoaders[key]) sectionLoaders[key]();
+      // Leaflet computes its size when initialized — if that happened
+      // while #section-places was still hidden (display:none), the map
+      // renders 0×0 until told to re-measure now that it's visible.
+      if (key === "places" && placesMapInstance) {
+        setTimeout(function () { placesMapInstance.invalidateSize(); }, 0);
+      }
     });
   });
 
@@ -754,6 +917,169 @@
     });
   }
 
+  // ---- sync history ----
+  function loadSyncLog() {
+    var wrap = document.getElementById("syncLogList");
+    wrap.textContent = "Yüklənir…";
+    sb("sync_log?order=ran_at.desc&limit=20&select=*")
+      .then(function (rows) {
+        wrap.innerHTML = "";
+        if (!rows || !rows.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Hələ heç bir sync işə salınmayıb.";
+          wrap.appendChild(empty);
+          return;
+        }
+        rows.forEach(function (row) {
+          var item = document.createElement("div");
+          item.className = "place-card";
+          item.style.marginBottom = "8px";
+          var statusPill = row.status === "success"
+            ? '<span class="status-pill halal">✓ Uğurlu</span>'
+            : '<span class="status-pill haram">✗ Xəta</span>';
+          item.innerHTML =
+            '<div>' +
+              '<div class="pc-title">' + esc(row.source) + '</div>' +
+              '<div class="pc-sub" style="margin-top:6px;">' + statusPill +
+                (row.written_count != null ? ' · ' + row.written_count + ' yazıldı' : '') +
+                ' · ' + new Date(row.ran_at).toLocaleString("az-AZ") +
+              '</div>' +
+              (row.message ? '<div class="pc-note">' + esc(row.message) + '</div>' : '') +
+            '</div>';
+          wrap.appendChild(item);
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Yüklənmədi: " + err.message;
+        wrap.appendChild(errEl);
+      });
+  }
+  document.getElementById("syncLogRefreshBtn").addEventListener("click", loadSyncLog);
+
+  // ---- app version history ----
+  function loadVersions() {
+    sb("app_versions?order=released_at.desc,created_at.desc&select=*")
+      .then(function (rows) {
+        renderVersionCards(rows || []);
+      })
+      .catch(function (err) {
+        toast("Versiyalar yüklənmədi: " + err.message);
+      });
+  }
+
+  function renderVersionCards(list) {
+    var container = document.getElementById("versionCards");
+    var empty = document.getElementById("versionsEmptyState");
+    container.innerHTML = "";
+    if (!list.length) {
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = true;
+    list.forEach(function (row) {
+      var card = document.createElement("div");
+      card.className = "place-card";
+      card.innerHTML =
+        '<div>' +
+          '<div class="pc-title">v' + esc(row.version) + '</div>' +
+          '<div class="pc-sub">' + new Date(row.released_at).toLocaleDateString("az-AZ") + '</div>' +
+          '<div class="pc-note">' + esc(row.release_notes) + '</div>' +
+        '</div>' +
+        '<button type="button" class="place-delete-btn" data-action="delete-version">Sil</button>';
+      card.querySelector('[data-action="delete-version"]').addEventListener("click", function (e) {
+        deleteVersion(row, card, e.target);
+      });
+      container.appendChild(card);
+    });
+  }
+
+  function deleteVersion(row, card, btn) {
+    if (!window.confirm('"v' + row.version + '" silinsin?')) return;
+    btn.disabled = true;
+    sb("app_versions?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+      .then(function () {
+        card.remove();
+        loadVersions();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+      });
+  }
+
+  document.getElementById("versionForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var errorEl = document.getElementById("versionFormError");
+    errorEl.textContent = "";
+    var version = document.getElementById("versionNumber").value.trim();
+    var notes = document.getElementById("versionNotes").value.trim();
+    if (!version || !notes) {
+      errorEl.textContent = "Versiya və yeniliklər tələb olunur.";
+      return;
+    }
+    var submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    sb("app_versions", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: { version: version, release_notes: notes },
+    })
+      .then(function () {
+        toast("Versiya əlavə edildi: v" + version);
+        e.target.reset();
+        loadVersions();
+      })
+      .catch(function (err) {
+        errorEl.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        submitBtn.disabled = false;
+      });
+  });
+
+  // ---- backup ----
+  document.getElementById("backupDownloadBtn").addEventListener("click", function () {
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Hazırlanır…";
+    var tables = [
+      "certified_entries", "certifiers", "places", "place_category_icons", "announcements",
+      "users", "product_submissions", "user_points", "favorites", "feedback_reports",
+      "referrals", "app_versions", "sync_log",
+    ];
+    Promise.all(
+      tables.map(function (t) {
+        return sb(t + "?select=*&limit=100000").catch(function () { return []; });
+      })
+    )
+      .then(function (results) {
+        var backup = {};
+        tables.forEach(function (t, i) { backup[t] = results[i] || []; });
+        var blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "halalzur-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        toast("Backup hazırdır");
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
+
   // ---- gate ----
   var gateEl = document.getElementById("gate");
   var appEl = document.getElementById("app");
@@ -764,12 +1090,16 @@
     gateEl.hidden = true;
     appEl.hidden = false;
     loadDashboard();
+    loadSyncLog();
+    loadVersions();
     loadAll();
     loadProducts();
     loadUnclassified();
     loadPlaces();
+    loadCategoryIcons();
     loadAnnouncements();
     loadUsers();
+    loadReferralReport();
     loadFeedback();
   }
 
@@ -1021,6 +1351,8 @@
   function productFilterParams() {
     var status = document.getElementById("productStatusFilter").value;
     var search = document.getElementById("productSearch").value.trim();
+    var ecode = document.getElementById("productEcodeFilter").value.trim().toUpperCase().replace(/\s+/g, "");
+    var featuredOnly = document.getElementById("productFeaturedFilter").checked;
     var params = "";
     if (status) params += "&status=eq." + encodeURIComponent(status);
     if (search) {
@@ -1036,7 +1368,42 @@
         barcodeCondition +
         ")";
     }
-    return { params: params, filtered: !!status || !!search };
+    // PostgREST array-contains — finds products whose `ingredients` array
+    // holds this exact E-code (e.g. "E471"), not a substring match.
+    if (ecode) params += "&ingredients=cs.%7B" + encodeURIComponent(ecode) + "%7D";
+    if (featuredOnly) params += "&featured=eq.true";
+    return { params: params, filtered: !!status || !!search || !!ecode || featuredOnly };
+  }
+
+  // Fetches every id matching the current filter, across all pages — used
+  // by "Filterə uyğun hamısını seç" so bulk actions can apply to the whole
+  // filtered set, not just whatever page happens to be on screen. Paginates
+  // with the Range header rather than a single unbounded request, same
+  // lesson as the OFF sync's .in() bug: a request capped at PostgREST's
+  // default row limit would silently miss matches once a filter matches
+  // more products than that cap.
+  function fetchAllProductIds(filterParams) {
+    var CHUNK = 1000;
+    var allIds = [];
+    function next(offset) {
+      return fetch(SUPABASE_URL + "/rest/v1/certified_entries?select=id" + filterParams, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: "Bearer " + SUPABASE_ANON_KEY,
+          Range: offset + "-" + (offset + CHUNK - 1),
+        },
+      })
+        .then(function (res) {
+          if (!res.ok) return res.text().then(function (t) { throw new Error(t || res.statusText); });
+          return res.json();
+        })
+        .then(function (rows) {
+          allIds = allIds.concat(rows.map(function (r) { return r.id; }));
+          if (rows.length === CHUNK) return next(offset + CHUNK);
+          return allIds;
+        });
+    }
+    return next(0);
   }
 
   function updateProductPageControls() {
@@ -1096,7 +1463,107 @@
     var count = Object.keys(selectedProductIds).length;
     document.getElementById("productBulkCount").textContent = count + " məhsul seçilib";
     document.getElementById("productBulkDeleteBtn").disabled = count === 0;
+    document.getElementById("productBulkAddEcodeBtn").disabled = count === 0;
+    document.getElementById("productBulkSetImageBtn").disabled = count === 0;
   }
+
+  document.getElementById("productBulkSelectFilteredBtn").addEventListener("click", function () {
+    var f = productFilterParams();
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Yüklənir…";
+    fetchAllProductIds(f.params)
+      .then(function (ids) {
+        ids.forEach(function (id) { selectedProductIds[id] = true; });
+        updateProductBulkBar();
+        renderProductCards(currentProductRows, lastProductsFiltered);
+        toast(ids.length + " məhsul seçildi");
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
+
+  document.getElementById("productBulkAddEcodeBtn").addEventListener("click", function () {
+    var raw = document.getElementById("productBulkEcodeInput").value.trim();
+    var code = raw.toUpperCase().replace(/\s+/g, "");
+    if (!ECODE_PATTERN.test(code)) {
+      toast("Düzgün E-kod formatı deyil (məs. E100)");
+      return;
+    }
+    var ids = Object.keys(selectedProductIds);
+    if (!ids.length) return;
+    if (!window.confirm(code + " " + ids.length + " məhsula əlavə edilsin?")) return;
+
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Əlavə edilir…";
+    // Each row's ingredients array is different, so this can't be a single
+    // bulk PATCH — read each selected row's current array, then write the
+    // merged one back.
+    sb("certified_entries?id=in.(" + ids.join(",") + ")&select=id,ingredients")
+      .then(function (rows) {
+        return Promise.all(
+          (rows || []).map(function (row) {
+            var ingredients = (row.ingredients || []).slice();
+            if (ingredients.some(function (i) { return i.toUpperCase() === code; })) return null;
+            ingredients.push(code);
+            return sb("certified_entries?id=eq." + row.id, {
+              method: "PATCH",
+              headers: { "Prefer": "return=minimal" },
+              body: { ingredients: ingredients, updated_at: new Date().toISOString() },
+            });
+          })
+        );
+      })
+      .then(function () {
+        toast(code + " seçilən məhsullara əlavə edildi");
+        document.getElementById("productBulkEcodeInput").value = "";
+        loadProducts();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
+
+  document.getElementById("productBulkSetImageBtn").addEventListener("click", function () {
+    var url = document.getElementById("productBulkImageInput").value.trim();
+    var ids = Object.keys(selectedProductIds);
+    if (!ids.length) return;
+    if (!window.confirm(ids.length + " məhsulun şəkli " + (url ? "dəyişdirilsin" : "silinsin") + "?")) return;
+
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Yenilənir…";
+    sb("certified_entries?id=in.(" + ids.join(",") + ")", {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { image_url: url || null, updated_at: new Date().toISOString() },
+    })
+      .then(function () {
+        toast("Şəkil yeniləndi: " + ids.length + " məhsul");
+        document.getElementById("productBulkImageInput").value = "";
+        loadProducts();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
 
   document.getElementById("productSelectToggleBtn").addEventListener("click", function () {
     productSelectionMode = !productSelectionMode;
@@ -1170,6 +1637,18 @@
   document.getElementById("productStatusFilter").addEventListener("change", function () {
     currentProductPage = 0;
     loadProducts();
+  });
+  document.getElementById("productFeaturedFilter").addEventListener("change", function () {
+    currentProductPage = 0;
+    loadProducts();
+  });
+  var productEcodeFilterDebounce;
+  document.getElementById("productEcodeFilter").addEventListener("input", function () {
+    clearTimeout(productEcodeFilterDebounce);
+    productEcodeFilterDebounce = setTimeout(function () {
+      currentProductPage = 0;
+      loadProducts();
+    }, 350);
   });
 
   function loadUnclassified() {
@@ -1407,7 +1886,7 @@
             ? '<img src="' + esc(row.image_url) + '" alt="" style="width:64px; height:64px; object-fit:cover; border-radius:8px; flex-shrink:0;" onerror="this.style.display=\'none\'" />'
             : '') +
           '<div style="flex:1; min-width:0;">' +
-            '<div class="pc-title">' + esc(row.product_name || row.brand) + '</div>' +
+            '<div class="pc-title">' + (row.featured ? '⭐ ' : '') + esc(row.product_name || row.brand) + '</div>' +
             '<div class="pc-sub">' + (STATUS_LABEL[row.status] || row.status) + ' · ' +
               esc(row.brand) + (row.category ? ' · ' + esc(row.category) : '') + '</div>' +
             (row.barcode ? '<div class="pc-sub">Barkod: ' + esc(row.barcode) + '</div>' : '') +
@@ -1442,8 +1921,11 @@
             '<div data-role="ecode-dropdown" hidden style="position:absolute; top:100%; left:0; right:0; margin-top:4px; background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.12); max-height:240px; overflow-y:auto; z-index:30;"></div>' +
           '</div>' +
         '</div>' +
-        '<div style="display:flex; gap:8px;">' +
+        '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
           '<button class="btn btn-approve" data-action="save-product">Yadda saxla</button>' +
+          '<button class="place-delete-btn" data-action="toggle-featured" style="background:var(--ok-bg); color:var(--ok);">' +
+            (row.featured ? '⭐ Tövsiyədən çıxar' : '☆ Tövsiyə et') +
+          '</button>' +
           '<button class="place-delete-btn" data-action="delete-product">Sil</button>' +
         '</div>' +
       '</div>';
@@ -1473,6 +1955,9 @@
     });
     card.querySelector('[data-action="delete-product"]').addEventListener("click", function (e) {
       deleteProduct(row, card, e.target);
+    });
+    card.querySelector('[data-action="toggle-featured"]').addEventListener("click", function (e) {
+      toggleFeatured(row, card, e.target);
     });
     var ecodeInput = card.querySelector('[data-role="add-ecode"]');
     setupEcodeAutocomplete(ecodeInput, card.querySelector('[data-role="ecode-dropdown"]'));
@@ -1548,6 +2033,30 @@
         toast("Xəta: " + err.message);
         btn.disabled = false;
         btn.textContent = originalText;
+      });
+  }
+
+  function toggleFeatured(row, card, btn) {
+    btn.disabled = true;
+    var newVal = !row.featured;
+    sb("certified_entries?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=representation" },
+      body: { featured: newVal, updated_at: new Date().toISOString() },
+    })
+      .then(function (updatedRows) {
+        if (!updatedRows || !updatedRows.length) {
+          toast("Yenilənmədi: icazə yoxdur (certified_entries update policy Supabase-də işə salınmayıb)");
+          btn.disabled = false;
+          return;
+        }
+        row.featured = newVal;
+        toast(newVal ? "Tövsiyə olunanlara əlavə edildi" : "Tövsiyədən çıxarıldı");
+        loadProducts();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
       });
   }
 
@@ -1710,15 +2219,111 @@
 
   // ---- places ----
   var PLACE_CATEGORY_LABEL = { restoran: "Restoran", kafe: "Kafe", coffee_shop: "Coffee Shop" };
+  var PLACE_CATEGORY_ICON = { restoran: "🍽️", kafe: "☕", coffee_shop: "🥐" };
+  var placesMapInstance = null;
+  var placesMapMarkers = [];
 
   function loadPlaces() {
     sb("places?order=approved.asc,created_at.desc&select=*")
       .then(function (rows) {
         renderPlaceCards(rows || []);
+        renderPlacesMap(rows || []);
       })
       .catch(function (err) {
         toast("Məkanlar yüklənmədi: " + err.message);
       });
+  }
+
+  function loadCategoryIcons() {
+    sb("place_category_icons?select=*")
+      .then(function (rows) {
+        (rows || []).forEach(function (row) {
+          if (row.icon) PLACE_CATEGORY_ICON[row.category] = row.icon;
+        });
+        document.getElementById("iconRestoran").value = PLACE_CATEGORY_ICON.restoran;
+        document.getElementById("iconKafe").value = PLACE_CATEGORY_ICON.kafe;
+        document.getElementById("iconCoffee").value = PLACE_CATEGORY_ICON.coffee_shop;
+        renderPlacesMap(currentPlacesForMap || []);
+      })
+      .catch(function () {
+        // Non-critical — falls back to the default emoji already set above.
+      });
+  }
+
+  var currentPlacesForMap = [];
+
+  document.getElementById("saveCategoryIconsBtn").addEventListener("click", function () {
+    var updates = [
+      { category: "restoran", icon: document.getElementById("iconRestoran").value.trim() || "📍" },
+      { category: "kafe", icon: document.getElementById("iconKafe").value.trim() || "📍" },
+      { category: "coffee_shop", icon: document.getElementById("iconCoffee").value.trim() || "📍" },
+    ];
+    var btn = this;
+    btn.disabled = true;
+    Promise.all(
+      updates.map(function (u) {
+        return sb("place_category_icons?category=eq." + u.category, {
+          method: "PATCH",
+          headers: { "Prefer": "return=minimal" },
+          body: { icon: u.icon },
+        });
+      })
+    )
+      .then(function () {
+        updates.forEach(function (u) { PLACE_CATEGORY_ICON[u.category] = u.icon; });
+        toast("İkonlar yadda saxlanıldı");
+        renderPlacesMap(currentPlacesForMap);
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+      });
+  });
+
+  function initPlacesMap() {
+    if (placesMapInstance || typeof L === "undefined") return;
+    placesMapInstance = L.map("placesMap").setView([40.4093, 49.8671], 11); // Baku
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap",
+      maxZoom: 19,
+    }).addTo(placesMapInstance);
+  }
+
+  var STATUS_MARKER_COLOR = { halal: "#119E4B", mushbooh: "#B7791F", haram: "#C0362C", unknown: "#8FA79A" };
+
+  function renderPlacesMap(list) {
+    currentPlacesForMap = list;
+    if (typeof L === "undefined") return;
+    initPlacesMap();
+    if (!placesMapInstance) return;
+    placesMapMarkers.forEach(function (m) { placesMapInstance.removeLayer(m); });
+    placesMapMarkers = [];
+    var withCoords = list.filter(function (p) { return p.latitude != null && p.longitude != null; });
+    withCoords.forEach(function (p) {
+      var color = STATUS_MARKER_COLOR[p.status] || STATUS_MARKER_COLOR.unknown;
+      var icon = L.divIcon({
+        html:
+          '<div style="background:' + color + '; width:30px; height:30px; border-radius:50% 50% 50% 0; ' +
+          'transform:rotate(-45deg); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.35);">' +
+          '<span style="transform:rotate(45deg); font-size:14px;">' + (PLACE_CATEGORY_ICON[p.category] || "📍") + '</span>' +
+          '</div>',
+        className: "",
+        iconSize: [30, 30],
+        iconAnchor: [15, 30],
+      });
+      var marker = L.marker([p.latitude, p.longitude], { icon: icon }).addTo(placesMapInstance);
+      marker.bindPopup(
+        "<b>" + esc(p.name) + "</b><br/>" + (PLACE_CATEGORY_LABEL[p.category] || p.category) +
+        " · " + (STATUS_LABEL[p.status] || p.status)
+      );
+      placesMapMarkers.push(marker);
+    });
+    if (withCoords.length) {
+      var bounds = L.latLngBounds(withCoords.map(function (p) { return [p.latitude, p.longitude]; }));
+      placesMapInstance.fitBounds(bounds, { padding: [24, 24], maxZoom: 14 });
+    }
   }
 
   function renderPlaceCards(list) {
@@ -2017,6 +2622,90 @@
       });
   });
 
+  document.getElementById("placeBulkToggleBtn").addEventListener("click", function () {
+    var wrap = document.getElementById("placeBulkAddWrap");
+    wrap.hidden = !wrap.hidden;
+  });
+
+  document.getElementById("placeBulkAddSubmit").addEventListener("click", function () {
+    var errorEl = document.getElementById("placeBulkAddError");
+    errorEl.textContent = "";
+
+    var validStatuses = ["halal", "mushbooh", "haram", "unknown"];
+    var validCategories = ["restoran", "kafe", "coffee_shop"];
+    var lines = document
+      .getElementById("placeBulkAddInput")
+      .value.split("\n")
+      .map(function (l) { return l.trim(); })
+      .filter(Boolean);
+
+    if (!lines.length) {
+      errorEl.textContent = "Ən azı bir sətir yazın.";
+      return;
+    }
+
+    var rows = [];
+    var skipped = [];
+    lines.forEach(function (line, i) {
+      var parts = line.split("|").map(function (p) { return p.trim(); });
+      var name = parts[0], category = parts[1], status = (parts[2] || "unknown").toLowerCase();
+      var address = parts[3], mapsLink = parts[4], certifier = parts[5], note = parts[6];
+
+      if (!name || !address || !mapsLink || validCategories.indexOf(category) === -1) {
+        skipped.push(i + 1);
+        return;
+      }
+      if (validStatuses.indexOf(status) === -1) status = "unknown";
+      var coords = extractLatLngFromMapsUrl(mapsLink);
+      if (!coords) {
+        skipped.push(i + 1);
+        return;
+      }
+
+      rows.push({
+        name: name,
+        category: category,
+        status: status,
+        address: address,
+        latitude: coords.lat,
+        longitude: coords.lng,
+        certifier_name: certifier || null,
+        note: note || null,
+      });
+    });
+
+    if (!rows.length) {
+      errorEl.textContent = "Düzgün sətir tapılmadı — hər sətirdə ad, kateqoriya, ünvan və düzgün Google Maps linki olmalıdır.";
+      return;
+    }
+
+    var btn = document.getElementById("placeBulkAddSubmit");
+    btn.disabled = true;
+    btn.textContent = "Əlavə edilir…";
+
+    sb("places", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: rows,
+    })
+      .then(function () {
+        toast(
+          rows.length + " məkan əlavə edildi" +
+          (skipped.length ? " (" + skipped.length + " sətir keçildi: " + skipped.join(", ") + ")" : "")
+        );
+        document.getElementById("placeBulkAddInput").value = "";
+        document.getElementById("placeBulkAddWrap").hidden = true;
+        loadPlaces();
+      })
+      .catch(function (err) {
+        errorEl.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = "Hamısını əlavə et";
+      });
+  });
+
   // ---- announcements ----
   var CTA_ROUTE_LABEL = {
     "/subscription": "Premium/Abunəlik ekranı",
@@ -2112,6 +2801,60 @@
       });
   }
 
+  document.getElementById("annPreviewToggleBtn").addEventListener("click", function () {
+    var wrap = document.getElementById("annPreviewWrap");
+    if (!wrap.hidden) {
+      wrap.hidden = true;
+      return;
+    }
+    var title = document.getElementById("annTitle").value.trim() || "(Başlıq boşdur)";
+    var body = document.getElementById("annBody").value.trim() || "(Mətn boşdur)";
+    var ctaLabel = document.getElementById("annCtaLabel").value.trim();
+    document.getElementById("annPreviewTitle").textContent = title;
+    document.getElementById("annPreviewBody").textContent = body;
+    var ctaEl = document.getElementById("annPreviewCta");
+    ctaEl.hidden = !ctaLabel;
+    ctaEl.textContent = ctaLabel;
+    wrap.hidden = false;
+  });
+
+  document.getElementById("broadcastSendBtn").addEventListener("click", function () {
+    var errorEl = document.getElementById("broadcastError");
+    errorEl.textContent = "";
+    var title = document.getElementById("broadcastTitle").value.trim();
+    var body = document.getElementById("broadcastBody").value.trim();
+    if (!title || !body) {
+      errorEl.textContent = "Başlıq və mətn tələb olunur.";
+      return;
+    }
+    if (!window.confirm("Bu bildiriş DƏRHAL bütün istifadəçilərin telefonuna göndəriləcək. Davam edilsin?")) return;
+
+    var btn = this;
+    btn.disabled = true;
+    btn.textContent = "Göndərilir…";
+    fetch("/api/send-broadcast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-app-key": SUPABASE_ANON_KEY },
+      body: JSON.stringify({ title: title, body: body }),
+    })
+      .then(function (res) {
+        if (!res.ok) return res.json().then(function (d) { throw new Error(d.error || res.statusText); });
+        return res.json();
+      })
+      .then(function () {
+        toast("Push bildirişi göndərildi");
+        document.getElementById("broadcastTitle").value = "";
+        document.getElementById("broadcastBody").value = "";
+      })
+      .catch(function (err) {
+        errorEl.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = "Göndər";
+      });
+  });
+
   document.getElementById("announcementForm").addEventListener("submit", function (e) {
     e.preventDefault();
     var errorEl = document.getElementById("announcementFormError");
@@ -2200,21 +2943,110 @@
     var planPill = row.plan === "premium"
       ? '<span class="status-pill halal">💎 Premium</span>'
       : '<span class="status-pill mushbooh">Free</span>';
+    var banPill = row.banned ? '<span class="status-pill haram" style="margin-left:6px;">🚫 Bloklanıb</span>' : "";
     card.innerHTML =
       '<div>' +
         '<div class="pc-title">' + esc(row.name || "Adsız") + '</div>' +
         '<div class="pc-sub">' + esc(row.email || "—") + '</div>' +
-        '<div class="pc-sub" style="margin-top:6px;">' + planPill + '</div>' +
+        '<div class="pc-sub" style="margin-top:6px;">' + planPill + banPill + '</div>' +
+        (row.banned && row.ban_reason ? '<div class="pc-note">Səbəb: ' + esc(row.ban_reason) + '</div>' : '') +
       '</div>' +
-      '<button class="place-delete-btn" data-action="toggle-plan" style="background:var(--ok-bg); color:var(--ok);">' +
-        (row.plan === "premium" ? "Free et" : "Premium et") +
-      '</button>';
+      '<div style="display:flex; flex-direction:column; gap:6px;">' +
+        '<button class="place-delete-btn" data-action="toggle-plan" style="background:var(--ok-bg); color:var(--ok);">' +
+          (row.plan === "premium" ? "Free et" : "Premium et") +
+        '</button>' +
+        '<button class="place-delete-btn" data-action="toggle-ban">' +
+          (row.banned ? "Blokdan çıxar" : "Blokla") +
+        '</button>' +
+      '</div>';
 
     card.querySelector('[data-action="toggle-plan"]').addEventListener("click", function (e) {
       toggleUserPlan(row, e.target);
     });
+    card.querySelector('[data-action="toggle-ban"]').addEventListener("click", function (e) {
+      toggleUserBan(row, e.target);
+    });
     return card;
   }
+
+  function toggleUserBan(row, btn) {
+    var newBanned = !row.banned;
+    var reason = null;
+    if (newBanned) {
+      reason = window.prompt("Blok səbəbi (istəyə bağlı):", "");
+      if (reason === null) return;
+    }
+    btn.disabled = true;
+    sb("users?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { banned: newBanned, ban_reason: newBanned ? reason || null : null, updated_at: new Date().toISOString() },
+    })
+      .then(function () {
+        toast(newBanned ? "İstifadəçi bloklandı" : "Blok götürüldü");
+        loadUsers();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+      });
+  }
+
+  function loadReferralReport() {
+    var wrap = document.getElementById("referralReportList");
+    wrap.textContent = "Yüklənir…";
+    Promise.all([sb("referrals?select=referrer_id"), sb("users?select=id,name,email")])
+      .then(function (results) {
+        var referrals = results[0] || [];
+        var users = results[1] || [];
+        var userById = {};
+        users.forEach(function (u) { userById[u.id] = u; });
+
+        var counts = {};
+        referrals.forEach(function (r) {
+          counts[r.referrer_id] = (counts[r.referrer_id] || 0) + 1;
+        });
+        var rows = Object.keys(counts)
+          .map(function (id) { return { id: id, count: counts[id] }; })
+          .sort(function (a, b) { return b.count - a.count; })
+          .slice(0, 20);
+
+        wrap.innerHTML = "";
+        if (!rows.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Hələ heç bir referral qeydə alınmayıb.";
+          wrap.appendChild(empty);
+          return;
+        }
+        // No hard threshold exists (nothing in this dataset tells us what
+        // "normal" looks like yet) — 5+ is just a starting point to draw
+        // the eye, not a fraud verdict.
+        var SUSPICIOUS_THRESHOLD = 5;
+        rows.forEach(function (row) {
+          var user = userById[row.id];
+          var item = document.createElement("div");
+          item.className = "place-card";
+          item.style.marginBottom = "8px";
+          var suspicious = row.count >= SUSPICIOUS_THRESHOLD;
+          item.innerHTML =
+            '<div>' +
+              '<div class="pc-title">' + esc(user ? (user.name || user.email || row.id) : row.id) + '</div>' +
+              '<div class="pc-sub">' + row.count + ' dəvət' + (suspicious ? ' · ⚠️ Şübhəli' : '') + '</div>' +
+            '</div>';
+          wrap.appendChild(item);
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Yüklənmədi: " + err.message;
+        wrap.appendChild(errEl);
+      });
+  }
+
+  document.getElementById("referralReportRefreshBtn").addEventListener("click", loadReferralReport);
 
   function toggleUserPlan(row, btn) {
     btn.disabled = true;
@@ -2277,20 +3109,64 @@
           '🐙 GitHub Issue #' + row.github_issue_number +
         '</a>'
       : '';
+    var existingReplyHtml = row.admin_reply
+      ? '<div class="pc-note" style="margin-top:8px;"><b>Cavabınız:</b> ' + esc(row.admin_reply) + '</div>'
+      : '';
     card.innerHTML =
-      '<div style="flex:1;">' +
-        '<div class="pc-title">' + esc(row.user_name || "Naməlum istifadəçi") + '</div>' +
-        '<div class="pc-sub" style="margin-top:6px; white-space:pre-wrap;">' + esc(row.message) + '</div>' +
-        screenshotHtml +
-        githubHtml +
-        '<div class="pc-sub" style="margin-top:6px;">' + new Date(row.created_at).toLocaleString("az-AZ") + '</div>' +
-      '</div>' +
-      '<button type="button" class="place-delete-btn" data-action="delete-feedback">Həll oldu (sil)</button>';
+      '<div style="flex:1; display:flex; flex-direction:column; gap:8px;">' +
+        '<div>' +
+          '<div class="pc-title">' + esc(row.user_name || "Naməlum istifadəçi") + '</div>' +
+          '<div class="pc-sub" style="margin-top:6px; white-space:pre-wrap;">' + esc(row.message) + '</div>' +
+          screenshotHtml +
+          githubHtml +
+          existingReplyHtml +
+          '<div class="pc-sub" style="margin-top:6px;">' + new Date(row.created_at).toLocaleString("az-AZ") + '</div>' +
+        '</div>' +
+        '<div class="field" style="margin:0;">' +
+          '<label>Cavab yaz (istəyə bağlı)</label>' +
+          '<textarea data-role="admin-reply" rows="2" placeholder="İstifadəçiyə cavabınız"></textarea>' +
+        '</div>' +
+        '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
+          '<button type="button" class="btn btn-approve" data-action="save-reply">Cavabı yadda saxla</button>' +
+          '<button type="button" class="place-delete-btn" data-action="delete-feedback">Həll oldu (sil)</button>' +
+        '</div>' +
+      '</div>';
 
+    card.querySelector('[data-role="admin-reply"]').value = row.admin_reply || "";
+    card.querySelector('[data-action="save-reply"]').addEventListener("click", function (e) {
+      saveAdminReply(row, card, e.target);
+    });
     card.querySelector('[data-action="delete-feedback"]').addEventListener("click", function (e) {
       deleteFeedback(row, card, e.target);
     });
     return card;
+  }
+
+  function saveAdminReply(row, card, btn) {
+    var reply = card.querySelector('[data-role="admin-reply"]').value.trim();
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Yadda saxlanır…";
+    sb("feedback_reports?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=representation" },
+      body: { admin_reply: reply || null, admin_reply_at: reply ? new Date().toISOString() : null },
+    })
+      .then(function (updatedRows) {
+        if (!updatedRows || !updatedRows.length) {
+          toast("Yadda saxlanmadı: icazə yoxdur (feedback_reports update policy Supabase-də işə salınmayıb)");
+          return;
+        }
+        row.admin_reply = reply || null;
+        toast("Cavab yadda saxlanıldı");
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
   }
 
   function closeGithubIssue(issueNumber) {

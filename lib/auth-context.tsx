@@ -11,6 +11,15 @@ const STORAGE_KEY = 'halalzur.user';
 
 export class GoogleSignInUnavailableError extends Error {}
 
+/** Thrown from a sign-in method when the admin panel has banned this account. */
+export class BannedAccountError extends Error {}
+
+function banMessage(reason: string | null): string {
+  return reason
+    ? `Hesabınız bloklanıb: ${reason}`
+    : 'Hesabınız bloklanıb. Ətraflı məlumat üçün dəstəklə əlaqə saxlayın.';
+}
+
 // GoogleSignin.configure() only needs to run once per app launch.
 let googleConfigured = false;
 function ensureGoogleConfigured(): boolean {
@@ -66,6 +75,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
         // expiry, only ever lands in Supabase's `users` row — this is the
         // one moment that reaches the device.
         const remote = await fetchRemoteAccountState(stored.id);
+        if (remote?.banned) {
+          // Silent — nothing is awaiting a thrown error at app-launch
+          // time, so just drop the session instead of leaving a banned
+          // account signed in.
+          await AsyncStorage.removeItem(STORAGE_KEY);
+          setUser(null);
+          return;
+        }
         const next = remote
           ? withExpiredAchievementCleared({
               ...stored,
@@ -116,6 +133,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           // below, or let an already-claimed achievement tier be claimed
           // again since claimedAchievements would appear empty.
           const remote = await fetchRemoteAccountState(id);
+          if (remote?.banned) throw new BannedAccountError(banMessage(remote.banReason));
           const appleUser: User = withExpiredAchievementCleared({
             id,
             name,
@@ -149,6 +167,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         // back plan/expiry/claims first so a repeat sign-in doesn't reset
         // an admin-granted premium or a claimed achievement tier.
         const remote = await fetchRemoteAccountState(id);
+        if (remote?.banned) throw new BannedAccountError(banMessage(remote.banReason));
         const googleUser: User = withExpiredAchievementCleared({
           id,
           name: response.data.user.name || 'Google istifadəçisi',
@@ -182,6 +201,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
         const id = `email-${data.user.id}`;
         const remote = await fetchRemoteAccountState(id);
+        if (remote?.banned) {
+          await supabase.auth.signOut();
+          throw new BannedAccountError(banMessage(remote.banReason));
+        }
         const emailUser: User = withExpiredAchievementCleared({
           id,
           name,
@@ -202,6 +225,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (error) throw error;
         const id = `email-${data.user.id}`;
         const remote = await fetchRemoteAccountState(id);
+        if (remote?.banned) {
+          await supabase.auth.signOut();
+          throw new BannedAccountError(banMessage(remote.banReason));
+        }
         const emailUser: User = withExpiredAchievementCleared({
           id,
           name: (data.user.user_metadata?.name as string | undefined) || email.split('@')[0],

@@ -439,6 +439,14 @@ create policy "Public select" on feedback_reports
 create policy "Public delete" on feedback_reports
   for delete using (true);
 
+-- Missing until now — lib/feedback.ts's createGithubIssue() writes
+-- github_issue_number/github_issue_url back onto the row after insert, and
+-- the admin panel writes admin_reply, but without an update policy both
+-- were silently no-ops (RLS matches zero rows, no error) rather than an
+-- actual failure either code path would have surfaced.
+create policy "Public update" on feedback_reports
+  for update using (true) with check (true);
+
 -- Storage bucket for the shake-to-report screenshot (lib/screenshot.ts,
 -- lib/feedback.ts uploadScreenshot). Public, matching this schema's
 -- existing client-side-only-gating pattern — nothing here is more
@@ -476,3 +484,81 @@ create policy "Public select" on referrals
 
 create policy "Public insert" on referrals
   for insert with check (true);
+
+-- "Tövsiyə olunan" flag — lets the admin panel pin specific products to
+-- the front of a future featured/highlighted list without needing a
+-- separate table.
+alter table certified_entries add column featured boolean not null default false;
+
+-- Per-category emoji shown on the admin panel's places map and (once wired
+-- into the app) place markers. Only 3 rows ever exist — one per `places`
+-- category check-constraint value — so this is a tiny lookup, not a
+-- category management system; adding a genuinely new category still needs
+-- a schema change to that check constraint.
+create table place_category_icons (
+  category text primary key,
+  icon text not null default '📍'
+);
+
+insert into place_category_icons (category, icon) values
+  ('restoran', '🍽️'), ('kafe', '☕'), ('coffee_shop', '🥐')
+on conflict (category) do nothing;
+
+alter table place_category_icons enable row level security;
+
+create policy "Public read" on place_category_icons
+  for select using (true);
+
+create policy "Public update" on place_category_icons
+  for update using (true) with check (true);
+
+-- Ban/suspend — set from the admin panel's "İstifadəçilər" list;
+-- lib/auth-context.tsx checks this on sign-in/session-restore and signs
+-- the account back out immediately if set.
+alter table users add column banned boolean not null default false;
+alter table users add column ban_reason text;
+
+-- Lets the admin reply to a feedback report from the panel; round-tripped
+-- back to the reporting user once an in-app "my reports" screen reads it
+-- (not built yet — the column exists now so replies aren't lost waiting).
+alter table feedback_reports add column admin_reply text;
+alter table feedback_reports add column admin_reply_at timestamptz;
+
+-- One row per scripts/sync/run.ts run — only ever written by that script
+-- (service_role, bypasses RLS), so there's no insert policy for the
+-- anon key here, only read (for the admin panel's sync-history view).
+create table sync_log (
+  id uuid primary key default gen_random_uuid(),
+  source text not null,
+  status text not null check (status in ('success', 'error')),
+  written_count integer,
+  message text,
+  ran_at timestamptz not null default now()
+);
+
+alter table sync_log enable row level security;
+
+create policy "Public read" on sync_log
+  for select using (true);
+
+-- Release-notes history the admin panel writes ("What's new"); once an
+-- in-app screen reads it (not built yet) it becomes the app's own
+-- changelog rather than only living in App Store Connect's release notes.
+create table app_versions (
+  id uuid primary key default gen_random_uuid(),
+  version text not null,
+  release_notes text not null,
+  released_at date not null default current_date,
+  created_at timestamptz not null default now()
+);
+
+alter table app_versions enable row level security;
+
+create policy "Public read" on app_versions
+  for select using (true);
+
+create policy "Public insert" on app_versions
+  for insert with check (true);
+
+create policy "Public delete" on app_versions
+  for delete using (true);

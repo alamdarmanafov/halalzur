@@ -36,6 +36,8 @@ export type RemoteAccountState = {
   plan: User['plan'];
   premiumExpiresAt: string | null;
   claimedAchievements: number[];
+  banned: boolean;
+  banReason: string | null;
 };
 
 /**
@@ -55,7 +57,7 @@ export async function fetchRemoteAccountState(userId: string): Promise<RemoteAcc
 
   const { data, error } = await supabase
     .from('users')
-    .select('plan, premium_expires_at, claimed_achievements')
+    .select('plan, premium_expires_at, claimed_achievements, banned, ban_reason')
     .eq('id', userId)
     .maybeSingle();
 
@@ -64,5 +66,7 @@ export async function fetchRemoteAccountState(userId: string): Promise<RemoteAcc
     plan: data.plan as User['plan'],
     premiumExpiresAt: data.premium_expires_at ?? null,
     claimedAchievements: data.claimed_achievements ?? [],
+    banned: data.banned ?? false,
+    banReason: data.ban_reason ?? null,
   };
 }

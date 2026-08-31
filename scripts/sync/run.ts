@@ -51,11 +51,23 @@ async function checkBarcodeUniqueConstraint(): Promise<void> {
   }
 }
 
+// Powers the admin panel's sync-history view (supabase/schema.sql's
+// sync_log table) — best-effort, never throws, so a logging hiccup can't
+// fail an otherwise-successful sync run.
+async function logSync(source: string, status: 'success' | 'error', writtenCount: number | null, message: string | null) {
+  try {
+    await supabaseAdmin.from('sync_log').insert({ source, status, written_count: writtenCount, message });
+  } catch {
+    // best-effort
+  }
+}
+
 async function syncCertifier(certifierId: string, entries: SyncedEntry[]) {
   console.log(`[${certifierId}] parsed ${entries.length} entries`);
 
   if (entries.length === 0) {
     console.log(`[${certifierId}] nothing to sync, skipping`);
+    await logSync(certifierId, 'success', 0, 'nothing to sync');
     return;
   }
 
@@ -66,26 +78,32 @@ async function syncCertifier(certifierId: string, entries: SyncedEntry[]) {
     return;
   }
 
-  // Full refresh: each certifier's published list is a complete snapshot,
-  // not an incremental feed, so replace rather than diff/upsert.
-  const { error: deleteError } = await supabaseAdmin
-    .from('certified_entries')
-    .delete()
-    .eq('certifier_id', certifierId);
-  if (deleteError) throw new Error(`[${certifierId}] delete failed: ${deleteError.message}`);
+  try {
+    // Full refresh: each certifier's published list is a complete snapshot,
+    // not an incremental feed, so replace rather than diff/upsert.
+    const { error: deleteError } = await supabaseAdmin
+      .from('certified_entries')
+      .delete()
+      .eq('certifier_id', certifierId);
+    if (deleteError) throw new Error(`[${certifierId}] delete failed: ${deleteError.message}`);
 
-  const { error: insertError } = await supabaseAdmin.from('certified_entries').insert(entries);
-  if (insertError) throw new Error(`[${certifierId}] insert failed: ${insertError.message}`);
+    const { error: insertError } = await supabaseAdmin.from('certified_entries').insert(entries);
+    if (insertError) throw new Error(`[${certifierId}] insert failed: ${insertError.message}`);
 
-  const { error: syncedAtError } = await supabaseAdmin
-    .from('certifiers')
-    .update({ last_synced_at: new Date().toISOString() })
-    .eq('id', certifierId);
-  if (syncedAtError) {
-    console.warn(`[${certifierId}] couldn't update last_synced_at: ${syncedAtError.message}`);
+    const { error: syncedAtError } = await supabaseAdmin
+      .from('certifiers')
+      .update({ last_synced_at: new Date().toISOString() })
+      .eq('id', certifierId);
+    if (syncedAtError) {
+      console.warn(`[${certifierId}] couldn't update last_synced_at: ${syncedAtError.message}`);
+    }
+
+    console.log(`[${certifierId}] wrote ${entries.length} entries`);
+    await logSync(certifierId, 'success', entries.length, null);
+  } catch (err: any) {
+    await logSync(certifierId, 'error', null, err.message ?? String(err));
+    throw err;
   }
-
-  console.log(`[${certifierId}] wrote ${entries.length} entries`);
 }
 
 /**
@@ -108,6 +126,7 @@ async function syncOpenFoodFacts(maxEntries: number) {
 
   if (entries.length === 0) {
     console.log('[openfoodfacts] nothing to sync, skipping');
+    await logSync('openfoodfacts', 'success', 0, 'nothing to sync');
     return;
   }
 
@@ -118,18 +137,24 @@ async function syncOpenFoodFacts(maxEntries: number) {
     return;
   }
 
-  const BATCH_SIZE = 500;
-  let written = 0;
-  for (let i = 0; i < entries.length; i += BATCH_SIZE) {
-    const batch = entries.slice(i, i + BATCH_SIZE);
-    const { error, count } = await supabaseAdmin
-      .from('certified_entries')
-      .upsert(batch, { onConflict: 'barcode', ignoreDuplicates: true, count: 'exact' });
-    if (error) throw new Error(`[openfoodfacts] upsert failed: ${error.message}`);
-    written += count ?? 0;
-  }
+  try {
+    const BATCH_SIZE = 500;
+    let written = 0;
+    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+      const batch = entries.slice(i, i + BATCH_SIZE);
+      const { error, count } = await supabaseAdmin
+        .from('certified_entries')
+        .upsert(batch, { onConflict: 'barcode', ignoreDuplicates: true, count: 'exact' });
+      if (error) throw new Error(`[openfoodfacts] upsert failed: ${error.message}`);
+      written += count ?? 0;
+    }
 
-  console.log(`[openfoodfacts] wrote ${written} new products (${entries.length - written} already existed)`);
+    console.log(`[openfoodfacts] wrote ${written} new products (${entries.length - written} already existed)`);
+    await logSync('openfoodfacts', 'success', written, `${entries.length - written} already existed`);
+  } catch (err: any) {
+    await logSync('openfoodfacts', 'error', null, err.message ?? String(err));
+    throw err;
+  }
 }
 
 async function main() {
