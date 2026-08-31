@@ -129,9 +129,13 @@ export default function ShoppingScanScreen() {
         />
 
         <View style={styles.summaryFooter}>
-          <Button title="Yeni alış-veriş" onPress={resetTrip} style={{ marginBottom: spacing.sm }} />
-          <Pressable onPress={() => router.back()}>
-            <Text style={styles.doneLink}>Bağla</Text>
+          <Button
+            title="Məhsullara keç"
+            onPress={() => router.replace('/(tabs)/products')}
+            style={{ marginBottom: spacing.sm }}
+          />
+          <Pressable onPress={resetTrip}>
+            <Text style={styles.doneLink}>Yeni alış-veriş</Text>
           </Pressable>
         </View>
       </SafeAreaView>
