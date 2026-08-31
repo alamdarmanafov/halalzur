@@ -13,6 +13,7 @@ export type Place = {
   longitude: number | null;
   certifierName: string | null;
   note: string | null;
+  imageUrl: string | null;
 };
 
 export const PLACE_CATEGORY_LABEL: Record<PlaceCategory, string> = {
@@ -44,6 +45,7 @@ const MOCK_PLACES: Place[] = [
     longitude: 49.8442,
     certifierName: 'GIMDES',
     note: 'Bütün ət məhsulları sertifikatlı təchizatçıdan gətirilir.',
+    imageUrl: null,
   },
   {
     id: 'p2',
@@ -55,6 +57,7 @@ const MOCK_PLACES: Place[] = [
     longitude: 49.8669,
     certifierName: 'HAK',
     note: null,
+    imageUrl: null,
   },
   {
     id: 'p3',
@@ -66,6 +69,7 @@ const MOCK_PLACES: Place[] = [
     longitude: 49.8353,
     certifierName: null,
     note: 'Menyuda alkoqollu içki servisi var — yalnız qida hissəsi üçün ehtiyatlı seçim edin.',
+    imageUrl: null,
   },
   {
     id: 'p4',
@@ -77,6 +81,7 @@ const MOCK_PLACES: Place[] = [
     longitude: 49.8508,
     certifierName: null,
     note: 'Yalnız qəhvə və şirniyyat — heyvan mənşəli tərkib yoxdur.',
+    imageUrl: null,
   },
   {
     id: 'p5',
@@ -88,6 +93,7 @@ const MOCK_PLACES: Place[] = [
     longitude: 49.8347,
     certifierName: 'AZSTANDART Halal',
     note: null,
+    imageUrl: null,
   },
   {
     id: 'p6',
@@ -99,6 +105,7 @@ const MOCK_PLACES: Place[] = [
     longitude: 49.8541,
     certifierName: null,
     note: 'Hələ heç bir sertifikat orqanı tərəfindən yoxlanılmayıb.',
+    imageUrl: null,
   },
 ];
 
@@ -112,6 +119,7 @@ type PlaceRow = {
   longitude: number | null;
   certifier_name: string | null;
   note: string | null;
+  image_url: string | null;
 };
 
 function mapRowToPlace(row: PlaceRow): Place {
@@ -125,6 +133,7 @@ function mapRowToPlace(row: PlaceRow): Place {
     longitude: row.longitude,
     certifierName: row.certifier_name,
     note: row.note,
+    imageUrl: row.image_url,
   };
 }
 
@@ -132,7 +141,7 @@ export async function getAllPlaces(): Promise<Place[]> {
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase
       .from('places')
-      .select('id, name, category, status, address, latitude, longitude, certifier_name, note')
+      .select('id, name, category, status, address, latitude, longitude, certifier_name, note, image_url')
       .eq('approved', true)
       .order('created_at', { ascending: false });
 

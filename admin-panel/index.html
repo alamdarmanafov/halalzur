@@ -484,6 +484,14 @@
           <input type="text" id="placeCertifier" placeholder="Məs. GIMDES" />
         </div>
         <div class="field field-wide">
+          <label for="placeImageUrl">Şəkil linki (istəyə bağlı)</label>
+          <input
+            type="text"
+            id="placeImageUrl"
+            placeholder="Google Maps-də şəklə sağ klikləyib 'Copy image address' seçin və linki bura yapışdırın"
+          />
+        </div>
+        <div class="field field-wide">
           <label for="placeNote">Qeyd (istəyə bağlı)</label>
           <textarea id="placeNote" rows="2" placeholder="Məs. Bütün ət sertifikatlı təchizatçıdandır."></textarea>
         </div>
@@ -1371,6 +1379,7 @@
     var category = document.getElementById("placeCategory").value;
     var status = document.getElementById("placeStatus").value;
     var certifier = document.getElementById("placeCertifier").value.trim();
+    var imageUrl = document.getElementById("placeImageUrl").value.trim();
     var note = document.getElementById("placeNote").value.trim();
 
     if (!name || !address || !mapsLink) {
@@ -1403,6 +1412,7 @@
         longitude: lng,
         certifier_name: certifier || null,
         note: note || null,
+        image_url: imageUrl || null,
       },
     })
       .then(function () {

@@ -13,6 +13,8 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -34,6 +36,16 @@ import { sendPushNotification } from '../../lib/pushNotify';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 const SUBMIT_CATEGORIES: PlaceCategory[] = ['restoran', 'kafe', 'coffee_shop'];
+
+function openInMaps(place: Place) {
+  const url =
+    place.latitude != null && place.longitude != null
+      ? `https://maps.apple.com/?daddr=${place.latitude},${place.longitude}&dirflg=d`
+      : `https://maps.apple.com/?q=${encodeURIComponent(`${place.name} ${place.address}`)}`;
+  Linking.openURL(url).catch(() => {
+    Alert.alert('Açıla bilmədi', 'Xəritə tətbiqi açılmadı.');
+  });
+}
 
 const FILTERS: { key: PlaceCategory | 'hamısı'; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'hamısı', label: 'Hamısı', icon: 'apps-outline' },
@@ -192,9 +204,13 @@ export default function PlacesScreen() {
         }
         renderItem={({ item }) => (
           <View style={styles.card}>
-            <View style={styles.iconWrap}>
-              <Ionicons name={PLACE_CATEGORY_ICON[item.category] as any} size={22} color={colors.primaryDark} />
-            </View>
+            {item.imageUrl ? (
+              <Image source={{ uri: item.imageUrl }} style={styles.placeImage} />
+            ) : (
+              <View style={styles.iconWrap}>
+                <Ionicons name={PLACE_CATEGORY_ICON[item.category] as any} size={22} color={colors.primaryDark} />
+              </View>
+            )}
             <View style={{ flex: 1 }}>
               <Text style={styles.placeName} numberOfLines={1}>
                 {item.name}
@@ -212,6 +228,9 @@ export default function PlacesScreen() {
                 </Text>
               )}
             </View>
+            <Pressable hitSlop={8} onPress={() => openInMaps(item)} style={styles.directionsBtn}>
+              <Ionicons name="navigate-outline" size={20} color={colors.primary} />
+            </Pressable>
           </View>
         )}
       />
@@ -346,6 +365,7 @@ const styles = StyleSheet.create({
   categoryChipTextActive: { color: colors.white },
   card: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -355,6 +375,20 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radius.md,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  placeImage: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.md,
+    backgroundColor: colors.white,
+  },
+  directionsBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',

@@ -189,6 +189,7 @@ create table places (
   longitude double precision,
   certifier_name text,
   note text,
+  image_url text,
   -- Admin-panel-added rows default to approved; in-app user submissions
   -- (lib/places.ts submitPlace) insert with approved = false and only
   -- appear in getAllPlaces()/getPlacesByCategory() once an admin approves
