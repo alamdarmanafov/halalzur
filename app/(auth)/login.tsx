@@ -8,10 +8,12 @@ import { GoogleSignInButton } from '../../components/GoogleSignInButton';
 import { TextField } from '../../components/TextField';
 import { Button } from '../../components/Button';
 import { useAuth, GoogleSignInUnavailableError } from '../../lib/auth-context';
+import { useLanguage } from '../../lib/i18n-context';
 import { colors, spacing, typography } from '../../constants/theme';
 
 export default function LoginScreen() {
   const { signInWithApple, signInWithGoogle, signInWithEmail } = useAuth();
+  const { t } = useLanguage();
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,7 +27,7 @@ export default function LoginScreen() {
       await signInWithApple();
       goToTabs();
     } catch {
-      setError('Apple ilə giriş alınmadı, yenidən cəhd edin.');
+      setError(t('authAppleFailed'));
     }
   };
 
@@ -36,9 +38,9 @@ export default function LoginScreen() {
       goToTabs();
     } catch (err) {
       if (err instanceof GoogleSignInUnavailableError) {
-        Alert.alert('Tezliklə', 'Google ilə giriş hələ əlçatan deyil — indilik Apple ilə daxil olun.');
+        Alert.alert(t('authGoogleSoonTitle'), t('authGoogleSoonLoginBody'));
       } else {
-        setError('Google ilə giriş alınmadı, yenidən cəhd edin.');
+        setError(t('authGoogleFailed'));
       }
     }
   };
@@ -46,7 +48,7 @@ export default function LoginScreen() {
   const onEmailLogin = async () => {
     setError(null);
     if (!email.trim() || !password) {
-      setError('Email və şifrə tələb olunur.');
+      setError(t('authFieldsRequired'));
       return;
     }
     setSubmitting(true);
@@ -54,7 +56,7 @@ export default function LoginScreen() {
       await signInWithEmail(email.trim(), password);
       goToTabs();
     } catch (err: any) {
-      setError(err.message ?? 'Giriş alınmadı, email/şifrəni yoxlayın.');
+      setError(err.message ?? t('authLoginFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -70,8 +72,8 @@ export default function LoginScreen() {
 
         <View style={styles.logoWrap}>
           <Logo size={64} />
-          <Text style={styles.title}>Xoş gəldiniz</Text>
-          <Text style={styles.subtitle}>Hesabınıza daxil olun</Text>
+          <Text style={styles.title}>{t('authLoginTitle')}</Text>
+          <Text style={styles.subtitle}>{t('authLoginSubtitle')}</Text>
         </View>
 
         <AppleSignInButton onPress={onApple} />
@@ -80,28 +82,28 @@ export default function LoginScreen() {
 
         <View style={styles.dividerRow}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>və ya</Text>
+          <Text style={styles.dividerText}>{t('authOr')}</Text>
           <View style={styles.dividerLine} />
         </View>
 
         <TextField
-          label="Email"
+          label={t('authEmail')}
           value={email}
           onChangeText={setEmail}
-          placeholder="email@nümunə.com"
+          placeholder={t('authEmailPlaceholder')}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
         />
         <TextField
-          label="Şifrə"
+          label={t('authPassword')}
           value={password}
           onChangeText={setPassword}
-          placeholder="Şifrəniz"
+          placeholder={t('authPasswordPlaceholderYours')}
           secureTextEntry
         />
         <Button
-          title={submitting ? 'Daxil olunur…' : 'Daxil ol'}
+          title={submitting ? t('authLoginSubmitting') : t('authLoginSubmit')}
           onPress={onEmailLogin}
           loading={submitting}
           style={{ marginTop: spacing.xs }}
@@ -110,9 +112,9 @@ export default function LoginScreen() {
         {error && <Text style={styles.error}>{error}</Text>}
 
         <View style={styles.footerRow}>
-          <Text style={styles.footerText}>Hesabınız yoxdur? </Text>
+          <Text style={styles.footerText}>{t('authNoAccount')}</Text>
           <Link href="/(auth)/register" replace style={styles.footerLink}>
-            Qeydiyyatdan keçin
+            {t('welcomeRegister')}
           </Link>
         </View>
       </ScrollView>

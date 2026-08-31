@@ -4,9 +4,11 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Logo } from '../../components/Logo';
 import { Leaf } from '../../components/Leaf';
+import { useLanguage } from '../../lib/i18n-context';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 export default function WelcomeScreen() {
+  const { t } = useLanguage();
   const goToLogin = () => router.push('/(auth)/login');
   const goToRegister = () => router.push('/(auth)/register');
 
@@ -35,19 +37,17 @@ export default function WelcomeScreen() {
           </View>
         </View>
 
-        <Text style={styles.headline}>Məhsulunu skan et.{'\n'}Halal statusunu öyrən.</Text>
-        <Text style={styles.subtext}>
-          Dünyanın müxtəlif ölkələrindəki məhsulların halal statusunu barkod vasitəsilə yoxla.
-        </Text>
+        <Text style={styles.headline}>{t('welcomeHeadline')}</Text>
+        <Text style={styles.subtext}>{t('welcomeSubtext')}</Text>
 
         <Pressable style={styles.primaryBtn} onPress={goToLogin}>
           <Ionicons name="log-in-outline" size={20} color={colors.white} />
-          <Text style={styles.primaryBtnText}>Daxil ol</Text>
+          <Text style={styles.primaryBtnText}>{t('welcomeLogin')}</Text>
         </Pressable>
 
         <Pressable style={styles.secondaryBtn} onPress={goToRegister}>
           <Ionicons name="person-add-outline" size={20} color={colors.primaryDark} />
-          <Text style={styles.secondaryBtnText}>Qeydiyyatdan keç</Text>
+          <Text style={styles.secondaryBtnText}>{t('welcomeRegister')}</Text>
         </Pressable>
       </View>
     </SafeAreaView>

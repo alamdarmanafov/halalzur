@@ -8,10 +8,12 @@ import { GoogleSignInButton } from '../../components/GoogleSignInButton';
 import { TextField } from '../../components/TextField';
 import { Button } from '../../components/Button';
 import { useAuth, GoogleSignInUnavailableError } from '../../lib/auth-context';
+import { useLanguage } from '../../lib/i18n-context';
 import { colors, spacing, typography } from '../../constants/theme';
 
 export default function RegisterScreen() {
   const { signInWithApple, signInWithGoogle, signUpWithEmail } = useAuth();
+  const { t } = useLanguage();
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -26,7 +28,7 @@ export default function RegisterScreen() {
       await signInWithApple();
       goToTabs();
     } catch {
-      setError('Apple ilə qeydiyyat alınmadı, yenidən cəhd edin.');
+      setError(t('authAppleRegisterFailed'));
     }
   };
 
@@ -37,9 +39,9 @@ export default function RegisterScreen() {
       goToTabs();
     } catch (err) {
       if (err instanceof GoogleSignInUnavailableError) {
-        Alert.alert('Tezliklə', 'Google ilə qeydiyyat hələ əlçatan deyil — indilik Apple ilə davam edin.');
+        Alert.alert(t('authGoogleSoonTitle'), t('authGoogleSoonRegisterBody'));
       } else {
-        setError('Google ilə qeydiyyat alınmadı, yenidən cəhd edin.');
+        setError(t('authGoogleRegisterFailed'));
       }
     }
   };
@@ -47,11 +49,11 @@ export default function RegisterScreen() {
   const onEmailRegister = async () => {
     setError(null);
     if (!name.trim() || !email.trim() || !password) {
-      setError('Ad, email və şifrə tələb olunur.');
+      setError(t('authRegisterFieldsRequired'));
       return;
     }
     if (password.length < 6) {
-      setError('Şifrə ən azı 6 simvol olmalıdır.');
+      setError(t('authPasswordTooShort'));
       return;
     }
     setSubmitting(true);
@@ -59,7 +61,7 @@ export default function RegisterScreen() {
       await signUpWithEmail(email.trim(), password, name.trim());
       goToTabs();
     } catch (err: any) {
-      setError(err.message ?? 'Qeydiyyat alınmadı, yenidən cəhd edin.');
+      setError(err.message ?? t('authRegisterFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -75,8 +77,8 @@ export default function RegisterScreen() {
 
         <View style={styles.logoWrap}>
           <Logo size={64} />
-          <Text style={styles.title}>Hesab yaradın</Text>
-          <Text style={styles.subtitle}>Apple, Google və ya email ilə başlayın</Text>
+          <Text style={styles.title}>{t('authRegisterTitle')}</Text>
+          <Text style={styles.subtitle}>{t('authRegisterSubtitleEmail')}</Text>
         </View>
 
         <AppleSignInButton onPress={onApple} />
@@ -85,35 +87,35 @@ export default function RegisterScreen() {
 
         <View style={styles.dividerRow}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>və ya</Text>
+          <Text style={styles.dividerText}>{t('authOr')}</Text>
           <View style={styles.dividerLine} />
         </View>
 
         <TextField
-          label="Ad"
+          label={t('authName')}
           value={name}
           onChangeText={setName}
-          placeholder="Adınız"
+          placeholder={t('authNamePlaceholder')}
           autoCapitalize="words"
         />
         <TextField
-          label="Email"
+          label={t('authEmail')}
           value={email}
           onChangeText={setEmail}
-          placeholder="email@nümunə.com"
+          placeholder={t('authEmailPlaceholder')}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
         />
         <TextField
-          label="Şifrə"
+          label={t('authPassword')}
           value={password}
           onChangeText={setPassword}
-          placeholder="Ən azı 6 simvol"
+          placeholder={t('authPasswordPlaceholderMin')}
           secureTextEntry
         />
         <Button
-          title={submitting ? 'Qeydiyyat gedir…' : 'Qeydiyyatdan keç'}
+          title={submitting ? t('authRegisterSubmitting') : t('authRegisterSubmit')}
           onPress={onEmailRegister}
           loading={submitting}
           style={{ marginTop: spacing.xs }}
@@ -122,9 +124,9 @@ export default function RegisterScreen() {
         {error && <Text style={styles.error}>{error}</Text>}
 
         <View style={styles.footerRow}>
-          <Text style={styles.footerText}>Artıq hesabınız var? </Text>
+          <Text style={styles.footerText}>{t('authHaveAccount')}</Text>
           <Link href="/(auth)/login" replace style={styles.footerLink}>
-            Daxil olun
+            {t('welcomeLogin')}
           </Link>
         </View>
       </ScrollView>

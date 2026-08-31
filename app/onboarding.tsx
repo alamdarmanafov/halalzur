@@ -17,36 +17,22 @@ import { ScanIllustration } from '../components/onboarding/ScanIllustration';
 import { CheckIllustration } from '../components/onboarding/CheckIllustration';
 import { TrustIllustration } from '../components/onboarding/TrustIllustration';
 import { markOnboardingSeen } from '../lib/onboarding';
+import { useLanguage } from '../lib/i18n-context';
+import { TranslationKey } from '../lib/i18n';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
-const SLIDES = [
-  {
-    step: '01',
-    eyebrow: 'SCAN',
-    title: 'Məhsulunu\nskan et',
-    desc: 'Barkodu oxut və məhsul haqqında məlumatı saniyələr içində əldə et.',
-    Illustration: ScanIllustration,
-  },
-  {
-    step: '02',
-    eyebrow: 'CHECK',
-    title: 'Halal statusunu\nyoxla',
-    desc: 'Məhsulun halal sertifikatı və doğrulama statusunu asanlıqla öyrən.',
-    Illustration: CheckIllustration,
-  },
-  {
-    step: '03',
-    eyebrow: 'TRUST',
-    title: 'Məlumatlı\nseçim et',
-    desc: 'Etibar etdiyin məhsulları tap və alış-verişini daha rahat et.',
-    Illustration: TrustIllustration,
-  },
-] as const;
+const SLIDE_META = [
+  { step: '01', eyebrow: 'SCAN', titleKey: 'onboard1Title', descKey: 'onboard1Desc', Illustration: ScanIllustration },
+  { step: '02', eyebrow: 'CHECK', titleKey: 'onboard2Title', descKey: 'onboard2Desc', Illustration: CheckIllustration },
+  { step: '03', eyebrow: 'TRUST', titleKey: 'onboard3Title', descKey: 'onboard3Desc', Illustration: TrustIllustration },
+] as const satisfies { step: string; eyebrow: string; titleKey: TranslationKey; descKey: TranslationKey; Illustration: any }[];
 
 export default function OnboardingScreen() {
   const { width } = useWindowDimensions();
+  const { t } = useLanguage();
   const scrollRef = useRef<ScrollView>(null);
   const [index, setIndex] = useState(0);
+  const SLIDES = SLIDE_META.map((s) => ({ ...s, title: t(s.titleKey), desc: t(s.descKey) }));
   const isLast = index === SLIDES.length - 1;
 
   const finish = async () => {
@@ -99,7 +85,7 @@ export default function OnboardingScreen() {
         {!isLast && (
           <View style={styles.navRow}>
             <Pressable onPress={finish}>
-              <Text style={styles.skip}>Keç</Text>
+              <Text style={styles.skip}>{t('onboardSkip')}</Text>
             </Pressable>
             <View style={styles.dotsRow}>
               {SLIDES.map((_, i) => (
@@ -120,7 +106,7 @@ export default function OnboardingScreen() {
               ))}
             </View>
             <Pressable style={styles.startBtn} onPress={finish}>
-              <Text style={styles.startBtnText}>Halalzur-a başla</Text>
+              <Text style={styles.startBtnText}>{t('onboardStart')}</Text>
               <Ionicons name="arrow-forward" size={20} color={colors.white} />
             </Pressable>
           </>
