@@ -18,14 +18,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { lookupBarcode, statusDescription, getHalalAlternatives, getDistinctBrands } from '../../lib/certification';
+import { lookupBarcode, STATUS_DESC_KEY, getHalalAlternatives, getDistinctBrands } from '../../lib/certification';
 import { PRODUCT_CATEGORIES } from '../../lib/categories';
-import { extractECodesFromText, searchECodes, eCodeStatusLabel } from '../../lib/eCodes';
+import { extractECodesFromText, searchECodes, ECODE_STATUS_LABEL_KEY } from '../../lib/eCodes';
 import { recognizeIngredientText } from '../../lib/ocr';
 import { hasInternetConnection } from '../../lib/network';
 import { useFavorites } from '../../lib/favorites-context';
 import { useHistory } from '../../lib/history-context';
 import { useAuth } from '../../lib/auth-context';
+import { useLanguage } from '../../lib/i18n-context';
 import { submitProduct, hasSubmittedProduct } from '../../lib/submissions';
 import { sendPushNotification } from '../../lib/pushNotify';
 import { CertificationResult } from '../../lib/types';
@@ -45,6 +46,7 @@ const STATUS_TINT: Record<CertificationResult['status'], string> = {
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const isPremium = user?.plan === 'premium';
   const { isFavorite, toggleFavorite } = useFavorites();
   const { history, removeScan } = useHistory();
@@ -181,7 +183,7 @@ export default function ProductDetailScreen() {
   const captureIngredientPhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('İcazə lazımdır', 'Tərkib şəklini çəkmək üçün kameraya icazə verin.');
+      Alert.alert(t('productPermissionNeededTitle'), t('productPermissionNeededBody'));
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -207,7 +209,7 @@ export default function ProductDetailScreen() {
   const handleSubmitProduct = async () => {
     if (!user || !product) return;
     if (!submitName.trim() || !submitBrand.trim() || !submitCategory.trim()) {
-      Alert.alert('Doldurun', 'Məhsulun adı, markası və kateqoriyası tələb olunur.');
+      Alert.alert(t('productFillRequiredTitle'), t('productFillRequiredBody'));
       return;
     }
     setSubmitting(true);
@@ -230,12 +232,12 @@ export default function ProductDetailScreen() {
       setSubmitted(true);
       sendPushNotification(
         user.id,
-        'Təklif göndərildi ✅',
-        `"${submitName.trim()}" təklifiniz baxılmaq üçün göndərildi.`,
+        t('productSubmittedPushTitle'),
+        `"${submitName.trim()}" ${t('productSubmittedPushBody')}`,
         { route: `/product/${product.barcode}` }
       );
     } catch (err: any) {
-      Alert.alert('Göndərilmədi', err.message ?? 'Xəta baş verdi, yenidən cəhd edin.');
+      Alert.alert(t('productSubmitFailedTitle'), err.message ?? t('productSubmitFailedBody'));
     } finally {
       setSubmitting(false);
     }
@@ -245,12 +247,10 @@ export default function ProductDetailScreen() {
     return (
       <SafeAreaView style={styles.center}>
         <Ionicons name="cloud-offline-outline" size={48} color={colors.gray} />
-        <Text style={styles.offlineTitle}>İnternet bağlantısı yoxdur</Text>
-        <Text style={styles.offlineBody}>
-          Sertifikat nəticəsi keşdən göstərilmir — yoxlamaq üçün internetə qoşulun.
-        </Text>
+        <Text style={styles.offlineTitle}>{t('productOfflineTitle')}</Text>
+        <Text style={styles.offlineBody}>{t('productOfflineBody')}</Text>
         <Button
-          title="Yenidən cəhd et"
+          title={t('productRetry')}
           onPress={() => setReloadTick((n) => n + 1)}
           style={{ marginTop: spacing.lg, width: 200 }}
         />
@@ -271,12 +271,12 @@ export default function ProductDetailScreen() {
 
   const handleDeleteFromHistory = () => {
     Alert.alert(
-      'Tarixçədən sil',
-      'Bu məhsul səhv tanınıbsa, onu skan tarixçənizdən silə bilərsiniz.',
+      t('productDeleteFromHistoryTitle'),
+      t('productDeleteFromHistoryBody'),
       [
-        { text: 'Ləğv et', style: 'cancel' },
+        { text: t('productCancel'), style: 'cancel' },
         {
-          text: 'Sil',
+          text: t('productDelete'),
           style: 'destructive',
           onPress: async () => {
             await removeScan(product.barcode);
@@ -328,25 +328,25 @@ export default function ProductDetailScreen() {
           <View style={{ marginTop: spacing.sm }}>
             <StatusBadge status={product.status} />
           </View>
-          <Text style={styles.statusDesc}>{statusDescription[product.status]}</Text>
+          <Text style={styles.statusDesc}>{t(STATUS_DESC_KEY[product.status])}</Text>
         </View>
 
         <View style={[styles.certifierCard, { borderColor: tint }]}>
           <Ionicons name="shield-checkmark" size={22} color={tint} />
           <View style={{ flex: 1 }}>
             <Text style={styles.certifierTitle}>
-              {product.certifier ? product.certifier.shortName : 'Sertifikat tapılmadı'}
+              {product.certifier ? product.certifier.shortName : t('productCertifierNotFoundTitle')}
             </Text>
             <Text style={styles.certifierBody}>
               {product.certifier
                 ? `${product.certifier.name} (${product.certifier.country})`
-                : 'Bu məhsul üçün tanınan halallıq sertifikat orqanından təsdiq tapılmadı.'}
+                : t('productCertifierNotFoundBody')}
             </Text>
             {product.certificateNumber && (
-              <Text style={styles.certNumber}>Sertifikat №: {product.certificateNumber}</Text>
+              <Text style={styles.certNumber}>{t('productCertificateNumber')} {product.certificateNumber}</Text>
             )}
             {product.verifiedAt && (
-              <Text style={styles.certNumber}>Yoxlanma tarixi: {product.verifiedAt}</Text>
+              <Text style={styles.certNumber}>{t('productVerifiedAt')} {product.verifiedAt}</Text>
             )}
           </View>
         </View>
@@ -362,10 +362,10 @@ export default function ProductDetailScreen() {
           <View style={styles.section}>
             <View style={styles.sectionTitleRow}>
               <Ionicons name="leaf" size={18} color={colors.primary} />
-              <Text style={styles.sectionTitle}>Halal Alternatives</Text>
+              <Text style={styles.sectionTitle}>{t('productHalalAlternativesTitle')}</Text>
             </View>
             <Text style={styles.eCodeIntro}>
-              Bu məhsul əvəzinə {alternatives.length} halal alternativ tapdıq.
+              {t('productHalalAlternativesFound').replace('{n}', String(alternatives.length))}
             </Text>
             {alternatives.map((alt) => (
               <Pressable
@@ -393,10 +393,8 @@ export default function ProductDetailScreen() {
             <Pressable style={styles.lockedCard} onPress={() => router.push('/subscription')}>
               <Ionicons name="leaf" size={20} color={colors.primary} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.lockedTitle}>Halal Alternatives</Text>
-                <Text style={styles.lockedBody}>
-                  Bu kateqoriyada halal alternativləri görmək üçün Premium-a keçin.
-                </Text>
+                <Text style={styles.lockedTitle}>{t('productHalalAlternativesTitle')}</Text>
+                <Text style={styles.lockedBody}>{t('productHalalAlternativesLockedBody')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.grayLight} />
             </Pressable>
@@ -405,7 +403,7 @@ export default function ProductDetailScreen() {
 
         {product.ingredients.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Tərkib</Text>
+            <Text style={styles.sectionTitle}>{t('productIngredientsTitle')}</Text>
             <View style={styles.ingredientWrap}>
               {product.ingredients.map((ing) => (
                 <View key={ing} style={styles.ingredientChip}>
@@ -418,17 +416,13 @@ export default function ProductDetailScreen() {
 
         {product.status === 'unknown' && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Tərkibi yoxlayın</Text>
-            <Text style={styles.eCodeIntro}>
-              Bu barkod bazamızda yoxdur. Məhsulun qablaşdırmasındakı tərkib hissəsinin şəklini
-              çəkin — tərkibdəki E-kodları tapıb sertifikat orqanlarının onlar haqqında dediyini
-              göstərəcəyik.
-            </Text>
+            <Text style={styles.sectionTitle}>{t('productCheckIngredientsTitle')}</Text>
+            <Text style={styles.eCodeIntro}>{t('productCheckIngredientsIntro')}</Text>
 
             <Pressable style={styles.photoBtn} onPress={captureIngredientPhoto}>
               <Ionicons name="camera" size={18} color={colors.primaryDark} />
               <Text style={styles.photoBtnText}>
-                {ingredientPhoto ? 'Yenidən şəkil çək' : 'Tərkib şəklini çək'}
+                {ingredientPhoto ? t('productRetakePhoto') : t('productTakeIngredientPhoto')}
               </Text>
             </Pressable>
 
@@ -438,21 +432,19 @@ export default function ProductDetailScreen() {
                 {scanningPhoto && (
                   <View style={styles.photoPreviewOverlay}>
                     <ActivityIndicator color={colors.white} />
-                    <Text style={styles.photoPreviewOverlayText}>Mətn tanınır…</Text>
+                    <Text style={styles.photoPreviewOverlayText}>{t('productRecognizingText')}</Text>
                   </View>
                 )}
               </View>
             )}
 
             <Text style={styles.manualLabel}>
-              {ingredientPhoto
-                ? 'Şəkildəki tərkibi (xüsusilə E-kodları) buraya yazın:'
-                : 'Yaxud tərkibi əl ilə yazın:'}
+              {ingredientPhoto ? t('productManualLabelWithPhoto') : t('productManualLabelNoPhoto')}
             </Text>
             <TextInput
               value={manualIngredients}
               onChangeText={setManualIngredients}
-              placeholder="Məs: Şəkər, Bitki yağı, E471, E120, Vanil aromatı…"
+              placeholder={t('productIngredientsPlaceholder')}
               placeholderTextColor={colors.gray}
               multiline
               style={styles.manualInput}
@@ -460,7 +452,7 @@ export default function ProductDetailScreen() {
 
             <Pressable style={styles.ecodePickerBtn} onPress={() => setEcodePickerVisible(true)}>
               <Ionicons name="flask-outline" size={16} color={colors.primaryDark} />
-              <Text style={styles.ecodePickerBtnText}>Siyahıdan E-kod seç</Text>
+              <Text style={styles.ecodePickerBtnText}>{t('productPickECodeFromList')}</Text>
             </Pressable>
 
             <View style={styles.submitDivider} />
@@ -468,41 +460,34 @@ export default function ProductDetailScreen() {
             {submitted ? (
               <View style={styles.submittedBox}>
                 <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
-                <Text style={styles.submittedText}>
-                  Təklifiniz göndərildi! Baxılıb təsdiqlənəndə xal qazanacaqsınız.
-                </Text>
+                <Text style={styles.submittedText}>{t('productSubmittedBoxText')}</Text>
               </View>
             ) : (
               <>
-                <Text style={styles.sectionTitle}>Bu məhsulu icmaya təklif edin</Text>
-                <Text style={styles.eCodeIntro}>
-                  Məhsulu özünüz yoxlamısınızsa, təklif edin — komandamız baxıb təsdiqləyəndə
-                  bazaya əlavə olunur və siz xal qazanırsınız.
-                </Text>
+                <Text style={styles.sectionTitle}>{t('productSuggestToCommunityTitle')}</Text>
+                <Text style={styles.eCodeIntro}>{t('productSuggestToCommunityIntro')}</Text>
                 <TextInput
                   value={submitName}
                   onChangeText={setSubmitName}
-                  placeholder="Məhsulun adı"
+                  placeholder={t('productNamePlaceholder')}
                   placeholderTextColor={colors.gray}
                   style={styles.submitInput}
                 />
                 <Pressable style={styles.submitPicker} onPress={() => openFieldPicker('brand')}>
                   <Text style={submitBrand ? styles.submitPickerText : styles.submitPickerPlaceholder}>
-                    {submitBrand || 'Marka seçin və ya yeni yazın'}
+                    {submitBrand || t('productBrandPickerPlaceholder')}
                   </Text>
                   <Ionicons name="chevron-down" size={16} color={colors.gray} />
                 </Pressable>
                 <Pressable style={styles.submitPicker} onPress={() => openFieldPicker('category')}>
                   <Text style={submitCategory ? styles.submitPickerText : styles.submitPickerPlaceholder}>
-                    {submitCategory || 'Kateqoriya seçin və ya yeni yazın'}
+                    {submitCategory || t('productCategoryPickerPlaceholder')}
                   </Text>
                   <Ionicons name="chevron-down" size={16} color={colors.gray} />
                 </Pressable>
-                <Text style={styles.eCodeIntro}>
-                  Halallıq statusunu özünüz seçmirsiniz — komandamız yoxlayıb qərar verəcək.
-                </Text>
+                <Text style={styles.eCodeIntro}>{t('productStatusDecidedByTeam')}</Text>
                 <Button
-                  title={submitting ? 'Göndərilir…' : 'Təklif et'}
+                  title={submitting ? t('productSuggestSending') : t('productSuggest')}
                   onPress={handleSubmitProduct}
                   loading={submitting}
                   style={{ marginTop: spacing.sm }}
@@ -516,14 +501,11 @@ export default function ProductDetailScreen() {
           <View style={styles.section}>
             <View style={styles.sectionTitleRow}>
               <Ionicons name="flask" size={18} color={colors.primaryDark} />
-              <Text style={styles.sectionTitle}>Deep Ingredient Check</Text>
+              <Text style={styles.sectionTitle}>{t('productDeepIngredientCheckTitle')}</Text>
             </View>
             {isPremium ? (
               <>
-                <Text style={styles.eCodeIntro}>
-                  Bunlar AI qərarı deyil — halal sertifikat orqanlarının öz dərc etdiyi E-kod
-                  təsnifatından götürülüb.
-                </Text>
+                <Text style={styles.eCodeIntro}>{t('productDeepIngredientCheckIntro')}</Text>
                 {detectedECodes.map((entry) => (
                   <ECodeCard key={entry.code} entry={entry} />
                 ))}
@@ -533,11 +515,9 @@ export default function ProductDetailScreen() {
                 <Ionicons name="lock-closed" size={20} color={colors.primaryDark} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.lockedTitle}>
-                    {detectedECodes.length} tərkib komponenti araşdırılıb
+                    {detectedECodes.length} {t('productComponentsAnalyzed')}
                   </Text>
-                  <Text style={styles.lockedBody}>
-                    Hansı komponentin niyə şübhəli olduğunu görmək üçün Premium-a keçin.
-                  </Text>
+                  <Text style={styles.lockedBody}>{t('productComponentsLockedBody')}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.grayLight} />
               </Pressable>
@@ -546,7 +526,7 @@ export default function ProductDetailScreen() {
         )}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Barkod</Text>
+          <Text style={styles.sectionTitle}>{t('productBarcodeTitle')}</Text>
           <Text style={styles.barcode}>{product.barcode}</Text>
         </View>
       </ScrollView>
@@ -564,7 +544,7 @@ export default function ProductDetailScreen() {
         >
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>E-kod seç</Text>
+              <Text style={styles.modalTitle}>{t('productPickECodeTitle')}</Text>
               <Pressable onPress={() => setEcodePickerVisible(false)}>
                 <Ionicons name="close" size={22} color={colors.gray} />
               </Pressable>
@@ -572,7 +552,7 @@ export default function ProductDetailScreen() {
             <TextInput
               value={ecodeQuery}
               onChangeText={setEcodeQuery}
-              placeholder="Kod, ad və ya kateqoriya axtar (məs. E471, jelatin)"
+              placeholder={t('productECodeSearchPlaceholder')}
               placeholderTextColor={colors.gray}
               style={styles.ecodeSearchInput}
             />
@@ -588,7 +568,7 @@ export default function ProductDetailScreen() {
                         {item.code} · {item.name}
                       </Text>
                       <Text style={styles.ecodeRowMeta}>
-                        {item.category} · {eCodeStatusLabel[item.status]}
+                        {item.category} · {t(ECODE_STATUS_LABEL_KEY[item.status])}
                       </Text>
                     </View>
                     <Ionicons
@@ -602,8 +582,7 @@ export default function ProductDetailScreen() {
               style={{ maxHeight: 360 }}
             />
             <Text style={[styles.eCodeIntro, { marginTop: spacing.sm, marginBottom: 0 }]}>
-              Seçdiyiniz kodlar yuxarıdakı tərkib sahəsinə əlavə olunur — admin baxıb doğruluğunu
-              yoxlayacaq.
+              {t('productECodePickerHint')}
             </Text>
           </View>
         </KeyboardAvoidingView>
@@ -622,7 +601,7 @@ export default function ProductDetailScreen() {
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
-                {fieldPicker === 'brand' ? 'Marka seç' : 'Kateqoriya seç'}
+                {fieldPicker === 'brand' ? t('productPickBrandTitle') : t('productPickCategoryTitle')}
               </Text>
               <Pressable onPress={() => setFieldPicker(null)}>
                 <Ionicons name="close" size={22} color={colors.gray} />
@@ -631,7 +610,9 @@ export default function ProductDetailScreen() {
             <TextInput
               value={fieldPickerQuery}
               onChangeText={setFieldPickerQuery}
-              placeholder={fieldPicker === 'brand' ? 'Marka axtar və ya yeni yazın' : 'Kateqoriya axtar və ya yeni yazın'}
+              placeholder={
+                fieldPicker === 'brand' ? t('productBrandSearchPlaceholder') : t('productCategorySearchPlaceholder')
+              }
               placeholderTextColor={colors.gray}
               style={styles.ecodeSearchInput}
               autoFocus
@@ -646,9 +627,7 @@ export default function ProductDetailScreen() {
               )}
               style={{ maxHeight: 280 }}
               ListEmptyComponent={
-                <Text style={[styles.eCodeIntro, { marginTop: spacing.sm }]}>
-                  Uyğun nəticə tapılmadı — aşağıdan yenisini əlavə edə bilərsiniz.
-                </Text>
+                <Text style={[styles.eCodeIntro, { marginTop: spacing.sm }]}>{t('productNoMatchFound')}</Text>
               }
             />
             {fieldPickerQuery.trim().length > 0 && !fieldPickerExactMatch && (
@@ -657,7 +636,9 @@ export default function ProductDetailScreen() {
                 onPress={() => selectFieldPickerValue(fieldPickerQuery.trim())}
               >
                 <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
-                <Text style={styles.addNewRowText}>"{fieldPickerQuery.trim()}" əlavə et (yeni)</Text>
+                <Text style={styles.addNewRowText}>
+                  "{fieldPickerQuery.trim()}" {t('productAddNew')}
+                </Text>
               </Pressable>
             )}
           </View>

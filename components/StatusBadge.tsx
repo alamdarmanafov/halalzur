@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { HalalStatus } from '../lib/types';
-import { statusLabel } from '../lib/certification';
+import { STATUS_LABEL_KEY } from '../lib/certification';
+import { useLanguage } from '../lib/i18n-context';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
 // unknown intentionally shares mushbooh's yellow "not enough confirmed data"
@@ -14,13 +15,14 @@ const STATUS_STYLE: Record<HalalStatus, { bg: string; fg: string; icon: string }
 };
 
 export function StatusBadge({ status, size = 'md' }: { status: HalalStatus; size?: 'sm' | 'md' }) {
+  const { t } = useLanguage();
   const s = STATUS_STYLE[status];
   const small = size === 'sm';
   return (
     <View style={[styles.badge, { backgroundColor: s.bg, paddingVertical: small ? 3 : 6 }]}>
       <Text style={[styles.icon, { color: s.fg, fontSize: small ? 11 : 13 }]}>{s.icon}</Text>
       <Text style={[styles.label, { color: s.fg, fontSize: small ? 11 : typography.small.fontSize }]}>
-        {statusLabel[status]}
+        {t(STATUS_LABEL_KEY[status])}
       </Text>
     </View>
   );

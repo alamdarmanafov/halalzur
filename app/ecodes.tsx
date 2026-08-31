@@ -4,10 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { searchECodes } from '../lib/eCodes';
+import { useLanguage } from '../lib/i18n-context';
 import { ECodeCard } from '../components/ECodeCard';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
 export default function ECodesScreen() {
+  const { t } = useLanguage();
   const [query, setQuery] = useState('');
   const results = useMemo(() => searchECodes(query), [query]);
 
@@ -17,21 +19,18 @@ export default function ECodesScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.black} />
         </Pressable>
-        <Text style={styles.title}>E-kod bələdçisi</Text>
+        <Text style={styles.title}>{t('ecodesTitle')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
-      <Text style={styles.intro}>
-        Halal sertifikat orqanlarının (GIMDES tipli bələdçilər) özlərinin dərc etdiyi E-kod
-        təsnifatı — AI qərarı deyil, sabit istinad cədvəlidir.
-      </Text>
+      <Text style={styles.intro}>{t('ecodesIntro')}</Text>
 
       <View style={styles.searchWrap}>
         <Ionicons name="search" size={18} color={colors.gray} />
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Kod, ad və ya kateqoriya axtar (məs. E441)"
+          placeholder={t('ecodesSearchPlaceholder')}
           placeholderTextColor={colors.gray}
           style={styles.searchInput}
           autoCapitalize="characters"
@@ -46,7 +45,7 @@ export default function ECodesScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="search-outline" size={32} color={colors.grayLight} />
-            <Text style={styles.emptyText}>Nəticə tapılmadı</Text>
+            <Text style={styles.emptyText}>{t('ecodesEmpty')}</Text>
           </View>
         }
       />

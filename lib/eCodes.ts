@@ -1,4 +1,12 @@
 import { ECodeEntry, ECodeStatus } from './types';
+import { TranslationKey } from './i18n';
+
+export const ECODE_STATUS_LABEL_KEY: Record<ECodeStatus, TranslationKey> = {
+  halal: 'ecodeStatusHalal',
+  haram: 'ecodeStatusHaram',
+  mushbooh: 'ecodeStatusMushbooh',
+  depends: 'ecodeStatusDepends',
+};
 
 /**
  * E-code (food additive) classification sourced from Halalzur's own

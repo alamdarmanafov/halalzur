@@ -3,6 +3,7 @@ import { getCertifier } from './certifiers';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { lookupOpenFoodFacts } from './openFoodFacts';
 import { lookupUpcItemDb } from './upcItemDb';
+import { TranslationKey } from './i18n';
 
 /**
  * Local demo/offline dataset — used only as a dev fallback while the
@@ -289,18 +290,18 @@ export function getProductByBarcode(barcode: string): CertificationResult | unde
   return MOCK_DB[barcode];
 }
 
-// Badge text — see StatusBadge.tsx for why 'unknown' reads the same as
+// Badge text keys — see StatusBadge.tsx for why 'unknown' reads the same as
 // 'mushbooh' ("şübhəli") while 'haram' gets its own, stronger wording.
-export const statusLabel: Record<CertificationResult['status'], string> = {
-  halal: 'HALAL',
-  haram: 'TÖVSİYƏ EDİLMİR',
-  mushbooh: 'ŞÜBHƏLİ',
-  unknown: 'ŞÜBHƏLİ',
+export const STATUS_LABEL_KEY: Record<CertificationResult['status'], TranslationKey> = {
+  halal: 'statusLabelHalal',
+  haram: 'statusLabelHaram',
+  mushbooh: 'statusLabelMushbooh',
+  unknown: 'statusLabelMushbooh',
 };
 
-export const statusDescription: Record<CertificationResult['status'], string> = {
-  halal: 'Halal olaraq təsdiqlənib — sertifikat və ya etibarlı halal məlumatı var.',
-  haram: 'Halal standartlarına uyğunluğu təsdiqlənməyib, ya da uyğun olmadığına dair əsas var.',
-  mushbooh: 'Halal statusu qeyri-müəyyəndir — kifayət qədər təsdiqlənmiş məlumat yoxdur.',
-  unknown: 'Halal statusu qeyri-müəyyəndir — kifayət qədər təsdiqlənmiş məlumat yoxdur.',
+export const STATUS_DESC_KEY: Record<CertificationResult['status'], TranslationKey> = {
+  halal: 'statusDescHalal',
+  haram: 'statusDescHaram',
+  mushbooh: 'statusDescMushbooh',
+  unknown: 'statusDescMushbooh',
 };
