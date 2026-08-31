@@ -15,5 +15,9 @@ export const PRODUCT_CATEGORIES = [
   'Souslar',
   'Qəlyanaltılar',
   'Dənli məhsullar',
+  'Uşaq qidası',
+  'Makaron və düyü',
+  'Yağlar',
+  'Ədviyyat',
   'Kosmetika',
 ] as const;

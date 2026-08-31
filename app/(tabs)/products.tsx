@@ -34,6 +34,10 @@ const CATEGORY_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   Souslar: 'flask-outline',
   Qəlyanaltılar: 'fast-food-outline',
   'Dənli məhsullar': 'basket-outline',
+  'Uşaq qidası': 'happy-outline',
+  'Makaron və düyü': 'restaurant-outline',
+  Yağlar: 'water-outline',
+  Ədviyyat: 'leaf-outline',
   Kosmetika: 'sparkles-outline',
 };
 

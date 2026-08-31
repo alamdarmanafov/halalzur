@@ -1781,6 +1781,10 @@
             '<label>Ünvan</label>' +
             '<input type="text" data-role="edit-address" />' +
           '</div>' +
+          '<div class="field" style="flex:1 1 220px; margin:0;">' +
+            '<label>Google Maps linki (yeniləmək üçün, boş saxlasan koordinat dəyişməz)</label>' +
+            '<input type="text" data-role="edit-maps-link" placeholder="https://www.google.com/maps/place/...@en,uz..." />' +
+          '</div>' +
           '<div class="field" style="flex:1 1 180px; margin:0;">' +
             '<label>Sertifikat</label>' +
             '<input type="text" data-role="edit-certifier" placeholder="Məs. GIMDES" />' +
@@ -1831,6 +1835,15 @@
       toast("Ad və ünvan boş ola bilməz");
       return;
     }
+    var mapsLink = card.querySelector('[data-role="edit-maps-link"]').value.trim();
+    var newCoords = null;
+    if (mapsLink) {
+      newCoords = extractLatLngFromMapsUrl(mapsLink);
+      if (!newCoords) {
+        toast("Linkdən koordinat tapılmadı — qısaldılmış (maps.app.goo.gl) linklər dəstəklənmir");
+        return;
+      }
+    }
     var body = {
       name: name,
       status: card.querySelector('[data-role="edit-status"]').value,
@@ -1841,6 +1854,10 @@
       note: card.querySelector('[data-role="edit-note"]').value.trim() || null,
       updated_at: new Date().toISOString(),
     };
+    if (newCoords) {
+      body.latitude = newCoords.lat;
+      body.longitude = newCoords.lng;
+    }
     btn.disabled = true;
     var originalText = btn.textContent;
     btn.textContent = "Yadda saxlanır…";

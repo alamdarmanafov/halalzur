@@ -7,7 +7,7 @@ import { SyncedEntry } from './types';
 const isDryRun = process.argv.includes('--dry-run');
 const skipOpenFoodFacts = process.argv.includes('--skip-off');
 const offLimitArg = process.argv.find((a: string) => a.startsWith('--off-limit='));
-const offLimit = offLimitArg ? parseInt(offLimitArg.split('=')[1], 10) : 6000;
+const offLimit = offLimitArg ? parseInt(offLimitArg.split('=')[1], 10) : 12000;
 
 async function syncCertifier(certifierId: string, entries: SyncedEntry[]) {
   console.log(`[${certifierId}] parsed ${entries.length} entries`);

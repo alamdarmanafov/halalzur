@@ -28,23 +28,58 @@ const CATEGORY_LABELS: Record<string, string> = {
   confectioneries: 'Şirniyyat',
   chocolates: 'Şirniyyat',
   'biscuits-and-cakes': 'Şirniyyat',
+  'chewing-gums': 'Şirniyyat',
+  honeys: 'Şirniyyat',
   dairies: 'Süd məhsulları',
+  cheeses: 'Süd məhsulları',
+  yogurts: 'Süd məhsulları',
   beverages: 'İçki',
+  coffees: 'İçki',
+  teas: 'İçki',
+  waters: 'İçki',
+  'fruit-juices': 'İçki',
+  sodas: 'İçki',
   meats: 'Ət məhsulları',
   snacks: 'Qəlyanaltılar',
+  'chips-and-fries': 'Qəlyanaltılar',
+  nuts: 'Qəlyanaltılar',
+  'dried-fruits': 'Qəlyanaltılar',
   'breakfast-cereals': 'Dənli məhsullar',
   sauces: 'Souslar',
   condiments: 'Souslar',
+  spreads: 'Souslar',
   'canned-foods': 'Konservlər',
+  'canned-vegetables': 'Konservlər',
+  'canned-fish': 'Konservlər',
+  soups: 'Konservlər',
   'frozen-foods': 'Dondurulmuş məhsullar',
+  'ice-creams': 'Dondurulmuş məhsullar',
+  meals: 'Dondurulmuş məhsullar',
+  'baby-foods': 'Uşaq qidası',
+  pastas: 'Makaron və düyü',
+  rices: 'Makaron və düyü',
+  'oils-and-fats': 'Yağlar',
+  spices: 'Ədviyyat',
 };
 
 const CATEGORIES = Object.keys(CATEGORY_LABELS);
 
 // Biases results toward products that actually show up in Azerbaijani
-// markets (mostly Turkish/Russian imports) rather than a random global
-// sample — Open Food Facts has very little Azerbaijan-tagged data itself.
-const COUNTRIES = ['turkey', 'russia', 'azerbaijan', 'united-arab-emirates'];
+// markets (Turkish/Russian imports dominate, with Georgia/Ukraine/Iran as
+// land-border neighbors and Germany/Poland as common EU-import sources)
+// rather than a random global sample — Open Food Facts has very little
+// Azerbaijan-tagged data itself.
+const COUNTRIES = [
+  'turkey',
+  'russia',
+  'azerbaijan',
+  'united-arab-emirates',
+  'georgia',
+  'ukraine',
+  'iran',
+  'germany',
+  'poland',
+];
 
 type OffProduct = {
   code?: string;
