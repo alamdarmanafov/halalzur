@@ -1967,32 +1967,47 @@
 
     var submitBtn = e.target.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
-    submitBtn.textContent = "Əlavə edilir…";
+    submitBtn.textContent = "Yoxlanılır…";
 
-    sb("places", {
-      method: "POST",
-      headers: { "Prefer": "return=minimal" },
-      body: {
-        name: name,
-        category: category,
-        status: status,
-        address: address,
-        latitude: lat,
-        longitude: lng,
-        certifier_name: certifier || null,
-        note: note || null,
-        image_url: imageUrl || null,
-      },
-    })
-      .then(function () {
-        toast("Məkan əlavə edildi: " + name);
-        e.target.reset();
-        loadPlaces();
+    // Same Google Maps link pasted twice parses to the exact same
+    // coordinates — checking that (rather than name/address text, which
+    // can legitimately repeat for different branches of the same chain)
+    // reliably catches an accidental re-add of the same physical place.
+    sb("places?latitude=eq." + lat + "&longitude=eq." + lng + "&select=id,name")
+      .then(function (existing) {
+        if (existing && existing.length) {
+          errorEl.textContent =
+            'Bu koordinatlarda məkan artıq var: "' + existing[0].name + '" — dublikat əlavə olunmadı.';
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Məkanı əlavə et";
+          return;
+        }
+
+        submitBtn.textContent = "Əlavə edilir…";
+        return sb("places", {
+          method: "POST",
+          headers: { "Prefer": "return=minimal" },
+          body: {
+            name: name,
+            category: category,
+            status: status,
+            address: address,
+            latitude: lat,
+            longitude: lng,
+            certifier_name: certifier || null,
+            note: note || null,
+            image_url: imageUrl || null,
+          },
+        }).then(function () {
+          toast("Məkan əlavə edildi: " + name);
+          e.target.reset();
+          loadPlaces();
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Məkanı əlavə et";
+        });
       })
       .catch(function (err) {
         errorEl.textContent = "Xəta: " + err.message;
-      })
-      .finally(function () {
         submitBtn.disabled = false;
         submitBtn.textContent = "Məkanı əlavə et";
       });
