@@ -1284,51 +1284,59 @@
   function buildProductCard(row) {
     var card = document.createElement("div");
     card.className = "place-card";
+    card.style.flexDirection = "column";
+    card.style.alignItems = "stretch";
     card.innerHTML =
-      (productSelectionMode
-        ? '<label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; cursor:pointer;">' +
-            '<input type="checkbox" data-role="select-checkbox" style="width:18px; height:18px;" />' +
-            '<span class="pc-sub" style="margin:0;">Seç</span>' +
-          '</label>'
-        : '') +
-      '<div>' +
-        (row.image_url
-          ? '<img src="' + esc(row.image_url) + '" alt="" style="width:64px; height:64px; object-fit:cover; border-radius:8px; margin-bottom:6px;" onerror="this.style.display=\'none\'" />'
+      '<div style="display:flex; flex-direction:column; gap:12px;">' +
+        (productSelectionMode
+          ? '<label style="display:flex; align-items:center; gap:8px; cursor:pointer;">' +
+              '<input type="checkbox" data-role="select-checkbox" style="width:18px; height:18px;" />' +
+              '<span class="pc-sub" style="margin:0;">Seç</span>' +
+            '</label>'
           : '') +
-        '<div class="pc-title">' + esc(row.product_name || row.brand) + '</div>' +
-        '<div class="pc-sub">' + (STATUS_LABEL[row.status] || row.status) + ' · ' +
-          esc(row.brand) + (row.category ? ' · ' + esc(row.category) : '') + '</div>' +
-        (row.barcode ? '<div class="pc-sub">Barkod: ' + esc(row.barcode) + '</div>' : '') +
-        (row.certificate_number ? '<div class="pc-sub">Sertifikat: ' + esc(row.certificate_number) + '</div>' : '') +
-        buildIngredientsHtml(row.ingredients) +
-      '</div>' +
-      '<div class="field" style="margin-top:8px; max-width:220px;">' +
-        '<label>Status</label>' +
-        '<select data-role="edit-status">' +
-          '<option value="halal">Halal</option>' +
-          '<option value="mushbooh">Şübhəli</option>' +
-          '<option value="haram">Tövsiyə edilmir</option>' +
-          '<option value="unknown">Naməlum</option>' +
-        '</select>' +
-      '</div>' +
-      '<div class="field" style="margin-top:8px; max-width:220px;">' +
-        '<label>Kateqoriya</label>' +
-        '<input type="text" data-role="edit-category" placeholder="Məs. Süd məhsulları" />' +
-      '</div>' +
-      '<div class="field" style="margin-top:8px; max-width:320px;">' +
-        '<label>Şəkil linki</label>' +
-        '<input type="text" data-role="edit-image" placeholder="Şəkil linki" />' +
-      '</div>' +
-      '<div class="field" style="margin-top:8px; max-width:320px;">' +
-        '<label>E-kod əlavə et</label>' +
-        '<div style="display:flex; gap:6px;">' +
-          '<input type="text" data-role="add-ecode" list="ecodeDatalist" placeholder="Məs. E100" style="flex:1;" />' +
-          '<button type="button" class="btn" data-action="add-ecode-btn" style="white-space:nowrap;">Əlavə et</button>' +
+        '<div style="display:flex; gap:12px; align-items:flex-start;">' +
+          (row.image_url
+            ? '<img src="' + esc(row.image_url) + '" alt="" style="width:64px; height:64px; object-fit:cover; border-radius:8px; flex-shrink:0;" onerror="this.style.display=\'none\'" />'
+            : '') +
+          '<div style="flex:1; min-width:0;">' +
+            '<div class="pc-title">' + esc(row.product_name || row.brand) + '</div>' +
+            '<div class="pc-sub">' + (STATUS_LABEL[row.status] || row.status) + ' · ' +
+              esc(row.brand) + (row.category ? ' · ' + esc(row.category) : '') + '</div>' +
+            (row.barcode ? '<div class="pc-sub">Barkod: ' + esc(row.barcode) + '</div>' : '') +
+            (row.certificate_number ? '<div class="pc-sub">Sertifikat: ' + esc(row.certificate_number) + '</div>' : '') +
+          '</div>' +
         '</div>' +
-      '</div>' +
-      '<div style="display:flex; gap:8px; margin-top:8px;">' +
-        '<button class="btn btn-approve" data-action="save-product">Yadda saxla</button>' +
-        '<button class="place-delete-btn" data-action="delete-product">Sil</button>' +
+        buildIngredientsHtml(row.ingredients) +
+        '<div style="display:flex; flex-wrap:wrap; gap:12px;">' +
+          '<div class="field" style="flex:1 1 140px; margin:0;">' +
+            '<label>Status</label>' +
+            '<select data-role="edit-status">' +
+              '<option value="halal">Halal</option>' +
+              '<option value="mushbooh">Şübhəli</option>' +
+              '<option value="haram">Tövsiyə edilmir</option>' +
+              '<option value="unknown">Naməlum</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="field" style="flex:1 1 160px; margin:0;">' +
+            '<label>Kateqoriya</label>' +
+            '<input type="text" data-role="edit-category" placeholder="Məs. Süd məhsulları" />' +
+          '</div>' +
+          '<div class="field" style="flex:1 1 200px; margin:0;">' +
+            '<label>Şəkil linki</label>' +
+            '<input type="text" data-role="edit-image" placeholder="Şəkil linki" />' +
+          '</div>' +
+          '<div class="field" style="flex:1 1 200px; margin:0;">' +
+            '<label>E-kod əlavə et</label>' +
+            '<div style="display:flex; gap:6px;">' +
+              '<input type="text" data-role="add-ecode" list="ecodeDatalist" placeholder="Məs. E100" style="flex:1; min-width:0;" />' +
+              '<button type="button" class="btn" data-action="add-ecode-btn" style="white-space:nowrap;">Əlavə et</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex; gap:8px;">' +
+          '<button class="btn btn-approve" data-action="save-product">Yadda saxla</button>' +
+          '<button class="place-delete-btn" data-action="delete-product">Sil</button>' +
+        '</div>' +
       '</div>';
 
     card.querySelector('[data-role="edit-status"]').value = row.status || "unknown";
