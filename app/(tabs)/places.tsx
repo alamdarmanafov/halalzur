@@ -11,6 +11,8 @@ import {
   Modal,
   TextInput,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -215,7 +217,7 @@ export default function PlacesScreen() {
       />
 
       <Modal visible={formVisible} animationType="slide" transparent onRequestClose={() => setFormVisible(false)}>
-        <View style={styles.modalBackdrop}>
+        <KeyboardAvoidingView style={styles.modalBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Məkan təklif et</Text>
@@ -224,7 +226,7 @@ export default function PlacesScreen() {
               </Pressable>
             </View>
 
-            <ScrollView keyboardShouldPersistTaps="handled">
+            <ScrollView keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets>
               <TextInput
                 value={formName}
                 onChangeText={setFormName}
@@ -273,7 +275,7 @@ export default function PlacesScreen() {
               />
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <BrandModal

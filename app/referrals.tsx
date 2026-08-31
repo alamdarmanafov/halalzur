@@ -1,5 +1,17 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert, Share, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  TextInput,
+  Alert,
+  Share,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -73,7 +85,12 @@ export default function ReferralsScreen() {
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: spacing.lg }} keyboardShouldPersistTaps="handled">
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={{ padding: spacing.lg }}
+          keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
+        >
           <Text style={styles.intro}>
             Dostunu dəvət et, o qeydiyyatdan keçib sənin kodunu daxil etsin — ikiniz də{' '}
             {REFERRAL_BONUS_POINTS} xal qazanın.
@@ -114,6 +131,7 @@ export default function ReferralsScreen() {
             </>
           )}
         </ScrollView>
+        </KeyboardAvoidingView>
       )}
     </SafeAreaView>
   );

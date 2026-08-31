@@ -309,6 +309,7 @@ export default function ProductDetailScreen() {
         </View>
       </View>
 
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
         contentContainerStyle={{ paddingBottom: spacing.xl }}
         keyboardShouldPersistTaps="handled"
@@ -549,6 +550,7 @@ export default function ProductDetailScreen() {
           <Text style={styles.barcode}>{product.barcode}</Text>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <Modal
         visible={ecodePickerVisible}
