@@ -371,6 +371,19 @@
           <option value="unknown">Naməlum</option>
         </select>
       </div>
+      <button type="button" class="btn" id="productSelectToggleBtn">Seç</button>
+    </div>
+
+    <div
+      class="place-form"
+      id="productBulkBar"
+      hidden
+      style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center;"
+    >
+      <span id="productBulkCount">0 məhsul seçilib</span>
+      <button type="button" class="btn btn-approve" id="productBulkSelectAllBtn">Hamısını seç</button>
+      <button type="button" class="place-delete-btn" id="productBulkDeleteBtn" disabled>Seçilənləri sil</button>
+      <button type="button" class="btn" id="productBulkCancelBtn">Ləğv et</button>
     </div>
 
     <div class="place-form" id="unclassifiedWrap" style="margin-bottom: 16px;">
@@ -459,8 +472,14 @@
       <div class="gate-error" id="bulkAddError"></div>
     </div>
 
+    <datalist id="ecodeDatalist"></datalist>
     <div class="cards" id="productCards" style="margin-top: 20px;"></div>
     <div class="empty-state" id="productsEmptyState" hidden>Hələ heç bir məhsul əlavə edilməyib.</div>
+    <div style="display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px;">
+      <button type="button" class="btn" id="productPrevPageBtn">← Əvvəlki</button>
+      <span id="productPageLabel"></span>
+      <button type="button" class="btn" id="productNextPageBtn">Növbəti →</button>
+    </div>
     </section>
 
     <section class="section" id="section-places" hidden>
@@ -975,11 +994,18 @@
   }
 
   // ---- products (admin-added certified_entries) ----
-  function loadProducts() {
+  var currentProductRows = [];
+  var lastProductsFiltered = false;
+  var productSelectionMode = false;
+  var selectedProductIds = {};
+  var PRODUCT_PAGE_SIZE = 50;
+  var currentProductPage = 0;
+  var currentProductTotal = 0;
+
+  function productFilterParams() {
     var status = document.getElementById("productStatusFilter").value;
     var search = document.getElementById("productSearch").value.trim();
-
-    var params = "order=created_at.desc&limit=200&select=*";
+    var params = "";
     if (status) params += "&status=eq." + encodeURIComponent(status);
     if (search) {
       var safe = search.replace(/[,()%]/g, "");
@@ -990,22 +1016,128 @@
         "barcode.ilike.%" + safe + "%" +
         ")";
     }
+    return { params: params, filtered: !!status || !!search };
+  }
+
+  function updateProductPageControls() {
+    var totalPages = Math.max(1, Math.ceil(currentProductTotal / PRODUCT_PAGE_SIZE));
+    document.getElementById("productPageLabel").textContent =
+      "Səhifə " + (currentProductPage + 1) + " / " + totalPages;
+    document.getElementById("productPrevPageBtn").disabled = currentProductPage <= 0;
+    document.getElementById("productNextPageBtn").disabled = currentProductPage + 1 >= totalPages;
+    document.getElementById("productsCountLabel").textContent =
+      currentProductTotal +
+      (lastProductsFiltered ? " nəticə" : " məhsul") +
+      " (bu səhifədə " + currentProductRows.length + ")";
+  }
+
+  function loadProducts() {
+    var f = productFilterParams();
+    var offset = currentProductPage * PRODUCT_PAGE_SIZE;
+    var params =
+      "order=created_at.desc&limit=" + PRODUCT_PAGE_SIZE + "&offset=" + offset + "&select=*" + f.params;
+
+    sbCount("certified_entries?select=id" + f.params)
+      .then(function (total) {
+        currentProductTotal = total;
+        updateProductPageControls();
+      })
+      .catch(function () {
+        // Non-critical — pagination just won't know the exact last page.
+      });
 
     sb("certified_entries?" + params)
       .then(function (rows) {
-        renderProductCards(rows || [], !!status || !!search);
+        currentProductRows = rows || [];
+        lastProductsFiltered = f.filtered;
+        renderProductCards(currentProductRows, lastProductsFiltered);
       })
       .catch(function (err) {
         toast("Məhsullar yüklənmədi: " + err.message);
       });
   }
 
+  document.getElementById("productPrevPageBtn").addEventListener("click", function () {
+    if (currentProductPage <= 0) return;
+    currentProductPage -= 1;
+    loadProducts();
+  });
+
+  document.getElementById("productNextPageBtn").addEventListener("click", function () {
+    currentProductPage += 1;
+    loadProducts();
+  });
+
+  function updateProductBulkBar() {
+    var count = Object.keys(selectedProductIds).length;
+    document.getElementById("productBulkCount").textContent = count + " məhsul seçilib";
+    document.getElementById("productBulkDeleteBtn").disabled = count === 0;
+  }
+
+  document.getElementById("productSelectToggleBtn").addEventListener("click", function () {
+    productSelectionMode = !productSelectionMode;
+    selectedProductIds = {};
+    document.getElementById("productBulkBar").hidden = !productSelectionMode;
+    document.getElementById("productSelectToggleBtn").textContent = productSelectionMode ? "Seçimi bağla" : "Seç";
+    updateProductBulkBar();
+    renderProductCards(currentProductRows, lastProductsFiltered);
+  });
+
+  document.getElementById("productBulkCancelBtn").addEventListener("click", function () {
+    productSelectionMode = false;
+    selectedProductIds = {};
+    document.getElementById("productBulkBar").hidden = true;
+    document.getElementById("productSelectToggleBtn").textContent = "Seç";
+    renderProductCards(currentProductRows, lastProductsFiltered);
+  });
+
+  document.getElementById("productBulkSelectAllBtn").addEventListener("click", function () {
+    currentProductRows.forEach(function (row) {
+      selectedProductIds[row.id] = true;
+    });
+    updateProductBulkBar();
+    renderProductCards(currentProductRows, lastProductsFiltered);
+  });
+
+  document.getElementById("productBulkDeleteBtn").addEventListener("click", function () {
+    var ids = Object.keys(selectedProductIds);
+    if (!ids.length) return;
+    if (!window.confirm(ids.length + " məhsul silinsin? Bu əməliyyat geri qaytarıla bilməz.")) return;
+
+    var btn = document.getElementById("productBulkDeleteBtn");
+    btn.disabled = true;
+    btn.textContent = "Silinir…";
+    sb("certified_entries?id=in.(" + ids.join(",") + ")", {
+      method: "DELETE",
+      headers: { "Prefer": "return=minimal" },
+    })
+      .then(function () {
+        toast(ids.length + " məhsul silindi");
+        selectedProductIds = {};
+        updateProductBulkBar();
+        loadProducts();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = "Seçilənləri sil";
+      });
+  });
+
   var productFilterDebounce;
   document.getElementById("productSearch").addEventListener("input", function () {
     clearTimeout(productFilterDebounce);
-    productFilterDebounce = setTimeout(loadProducts, 350);
+    productFilterDebounce = setTimeout(function () {
+      currentProductPage = 0;
+      loadProducts();
+    }, 350);
   });
-  document.getElementById("productStatusFilter").addEventListener("change", loadProducts);
+  document.getElementById("productStatusFilter").addEventListener("change", function () {
+    currentProductPage = 0;
+    loadProducts();
+  });
 
   function loadUnclassified() {
     var wrap = document.getElementById("unclassifiedList");
@@ -1081,7 +1213,7 @@
     var container = document.getElementById("productCards");
     var empty = document.getElementById("productsEmptyState");
     document.getElementById("productsCountLabel").textContent =
-      list.length + (filtered ? " nəticə" : " məhsul (son 200)");
+      currentProductTotal + (filtered ? " nəticə" : " məhsul") + " (bu səhifədə " + list.length + ")";
     container.innerHTML = "";
     if (!list.length) {
       empty.hidden = false;
@@ -1094,6 +1226,19 @@
   }
 
   var ECODE_PATTERN = /^E ?\d{3,4}[a-z]?$/i;
+
+  // [code, name] pairs — mirrors lib/eCodes.ts's E_CODES (code + name only;
+  // the admin panel doesn't need the halal-status/note columns, just enough
+  // to let an admin pick a known E-code to tag onto a product's ingredients).
+  var ECODE_LIST = [["E100","Curcumin"],["E101","Riboflavins"],["E102","Tartrazine"],["E104","Quinoline Yellow"],["E110","Sunset Yellow FCF"],["E120","Carminic acid / Carmine"],["E122","Azorubine / Carmoisine"],["E123","Amaranth"],["E124","Ponceau 4R / Cochineal Red A"],["E127","Erythrosine"],["E129","Allura Red AC"],["E131","Patent Blue V"],["E132","Indigotine / Indigo carmine"],["E133","Brilliant Blue FCF"],["E140","Chlorophylls and chlorophyllins"],["E141","Copper complexes of chlorophylls"],["E142","Green S"],["E150a","Plain caramel"],["E150b","Caustic sulphite caramel"],["E150c","Ammonia caramel"],["E150d","Sulphite ammonia caramel"],["E151","Brilliant Black PN"],["E153","Vegetable carbon"],["E155","Brown HT"],["E160a","Carotenes"],["E160b","Annatto (bixin/norbixin)"],["E160c","Paprika extract"],["E160d","Lycopene"],["E160e","Beta-apo-8'-carotenal"],["E161b","Lutein"],["E161g","Canthaxanthin"],["E162","Beetroot Red / Betanin"],["E163","Anthocyanins"],["E170","Calcium carbonate"],["E171","Titanium dioxide"],["E172","Iron oxides and hydroxides"],["E173","Aluminium"],["E174","Silver"],["E175","Gold"],["E180","Litholrubine BK"],["E200","Sorbic acid"],["E202","Potassium sorbate"],["E210","Benzoic acid"],["E211","Sodium benzoate"],["E212","Potassium benzoate"],["E213","Calcium benzoate"],["E214","Ethyl-p-hydroxybenzoate"],["E215","Sodium ethyl p-hydroxybenzoate"],["E218","Methyl p-hydroxybenzoate"],["E219","Sodium methyl p-hydroxybenzoate"],["E220","Sulphur dioxide"],["E221","Sodium sulphite"],["E222","Sodium hydrogen sulphite"],["E223","Sodium metabisulphite"],["E224","Potassium metabisulphite"],["E226","Calcium sulphite"],["E227","Calcium hydrogen sulphite"],["E228","Potassium hydrogen sulphite"],["E234","Nisin"],["E235","Natamycin"],["E239","Hexamethylene tetramine"],["E242","Dimethyl dicarbonate"],["E243","Ethyl lauroyl arginate"],["E246","Glycolipids"],["E249","Potassium nitrite"],["E250","Sodium nitrite"],["E251","Sodium nitrate"],["E252","Potassium nitrate"],["E260","Acetic acid"],["E261","Potassium acetates"],["E262","Sodium acetates"],["E263","Calcium acetate"],["E267","Buffered vinegar"],["E270","Lactic acid"],["E280","Propionic acid"],["E281","Sodium propionate"],["E282","Calcium propionate"],["E283","Potassium propionate"],["E284","Boric acid"],["E285","Sodium tetraborate"],["E290","Carbon dioxide"],["E296","Malic acid"],["E297","Fumaric acid"],["E300","Ascorbic acid"],["E301","Sodium ascorbate"],["E302","Calcium ascorbate"],["E304","Fatty acid esters of ascorbic acid"],["E306","Tocopherol-rich extract"],["E307","Alpha-tocopherol"],["E308","Gamma-tocopherol"],["E309","Delta-tocopherol"],["E310","Propyl gallate"],["E315","Erythorbic acid"],["E316","Sodium erythorbate"],["E319","TBHQ"],["E320","BHA"],["E321","BHT"],["E322","Lecithins"],["E325","Sodium lactate"],["E326","Potassium lactate"],["E327","Calcium lactate"],["E330","Citric acid"],["E331","Sodium citrates"],["E332","Potassium citrates"],["E333","Calcium citrates"],["E334","Tartaric acid"],["E335","Sodium tartrates"],["E336","Potassium tartrates"],["E337","Sodium potassium tartrate"],["E338","Phosphoric acid"],["E339","Sodium phosphates"],["E340","Potassium phosphates"],["E341","Calcium phosphates"],["E343","Magnesium phosphates"],["E350","Sodium malates"],["E351","Potassium malate"],["E352","Calcium malates"],["E353","Metatartaric acid"],["E354","Calcium tartrate"],["E355","Adipic acid"],["E356","Sodium adipate"],["E357","Potassium adipate"],["E363","Succinic acid"],["E380","Triammonium citrate"],["E385","Calcium disodium EDTA"],["E392","Extracts of rosemary"],["E400","Alginic acid"],["E401","Sodium alginate"],["E402","Potassium alginate"],["E403","Ammonium alginate"],["E404","Calcium alginate"],["E405","Propane-1,2-diol alginate"],["E406","Agar"],["E407","Carrageenan"],["E407a","Processed euchema seaweed"],["E410","Locust bean gum"],["E412","Guar gum"],["E413","Tragacanth"],["E414","Gum arabic"],["E415","Xanthan gum"],["E416","Karaya gum"],["E417","Tara gum"],["E418","Gellan gum"],["E420","Sorbitols"],["E421","Mannitol"],["E422","Glycerol"],["E423","Modified gum arabic"],["E425","Konjac"],["E426","Soybean hemicellulose"],["E427","Cassia gum"],["E431","Polyoxyethylene stearate"],["E432","Polysorbate 20"],["E433","Polysorbate 80"],["E434","Polysorbate 40"],["E435","Polysorbate 60"],["E436","Polysorbate 65"],["E440","Pectins"],["E441","Gelatin"],["E442","Ammonium phosphatides"],["E444","Sucrose acetate isobutyrate"],["E445","Glycerol esters of wood rosins"],["E450","Diphosphates"],["E451","Triphosphates"],["E452","Polyphosphates"],["E456","Potassium polyaspartate"],["E459","Beta-cyclodextrin"],["E460","Cellulose"],["E461","Methyl cellulose"],["E462","Ethyl cellulose"],["E463","Hydroxypropyl cellulose"],["E464","Hydroxypropyl methyl cellulose"],["E465","Ethyl methyl cellulose"],["E466","Sodium carboxymethyl cellulose"],["E468","Cross-linked sodium carboxymethyl cellulose"],["E469","Hydrolysed carboxymethyl cellulose"],["E470a","Sodium, potassium and calcium salts of fatty acids"],["E470b","Magnesium salts of fatty acids"],["E471","Mono- and diglycerides of fatty acids"],["E472a","Acetic acid esters of mono- and diglycerides"],["E472b","Lactic acid esters of mono- and diglycerides"],["E472c","Citric acid esters of mono- and diglycerides"],["E472d","Tartaric acid esters of mono- and diglycerides"],["E472e","DATEM"],["E472f","Acetic and tartaric acid esters"],["E473","Sucrose esters of fatty acids"],["E474","Sucroglycerides"],["E475","Polyglycerol esters of fatty acids"],["E476","Polyglycerol polyricinoleate"],["E477","Propane-1,2-diol esters of fatty acids"],["E479b","Thermally oxidized soybean oil + mono/diglycerides"],["E481","Sodium stearoyl-2-lactylate"],["E482","Calcium stearoyl-2-lactylate"],["E483","Stearyl tartrate"],["E491","Sorbitan monostearate"],["E492","Sorbitan tristearate"],["E493","Sorbitan monolaurate"],["E494","Sorbitan monooleate"],["E495","Sorbitan monopalmitate"],["E499","Stigmasterol-rich plant sterols"],["E500","Sodium carbonates"],["E501","Potassium carbonate"],["E503","Ammonium carbonates"],["E504","Magnesium carbonates"],["E507","Hydrochloric acid"],["E508","Potassium chloride"],["E509","Calcium chloride"],["E511","Magnesium chloride"],["E512","Stannous chloride"],["E513","Sulphuric acid"],["E514","Sodium sulphates"],["E515","Potassium sulphates"],["E516","Calcium sulphate"],["E517","Ammonium sulphate"],["E520","Aluminium sulphate"],["E521","Aluminium sodium sulphate"],["E522","Aluminium potassium sulphate"],["E523","Aluminium ammonium sulphate"],["E524","Sodium hydroxide"],["E525","Potassium hydroxide"],["E526","Calcium hydroxide"],["E527","Ammonium hydroxide"],["E528","Magnesium hydroxide"],["E529","Calcium oxide"],["E530","Magnesium oxide"],["E534","Iron(III) meso-tartrate"],["E535","Sodium ferrocyanide"],["E536","Potassium ferrocyanide"],["E538","Calcium ferrocyanide"],["E541","Sodium aluminium phosphate acidic"],["E551","Silicon dioxide"],["E552","Calcium silicate"],["E553a","Magnesium silicate"],["E553b","Talc"],["E554","Sodium aluminium silicate"],["E555","Potassium aluminium silicate"],["E556","Calcium aluminium silicate"],["E558","Bentonite"],["E559","Aluminium silicate / Kaolin"],["E570","Fatty acids"],["E574","Gluconic acid"],["E575","Glucono-delta-lactone"],["E576","Sodium gluconate"],["E577","Potassium gluconate"],["E578","Calcium gluconate"],["E579","Ferrous gluconate"],["E585","Ferrous lactate"],["E586","4-Hexylresorcinol"],["E620","Glutamic acid"],["E621","Monosodium glutamate"],["E622","Monopotassium glutamate"],["E623","Calcium diglutamate"],["E624","Monoammonium glutamate"],["E625","Magnesium diglutamate"],["E626","Guanylic acid"],["E627","Disodium guanylate"],["E628","Dipotassium guanylate"],["E629","Calcium guanylate"],["E630","Inosinic acid"],["E631","Disodium inosinate"],["E632","Dipotassium inosinate"],["E633","Calcium inosinate"],["E634","Calcium 5'-ribonucleotides"],["E635","Disodium 5'-ribonucleotides"],["E640","Glycine and its sodium salt"],["E641","L-leucine"],["E650","Zinc acetate"],["E900","Dimethyl polysiloxane"],["E901","Beeswax"],["E902","Candelilla wax"],["E903","Carnauba wax"],["E904","Shellac"],["E905","Microcrystalline wax"],["E907","Hydrogenated poly-1-decene"],["E912","Montan acid esters"],["E914","Oxidised polyethylene wax"],["E920","L-cysteine"],["E926","Chlorine dioxide"],["E927b","Carbamide"],["E938","Argon"],["E939","Helium"],["E941","Nitrogen"],["E942","Nitrous oxide"],["E943a","Butane"],["E943b","Isobutane"],["E944","Propane"],["E948","Oxygen"],["E949","Hydrogen"],["E950","Acesulfame K"],["E951","Aspartame"],["E952","Cyclamic acid and salts"],["E953","Isomalt"],["E954","Saccharin and salts"],["E955","Sucralose"],["E957","Thaumatin"],["E959","Neohesperidine DC"],["E960a","Steviol glycosides from Stevia"],["E960c","Enzymatically produced steviol glycosides"],["E960d","Glucosylated steviol glycosides"],["E961","Neotame"],["E962","Aspartame-acesulfame salt"],["E964","Polyglycitol syrup"],["E965","Maltitols"],["E966","Lactitol"],["E967","Xylitol"],["E968","Erythritol"],["E969","Advantame"],["E999","Quillaia extract"]];
+
+  (function populateEcodeDatalist() {
+    var list = document.getElementById("ecodeDatalist");
+    if (!list) return;
+    list.innerHTML = ECODE_LIST.map(function (pair) {
+      return '<option value="' + esc(pair[0]) + '">' + esc(pair[0]) + ' — ' + esc(pair[1]) + '</option>';
+    }).join("");
+  })();
 
   function buildIngredientsHtml(ingredients) {
     if (!ingredients || !ingredients.length) return "";
@@ -1116,6 +1261,12 @@
     var card = document.createElement("div");
     card.className = "place-card";
     card.innerHTML =
+      (productSelectionMode
+        ? '<label style="display:flex; align-items:center; gap:8px; margin-bottom:8px; cursor:pointer;">' +
+            '<input type="checkbox" data-role="select-checkbox" style="width:18px; height:18px;" />' +
+            '<span class="pc-sub" style="margin:0;">Seç</span>' +
+          '</label>'
+        : '') +
       '<div>' +
         (row.image_url
           ? '<img src="' + esc(row.image_url) + '" alt="" style="width:64px; height:64px; object-fit:cover; border-radius:8px; margin-bottom:6px;" onerror="this.style.display=\'none\'" />'
@@ -1144,6 +1295,13 @@
         '<label>Şəkil linki</label>' +
         '<input type="text" data-role="edit-image" placeholder="Şəkil linki" />' +
       '</div>' +
+      '<div class="field" style="margin-top:8px; max-width:320px;">' +
+        '<label>E-kod əlavə et</label>' +
+        '<div style="display:flex; gap:6px;">' +
+          '<input type="text" data-role="add-ecode" list="ecodeDatalist" placeholder="Məs. E100" style="flex:1;" />' +
+          '<button type="button" class="btn" data-action="add-ecode-btn" style="white-space:nowrap;">Əlavə et</button>' +
+        '</div>' +
+      '</div>' +
       '<div style="display:flex; gap:8px; margin-top:8px;">' +
         '<button class="btn btn-approve" data-action="save-product">Yadda saxla</button>' +
         '<button class="place-delete-btn" data-action="delete-product">Sil</button>' +
@@ -1152,6 +1310,19 @@
     card.querySelector('[data-role="edit-status"]').value = row.status || "unknown";
     card.querySelector('[data-role="edit-category"]').value = row.category || "";
     card.querySelector('[data-role="edit-image"]').value = row.image_url || "";
+
+    if (productSelectionMode) {
+      var checkbox = card.querySelector('[data-role="select-checkbox"]');
+      checkbox.checked = !!selectedProductIds[row.id];
+      checkbox.addEventListener("change", function () {
+        if (checkbox.checked) {
+          selectedProductIds[row.id] = true;
+        } else {
+          delete selectedProductIds[row.id];
+        }
+        updateProductBulkBar();
+      });
+    }
 
     card.querySelector('[data-action="save-product"]').addEventListener("click", function (e) {
       var newStatus = card.querySelector('[data-role="edit-status"]').value;
@@ -1162,7 +1333,41 @@
     card.querySelector('[data-action="delete-product"]').addEventListener("click", function (e) {
       deleteProduct(row, card, e.target);
     });
+    card.querySelector('[data-action="add-ecode-btn"]').addEventListener("click", function () {
+      var input = card.querySelector('[data-role="add-ecode"]');
+      addEcodeToProduct(row, input);
+    });
     return card;
+  }
+
+  function addEcodeToProduct(row, input) {
+    var raw = input.value.trim();
+    if (!raw) return;
+    var code = raw.split(" — ")[0].trim().toUpperCase().replace(/\s+/g, "");
+    if (!ECODE_PATTERN.test(code)) {
+      toast("Düzgün E-kod formatı deyil (məs. E100)");
+      return;
+    }
+    var ingredients = (row.ingredients || []).slice();
+    if (ingredients.some(function (ing) { return ing.toUpperCase() === code; })) {
+      toast(code + " artıq tərkibdə var");
+      input.value = "";
+      return;
+    }
+    ingredients.push(code);
+    sb("certified_entries?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { ingredients: ingredients, updated_at: new Date().toISOString() },
+    })
+      .then(function () {
+        row.ingredients = ingredients;
+        toast(code + " əlavə edildi");
+        loadProducts();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      });
   }
 
   function updateProduct(row, card, btn, status, category, imageUrl) {
