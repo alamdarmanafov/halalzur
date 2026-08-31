@@ -91,6 +91,7 @@ type CertifiedEntryRow = {
   verified_at: string | null;
   ingredients: string[] | null;
   notes: string | null;
+  image_url: string | null;
   certifiers: {
     id: string;
     name: string;
@@ -121,6 +122,7 @@ function mapRowToResult(row: CertifiedEntryRow, fallbackBarcode: string): Certif
     ingredients: row.ingredients ?? [],
     notes: row.notes,
     imageEmoji: emojiForCategory(row.category),
+    imageUrl: row.image_url,
   };
 }
 
@@ -148,7 +150,7 @@ export async function lookupBarcode(barcode: string): Promise<CertificationResul
     const { data, error } = await supabase
       .from('certified_entries')
       .select(
-        'barcode, product_name, brand, category, status, certificate_number, verified_at, ingredients, notes, certifiers(id, name, short_name, country)'
+        'barcode, product_name, brand, category, status, certificate_number, verified_at, ingredients, notes, image_url, certifiers(id, name, short_name, country)'
       )
       .eq('barcode', barcode)
       .eq('entry_type', 'product')
@@ -174,7 +176,7 @@ export async function searchProducts(query: string): Promise<CertificationResult
     let request = supabase
       .from('certified_entries')
       .select(
-        'barcode, product_name, brand, category, status, certificate_number, verified_at, ingredients, notes, certifiers(id, name, short_name, country)'
+        'barcode, product_name, brand, category, status, certificate_number, verified_at, ingredients, notes, image_url, certifiers(id, name, short_name, country)'
       )
       .order('created_at', { ascending: false })
       .limit(30);
@@ -221,7 +223,7 @@ export async function getHalalAlternatives(
   const { data, error } = await supabase
     .from('certified_entries')
     .select(
-      'barcode, product_name, brand, category, status, certificate_number, verified_at, ingredients, notes, certifiers(id, name, short_name, country)'
+      'barcode, product_name, brand, category, status, certificate_number, verified_at, ingredients, notes, image_url, certifiers(id, name, short_name, country)'
     )
     .eq('entry_type', 'product')
     .eq('status', 'halal')
@@ -268,7 +270,7 @@ export async function getManyByBarcode(barcodes: string[]): Promise<Record<strin
   const { data, error } = await supabase
     .from('certified_entries')
     .select(
-      'barcode, product_name, brand, category, status, certificate_number, verified_at, ingredients, notes, certifiers(id, name, short_name, country)'
+      'barcode, product_name, brand, category, status, certificate_number, verified_at, ingredients, notes, image_url, certifiers(id, name, short_name, country)'
     )
     .eq('entry_type', 'product')
     .in('barcode', barcodes)

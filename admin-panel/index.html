@@ -419,6 +419,10 @@
           <input type="text" id="productCertNumber" placeholder="Məs. GIMDES-2024-11832" />
         </div>
         <div class="field field-wide">
+          <label for="productImageUrl">Şəkil linki (istəyə bağlı)</label>
+          <input type="text" id="productImageUrl" placeholder="Google-da şəklə sağ klikləyib 'Copy image address' seçin" />
+        </div>
+        <div class="field field-wide">
           <label for="productIngredients">Tərkib (vergüllə ayırın)</label>
           <input type="text" id="productIngredients" placeholder="Məs. Şəkər, Fındıq, Bitki yağı" />
         </div>
@@ -1089,16 +1093,39 @@
     });
   }
 
+  var ECODE_PATTERN = /^E ?\d{3,4}[a-z]?$/i;
+
+  function buildIngredientsHtml(ingredients) {
+    if (!ingredients || !ingredients.length) return "";
+    var chips = ingredients
+      .map(function (ing) {
+        var isECode = ECODE_PATTERN.test(ing.trim());
+        return (
+          '<span style="display:inline-block; margin:2px 4px 2px 0; padding:2px 8px; border-radius:10px; font-size:12px; ' +
+          (isECode
+            ? "background:#fff3cd; color:#8a6100; font-weight:600;"
+            : "background:#f0f0f0; color:#444;") +
+          '">' + esc(ing) + "</span>"
+        );
+      })
+      .join("");
+    return '<div class="pc-sub" style="margin-top:6px;">Tərkib: ' + chips + "</div>";
+  }
+
   function buildProductCard(row) {
     var card = document.createElement("div");
     card.className = "place-card";
     card.innerHTML =
       '<div>' +
+        (row.image_url
+          ? '<img src="' + esc(row.image_url) + '" alt="" style="width:64px; height:64px; object-fit:cover; border-radius:8px; margin-bottom:6px;" onerror="this.style.display=\'none\'" />'
+          : '') +
         '<div class="pc-title">' + esc(row.product_name || row.brand) + '</div>' +
         '<div class="pc-sub">' + (STATUS_LABEL[row.status] || row.status) + ' · ' +
           esc(row.brand) + (row.category ? ' · ' + esc(row.category) : '') + '</div>' +
         (row.barcode ? '<div class="pc-sub">Barkod: ' + esc(row.barcode) + '</div>' : '') +
         (row.certificate_number ? '<div class="pc-sub">Sertifikat: ' + esc(row.certificate_number) + '</div>' : '') +
+        buildIngredientsHtml(row.ingredients) +
       '</div>' +
       '<div class="field" style="margin-top:8px; max-width:220px;">' +
         '<label>Status</label>' +
@@ -1113,6 +1140,10 @@
         '<label>Kateqoriya</label>' +
         '<input type="text" data-role="edit-category" placeholder="Məs. Süd məhsulları" />' +
       '</div>' +
+      '<div class="field" style="margin-top:8px; max-width:320px;">' +
+        '<label>Şəkil linki</label>' +
+        '<input type="text" data-role="edit-image" placeholder="Şəkil linki" />' +
+      '</div>' +
       '<div style="display:flex; gap:8px; margin-top:8px;">' +
         '<button class="btn btn-approve" data-action="save-product">Yadda saxla</button>' +
         '<button class="place-delete-btn" data-action="delete-product">Sil</button>' +
@@ -1120,11 +1151,13 @@
 
     card.querySelector('[data-role="edit-status"]').value = row.status || "unknown";
     card.querySelector('[data-role="edit-category"]').value = row.category || "";
+    card.querySelector('[data-role="edit-image"]').value = row.image_url || "";
 
     card.querySelector('[data-action="save-product"]').addEventListener("click", function (e) {
       var newStatus = card.querySelector('[data-role="edit-status"]').value;
       var newCategory = card.querySelector('[data-role="edit-category"]').value.trim();
-      updateProduct(row, card, e.target, newStatus, newCategory);
+      var newImageUrl = card.querySelector('[data-role="edit-image"]').value.trim();
+      updateProduct(row, card, e.target, newStatus, newCategory, newImageUrl);
     });
     card.querySelector('[data-action="delete-product"]').addEventListener("click", function (e) {
       deleteProduct(row, card, e.target);
@@ -1132,19 +1165,25 @@
     return card;
   }
 
-  function updateProduct(row, card, btn, status, category) {
+  function updateProduct(row, card, btn, status, category, imageUrl) {
     btn.disabled = true;
     var originalText = btn.textContent;
     btn.textContent = "Yadda saxlanır…";
     sb("certified_entries?id=eq." + row.id, {
       method: "PATCH",
       headers: { "Prefer": "return=minimal" },
-      body: { status: status, category: category || null, updated_at: new Date().toISOString() },
+      body: {
+        status: status,
+        category: category || null,
+        image_url: imageUrl || null,
+        updated_at: new Date().toISOString(),
+      },
     })
       .then(function () {
         toast("Yeniləndi: " + (row.product_name || row.brand));
         row.status = status;
         row.category = category || null;
+        row.image_url = imageUrl || null;
         loadProducts();
       })
       .catch(function (err) {
@@ -1182,6 +1221,7 @@
     var category = document.getElementById("productCategory").value.trim();
     var status = document.getElementById("productStatus").value;
     var certNumber = document.getElementById("productCertNumber").value.trim();
+    var imageUrl = document.getElementById("productImageUrl").value.trim();
     var ingredientsRaw = document.getElementById("productIngredients").value.trim();
     var note = document.getElementById("productNote").value.trim();
 
@@ -1209,6 +1249,7 @@
         verified_at: new Date().toISOString().slice(0, 10),
         ingredients: ingredientsRaw ? ingredientsRaw.split(",").map(function (s) { return s.trim(); }).filter(Boolean) : [],
         notes: note || null,
+        image_url: imageUrl || null,
       },
     })
       .then(function () {

@@ -64,6 +64,7 @@ export async function fetchGimdesEntries(): Promise<SyncedEntry[]> {
     verified_at: null,
     ingredients: [],
     notes: null,
+    image_url: null,
     source_url: DEFAULT_GIMDES_PDF_URL,
   }));
 }

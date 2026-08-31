@@ -33,6 +33,7 @@ create table certified_entries (
   verified_at date,
   ingredients text[] not null default '{}',
   notes text,
+  image_url text,                   -- product photo — from Open Food Facts on import, or pasted by an admin
   source_url text,                  -- link back to the certifier's own listing, for transparency
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

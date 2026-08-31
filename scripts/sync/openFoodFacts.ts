@@ -117,6 +117,7 @@ export async function fetchOpenFoodFactsEntries(maxEntries: number): Promise<Syn
             verified_at: null,
             ingredients: splitIngredients(p.ingredients_text || ''),
             notes: 'Open Food Facts açıq bazasından idxal edilib — halal statusu hələ yoxlanılmayıb.',
+            image_url: p.image_front_url || null,
             source_url: `https://world.openfoodfacts.org/product/${p.code}`,
           });
         }

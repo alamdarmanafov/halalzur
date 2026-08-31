@@ -10,5 +10,6 @@ export type SyncedEntry = {
   verified_at: string | null;
   ingredients: string[];
   notes: string | null;
+  image_url: string | null;
   source_url: string | null;
 };
