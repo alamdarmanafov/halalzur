@@ -28,7 +28,12 @@ export default function Index() {
     return <Redirect href="/onboarding" />;
   }
 
-  return <Redirect href={user ? '/(tabs)' : '/(auth)/welcome'} />;
+  // Targeting the bare group path here resolved to (tabs)/index.tsx (the
+  // Scan camera tab) regardless of the Tabs navigator's initialRouteName —
+  // expo-router resolves an unqualified group href to its literal `index`
+  // file by routing convention, which wins over that runtime hint. Naming
+  // the tab explicitly is what actually makes Products the landing tab.
+  return <Redirect href={user ? '/(tabs)/products' : '/(auth)/welcome'} />;
 }
 
 const styles = StyleSheet.create({

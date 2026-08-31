@@ -12,7 +12,7 @@ export default function RegisterScreen() {
   const { signInWithApple, signInWithGoogle } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
-  const goToTabs = () => router.replace('/(tabs)');
+  const goToTabs = () => router.replace('/(tabs)/products');
 
   const onApple = async () => {
     setError(null);
