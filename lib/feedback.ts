@@ -62,6 +62,19 @@ function createGithubIssue(
     });
 }
 
+// React Native's fetch()+Blob can silently hand back empty/wrong bytes
+// when uploaded directly (a known gotcha, not specific to this app) —
+// routing the blob through FileReader.readAsArrayBuffer and uploading the
+// resulting ArrayBuffer instead is the reliable pattern.
+function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error ?? new Error('FileReader failed'));
+    reader.onload = () => resolve(reader.result as ArrayBuffer);
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
 // Best-effort — a screenshot upload failing should never block the actual
 // feedback message from being submitted.
 async function uploadScreenshot(uri: string): Promise<string | null> {
@@ -69,10 +82,11 @@ async function uploadScreenshot(uri: string): Promise<string | null> {
   try {
     const response = await fetch(uri);
     const blob = await response.blob();
+    const arrayBuffer = await blobToArrayBuffer(blob);
     const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
     const { error } = await supabase.storage
       .from('feedback-screenshots')
-      .upload(path, blob, { contentType: 'image/jpeg' });
+      .upload(path, arrayBuffer, { contentType: 'image/jpeg' });
     if (error) {
       console.warn('uploadScreenshot failed:', error.message);
       return null;
