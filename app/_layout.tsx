@@ -4,8 +4,11 @@ import { AuthProvider } from '../lib/auth-context';
 import { HistoryProvider } from '../lib/history-context';
 import { FavoritesProvider } from '../lib/favorites-context';
 import { OfflineBanner } from '../components/OfflineBanner';
+import { initSentry, Sentry } from '../lib/sentry';
 
-export default function RootLayout() {
+initSentry();
+
+function RootLayout() {
   return (
     <AuthProvider>
       <HistoryProvider>
@@ -55,3 +58,5 @@ export default function RootLayout() {
     </AuthProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);
