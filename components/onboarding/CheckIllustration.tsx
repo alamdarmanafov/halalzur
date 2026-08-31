@@ -1,16 +1,17 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useLanguage } from '../../lib/i18n-context';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
-const FIELDS: [string, string][] = [
-  ['Status', 'Halal'],
-  ['Sertifikat', 'HS123456'],
-  ['Mənbə', 'GIMDES'],
-  ['Ölkə', 'Türkiyə'],
-  ['Tarix', '24.05.2026'],
-];
-
 export function CheckIllustration() {
+  const { t } = useLanguage();
+  const FIELDS: [string, string][] = [
+    [t('illustrationStatus'), 'Halal'],
+    [t('illustrationCertificate'), 'HS123456'],
+    [t('illustrationSource'), 'GIMDES'],
+    [t('illustrationCountry'), t('illustrationCountryValue')],
+    [t('illustrationDate'), '24.05.2026'],
+  ];
   return (
     <View style={styles.wrap}>
       <View style={styles.shieldWrap}>
@@ -21,7 +22,7 @@ export function CheckIllustration() {
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Ionicons name="arrow-back" size={14} color={colors.gray} />
-          <Text style={styles.cardHeaderText}>Məhsul məlumatı</Text>
+          <Text style={styles.cardHeaderText}>{t('illustrationProductInfo')}</Text>
         </View>
 
         <View style={styles.productRow}>
@@ -29,7 +30,7 @@ export function CheckIllustration() {
             <Ionicons name="nutrition-outline" size={18} color={colors.primaryDark} />
           </View>
           <Text style={styles.productName} numberOfLines={1}>
-            Fındıq Kreması
+            {t('illustrationProductName')}
           </Text>
           <View style={styles.verifiedPill}>
             <Ionicons name="checkmark-circle" size={11} color={colors.primaryDark} />
@@ -45,7 +46,7 @@ export function CheckIllustration() {
         ))}
 
         <View style={styles.moreRow}>
-          <Text style={styles.moreText}>Ətraflı məlumat</Text>
+          <Text style={styles.moreText}>{t('illustrationMoreInfo')}</Text>
           <Ionicons name="chevron-forward" size={13} color={colors.primary} />
         </View>
       </View>

@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Logo } from '../Logo';
+import { useLanguage } from '../../lib/i18n-context';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 const PINS = [
@@ -11,6 +12,7 @@ const PINS = [
 ];
 
 export function TrustIllustration() {
+  const { t } = useLanguage();
   return (
     <View style={styles.wrap}>
       <View style={styles.globeDisc}>
@@ -32,7 +34,7 @@ export function TrustIllustration() {
 
       <View style={styles.trustBubble}>
         <Ionicons name="people" size={16} color={colors.primaryDark} />
-        <Text style={styles.trustText}>Minlərlə istifadəçi{'\n'}etibar edir</Text>
+        <Text style={styles.trustText}>{t('illustrationTrustText')}</Text>
       </View>
     </View>
   );
