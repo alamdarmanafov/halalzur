@@ -77,6 +77,10 @@ export const translations: Record<Language, Dict> = {
     placesThanksCta: 'Əla',
     placesSubmittedPushTitle: 'Məkan təklifi göndərildi ✅',
     placesSubmittedPushBody: 'baxılmaq üçün göndərildi.',
+
+    favoritesTitle: 'Favoritlər',
+    favoritesEmpty: 'Hələ favorit məhsulunuz yoxdur',
+    favoritesEmptyHint: 'Bir məhsulu açıb ürək ikonuna toxunaraq buraya əlavə edə bilərsiniz.',
   },
   en: {
     tabProducts: 'Products',
@@ -148,6 +152,10 @@ export const translations: Record<Language, Dict> = {
     placesThanksCta: 'Great',
     placesSubmittedPushTitle: 'Place suggestion sent ✅',
     placesSubmittedPushBody: 'was sent for review.',
+
+    favoritesTitle: 'Favorites',
+    favoritesEmpty: "You don't have any favorite products yet",
+    favoritesEmptyHint: 'Open a product and tap the heart icon to add it here.',
   },
 };
 

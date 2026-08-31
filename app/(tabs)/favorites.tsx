@@ -4,11 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useFavorites } from '../../lib/favorites-context';
+import { useLanguage } from '../../lib/i18n-context';
 import { StatusBadge } from '../../components/StatusBadge';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 export default function FavoritesScreen() {
   const { favorites, refresh } = useFavorites();
+  const { t } = useLanguage();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
@@ -22,7 +24,7 @@ export default function FavoritesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Text style={styles.title}>Favoritlər</Text>
+      <Text style={styles.title}>{t('favoritesTitle')}</Text>
 
       <FlatList
         data={favorites}
@@ -35,10 +37,8 @@ export default function FavoritesScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="heart-outline" size={36} color={colors.grayLight} />
-            <Text style={styles.emptyText}>Hələ favorit məhsulunuz yoxdur</Text>
-            <Text style={styles.emptyHint}>
-              Bir məhsulu açıb ürək ikonuna toxunaraq buraya əlavə edə bilərsiniz.
-            </Text>
+            <Text style={styles.emptyText}>{t('favoritesEmpty')}</Text>
+            <Text style={styles.emptyHint}>{t('favoritesEmptyHint')}</Text>
           </View>
         }
         renderItem={({ item }) => (
