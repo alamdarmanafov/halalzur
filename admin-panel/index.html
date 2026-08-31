@@ -713,11 +713,28 @@
     users: document.getElementById("section-users"),
     feedback: document.getElementById("section-feedback"),
   };
+  // Each nav click re-fetches that section's data — without this, a
+  // section only ever showed whatever was loaded once at login, and
+  // looked "stuck" until a full browser refresh re-ran enterApp().
+  var sectionLoaders = {
+    dashboard: loadDashboard,
+    submissions: loadAll,
+    products: function () {
+      loadProducts();
+      loadUnclassified();
+    },
+    places: loadPlaces,
+    announcements: loadAnnouncements,
+    users: loadUsers,
+    feedback: loadFeedback,
+  };
+
   navItems.forEach(function (btn) {
     btn.addEventListener("click", function () {
       var key = btn.getAttribute("data-section");
       navItems.forEach(function (b) { b.classList.toggle("active", b === btn); });
       Object.keys(sections).forEach(function (k) { sections[k].hidden = k !== key; });
+      if (sectionLoaders[key]) sectionLoaders[key]();
     });
   });
 
