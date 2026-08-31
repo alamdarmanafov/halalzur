@@ -1144,8 +1144,17 @@
 
   var productFilterDebounce;
   document.getElementById("productSearch").addEventListener("input", function () {
+    var searchEl = this;
     clearTimeout(productFilterDebounce);
     productFilterDebounce = setTimeout(function () {
+      // A barcode/name/brand search should find the product regardless of
+      // whatever status happens to be selected — without this, searching
+      // while "Naməlum" (or any other status) was still picked from an
+      // earlier browse silently returned nothing for a match under a
+      // different status.
+      if (searchEl.value.trim()) {
+        document.getElementById("productStatusFilter").value = "";
+      }
       currentProductPage = 0;
       loadProducts();
     }, 350);
