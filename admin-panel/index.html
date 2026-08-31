@@ -956,20 +956,22 @@
         rows.forEach(function (row) {
           var item = document.createElement("div");
           item.className = "place-card";
-          item.style.cursor = "pointer";
           item.style.marginBottom = "8px";
           item.innerHTML =
-            '<div>' +
+            '<div style="cursor: pointer;" data-role="copy-target">' +
               '<div class="pc-title">' + esc(row.barcode) + '</div>' +
               '<div class="pc-sub">' + row.scan_count + ' dəfə skan edilib · son: ' +
                 new Date(row.last_scanned_at).toLocaleDateString("az-AZ") + '</div>' +
             '</div>' +
-            '<span class="btn">Formaya köçür</span>';
-          item.addEventListener("click", function () {
-            var barcodeInput = document.getElementById("productBarcode");
-            barcodeInput.value = row.barcode;
-            barcodeInput.scrollIntoView({ behavior: "smooth", block: "center" });
-            document.getElementById("productName").focus();
+            '<div style="display: flex; gap: 8px; align-items: center;">' +
+              '<span class="btn" data-role="copy-btn">Formaya köçür</span>' +
+              '<button type="button" class="place-delete-btn" data-role="dismiss-btn">Gizlət</button>' +
+            '</div>';
+          var copyHandler = function () { copyUnclassifiedToForm(row); };
+          item.querySelector('[data-role="copy-target"]').addEventListener("click", copyHandler);
+          item.querySelector('[data-role="copy-btn"]').addEventListener("click", copyHandler);
+          item.querySelector('[data-role="dismiss-btn"]').addEventListener("click", function () {
+            dismissUnclassified(row.barcode, item);
           });
           wrap.appendChild(item);
         });
@@ -980,6 +982,28 @@
         errEl.className = "gate-error";
         errEl.textContent = "Yüklənmədi: " + err.message;
         wrap.appendChild(errEl);
+      });
+  }
+
+  function copyUnclassifiedToForm(row) {
+    var barcodeInput = document.getElementById("productBarcode");
+    barcodeInput.value = row.barcode;
+    barcodeInput.scrollIntoView({ behavior: "smooth", block: "center" });
+    document.getElementById("productName").focus();
+  }
+
+  function dismissUnclassified(barcode, item) {
+    if (!window.confirm('"' + barcode + '" siyahıdan gizlədilsin? Bir daha görünməyəcək.')) return;
+    sb("ignored_scan_barcodes", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: { barcode: barcode },
+    })
+      .then(function () {
+        item.remove();
+      })
+      .catch(function (err) {
+        toast("Gizlədilmədi: " + err.message);
       });
   }
 

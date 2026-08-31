@@ -338,6 +338,26 @@ create policy "Public update" on favorites
 create policy "Public delete" on favorites
   for delete using (true);
 
+-- Barcodes the admin has explicitly dismissed from the "Ən çox axtarılan
+-- naməlum məhsullar" widget (e.g. a junk/misread scan, or a product they
+-- deliberately don't want in the database) — without this there was no
+-- way to make an entry stop reappearing short of fully adding it.
+create table ignored_scan_barcodes (
+  barcode text primary key,
+  created_at timestamptz not null default now()
+);
+
+alter table ignored_scan_barcodes enable row level security;
+
+create policy "Public select" on ignored_scan_barcodes
+  for select using (true);
+
+create policy "Public insert" on ignored_scan_barcodes
+  for insert with check (true);
+
+create policy "Public delete" on ignored_scan_barcodes
+  for delete using (true);
+
 -- Powers the admin panel's "Ən çox axtarılan naməlum məhsullar" widget —
 -- scan_events already records every scan regardless of whether the user
 -- submits it, so this surfaces demand for barcodes nobody has gotten
@@ -348,6 +368,17 @@ create policy "Public delete" on favorites
 -- not the view creator's — otherwise it silently bypasses RLS on its
 -- source tables, which Supabase's security linter (correctly) flags even
 -- though both source tables here are already public-read.
+-- If `unclassified_scan_counts` already exists from an earlier run of
+-- this file, apply just the new exclusion with:
+--   create or replace view unclassified_scan_counts
+--   with (security_invoker = true) as
+--   select barcode, count(*) as scan_count, max(created_at) as last_scanned_at
+--   from scan_events
+--   where barcode is not null
+--     and barcode not in (select barcode from certified_entries where barcode is not null)
+--     and barcode not in (select barcode from ignored_scan_barcodes)
+--   group by barcode
+--   order by count(*) desc;
 create view unclassified_scan_counts
 with (security_invoker = true) as
 select
@@ -357,6 +388,7 @@ select
 from scan_events
 where barcode is not null
   and barcode not in (select barcode from certified_entries where barcode is not null)
+  and barcode not in (select barcode from ignored_scan_barcodes)
 group by barcode
 order by count(*) desc;
 
