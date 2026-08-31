@@ -49,8 +49,9 @@ export default function ReferralsScreen() {
   const onShare = async () => {
     if (!code) return;
     try {
+      const link = `https://halalzur.com/invite.html?code=${code}`;
       await Share.share({
-        message: `${t('referralsShareMessage').replace('{n}', String(REFERRAL_BONUS_POINTS))} ${code}`,
+        message: `${t('referralsShareMessage').replace('{n}', String(REFERRAL_BONUS_POINTS))} ${code}\n${link}`,
       });
     } catch {
       // user cancelled the share sheet — nothing to do
