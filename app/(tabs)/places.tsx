@@ -46,10 +46,15 @@ const CATEGORY_LABEL_KEY: Record<PlaceCategory, TranslationKey> = {
 };
 
 function openInMaps(place: Place, t: (key: TranslationKey) => string) {
+  // Google Maps, not Apple Maps — places here are curated from Google Maps
+  // links in the admin panel, so directions should open in the same app
+  // the coordinates came from. The https://www.google.com/maps URL works
+  // everywhere (opens the Google Maps app via its own universal link if
+  // installed, the website otherwise) with no extra native config.
   const url =
     place.latitude != null && place.longitude != null
-      ? `https://maps.apple.com/?daddr=${place.latitude},${place.longitude}&dirflg=d`
-      : `https://maps.apple.com/?q=${encodeURIComponent(`${place.name} ${place.address}`)}`;
+      ? `https://www.google.com/maps/dir/?api=1&destination=${place.latitude},${place.longitude}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${place.name} ${place.address}`)}`;
   Linking.openURL(url).catch(() => {
     Alert.alert(t('placesMapOpenFailedTitle'), t('placesMapOpenFailedBody'));
   });
