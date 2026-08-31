@@ -23,6 +23,7 @@ export default function ScanScreen() {
   const { addScan } = useHistory();
   const [permission, requestPermission] = useCameraPermissions();
   const [isBusy, setIsBusy] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const lockRef = useRef(false);
 
@@ -98,6 +99,7 @@ export default function ScanScreen() {
       <CameraView
         style={StyleSheet.absoluteFill}
         facing="back"
+        enableTorch={torchOn}
         barcodeScannerSettings={{
           barcodeTypes: ['ean13', 'ean8', 'upc_a', 'upc_e', 'qr', 'code128'],
         }}
@@ -113,14 +115,22 @@ export default function ScanScreen() {
             <Logo size={34} />
             <Text style={styles.headerTitle}>Halalzur</Text>
           </View>
-          <Pressable
-            style={styles.shoppingBtn}
-            onPress={() => router.push(isPremium ? '/shopping-scan' : '/subscription')}
-          >
-            <Ionicons name="cart-outline" size={16} color={colors.white} />
-            <Text style={styles.shoppingBtnText}>Shopping Scan</Text>
-            {!isPremium && <Ionicons name="lock-closed" size={12} color={colors.white} />}
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Pressable
+              style={[styles.torchBtn, torchOn && styles.torchBtnActive]}
+              onPress={() => setTorchOn((v) => !v)}
+            >
+              <Ionicons name={torchOn ? 'flash' : 'flash-outline'} size={18} color={torchOn ? colors.primaryDark : colors.white} />
+            </Pressable>
+            <Pressable
+              style={styles.shoppingBtn}
+              onPress={() => router.push(isPremium ? '/shopping-scan' : '/subscription')}
+            >
+              <Ionicons name="cart-outline" size={16} color={colors.white} />
+              <Text style={styles.shoppingBtnText}>Shopping Scan</Text>
+              {!isPremium && <Ionicons name="lock-closed" size={12} color={colors.white} />}
+            </Pressable>
+          </View>
         </View>
         <Text style={styles.headerSubtitle}>Barkodu çərçivəyə salın</Text>
       </LinearGradient>
@@ -193,6 +203,17 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   shoppingBtnText: { color: colors.white, fontWeight: '700', fontSize: 11 },
+  torchBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+  },
+  torchBtnActive: { backgroundColor: colors.accent, borderColor: colors.accent },
   headerSubtitle: { ...typography.small, color: colors.surface, marginTop: 4 },
   frameWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   frame: {
