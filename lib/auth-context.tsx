@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { createContext, useContext, useEffect, useMemo, useState, PropsWithChildren } from 'react';
 import { User } from './types';
-import { syncUser, fetchRemotePlan } from './userSync';
+import { syncUser, fetchRemoteAccountState } from './userSync';
 import { AchievementTier } from './achievements';
 
 const STORAGE_KEY = 'halalzur.user';
@@ -48,11 +48,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (!raw) return;
         const stored = withExpiredAchievementCleared(JSON.parse(raw) as User);
         setUser(stored);
-        // An admin-panel plan change only ever lands in Supabase's `users`
-        // row — this is the one moment that change reaches the device.
-        const remotePlan = await fetchRemotePlan(stored.id);
-        const next =
-          remotePlan && remotePlan !== stored.plan ? { ...stored, plan: remotePlan } : stored;
+        // An admin-panel plan change, or an achievement-granted Premium's
+        // expiry, only ever lands in Supabase's `users` row — this is the
+        // one moment that reaches the device.
+        const remote = await fetchRemoteAccountState(stored.id);
+        const next = remote
+          ? withExpiredAchievementCleared({
+              ...stored,
+              plan: remote.plan,
+              premiumExpiresAt: remote.premiumExpiresAt,
+              claimedAchievements: remote.claimedAchievements,
+            })
+          : stored;
         setUser(next);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       })
@@ -116,20 +123,22 @@ export function AuthProvider({ children }: PropsWithChildren) {
               .join(' ') || 'Apple istifadəçisi';
           const id = `apple-${credential.user}`;
           // Apple sign-in re-creates this user object on every login (signOut
-          // wipes local storage), so without reading the plan back first this
-          // would always default to 'free' and immediately overwrite any
-          // admin-granted premium in Supabase via syncUser() below.
-          const remotePlan = await fetchRemotePlan(id);
-          const appleUser: User = {
+          // wipes local storage), so without reading this back first this
+          // would always default to 'free'/no-expiry/no-claims and either
+          // overwrite any admin-granted premium in Supabase via syncUser()
+          // below, or let an already-claimed achievement tier be claimed
+          // again since claimedAchievements would appear empty.
+          const remote = await fetchRemoteAccountState(id);
+          const appleUser: User = withExpiredAchievementCleared({
             id,
             name,
             email: credential.email ?? `${credential.user}@privaterelay.appleid.com`,
-            plan: remotePlan ?? 'free',
+            plan: remote?.plan ?? 'free',
             scansToday: 0,
             lastScanDate: null,
-            premiumExpiresAt: null,
-            claimedAchievements: [],
-          };
+            premiumExpiresAt: remote?.premiumExpiresAt ?? null,
+            claimedAchievements: remote?.claimedAchievements ?? [],
+          });
           await persist(appleUser);
           syncUser(appleUser);
           // Apple only hands back an email on the account's first
@@ -166,9 +175,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
       },
       refreshPlan: async () => {
         if (!user) return;
-        const remotePlan = await fetchRemotePlan(user.id);
-        const withPlan = remotePlan && remotePlan !== user.plan ? { ...user, plan: remotePlan } : user;
-        const cleared = withExpiredAchievementCleared(withPlan);
+        const remote = await fetchRemoteAccountState(user.id);
+        const withRemote = remote
+          ? {
+              ...user,
+              plan: remote.plan,
+              premiumExpiresAt: remote.premiumExpiresAt,
+              claimedAchievements: remote.claimedAchievements,
+            }
+          : user;
+        const cleared = withExpiredAchievementCleared(withRemote);
         if (cleared !== user) await persist(cleared);
       },
       grantAchievementPremium: async (tier) => {

@@ -254,11 +254,24 @@ create policy "Public delete" on announcements
 -- also self-reported by the client after StoreKit's on-device purchase
 -- flow, not verified server-side against Apple — same no-real-backend
 -- caveat as product_submissions above, not a source of billing truth.
+--
+-- premium_expires_at/claimed_achievements round-trip an achievement-
+-- granted Premium (lib/achievements.ts) through here — without this they
+-- only lived in local AsyncStorage, so signing out and back in reset
+-- claimed_achievements to empty (letting the same tier be re-claimed) and
+-- wiped the expiry (leaving an already-granted Premium with nothing to
+-- ever clear it back to free).
+-- If `users` already exists from an earlier run of this file, add the two
+-- new columns instead of re-running the CREATE TABLE below:
+--   alter table users add column premium_expires_at timestamptz;
+--   alter table users add column claimed_achievements integer[] not null default '{}';
 create table users (
   id text primary key,
   name text,
   email text,
   plan text not null default 'free' check (plan in ('free', 'premium')),
+  premium_expires_at timestamptz,
+  claimed_achievements integer[] not null default '{}',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
