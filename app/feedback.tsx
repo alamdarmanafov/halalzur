@@ -4,12 +4,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../lib/auth-context';
+import { useLanguage } from '../lib/i18n-context';
 import { submitFeedback } from '../lib/feedback';
 import { Button } from '../components/Button';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
 export default function FeedbackScreen() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { screenshot } = useLocalSearchParams<{ screenshot?: string }>();
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -17,7 +19,7 @@ export default function FeedbackScreen() {
 
   const onSubmit = async () => {
     if (!message.trim()) {
-      Alert.alert('Boşdur', 'Zəhmət olmasa problemi və ya rəyinizi yazın.');
+      Alert.alert(t('feedbackEmptyTitle'), t('feedbackEmptyBody'));
       return;
     }
     setSubmitting(true);
@@ -26,7 +28,7 @@ export default function FeedbackScreen() {
       setSent(true);
       setMessage('');
     } catch (err: any) {
-      Alert.alert('Göndərilmədi', err.message ?? 'Xəta baş verdi, yenidən cəhd edin.');
+      Alert.alert(t('feedbackFailedTitle'), err.message ?? t('feedbackFailedBody'));
     } finally {
       setSubmitting(false);
     }
@@ -38,7 +40,7 @@ export default function FeedbackScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.black} />
         </Pressable>
-        <Text style={styles.headerTitle}>Xəta bildir / Rəy</Text>
+        <Text style={styles.headerTitle}>{t('feedbackTitle')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -51,32 +53,29 @@ export default function FeedbackScreen() {
         {sent ? (
           <View style={styles.sentBox}>
             <Ionicons name="checkmark-circle" size={28} color={colors.primary} />
-            <Text style={styles.sentTitle}>Təşəkkürlər!</Text>
-            <Text style={styles.sentBody}>Mesajınız göndərildi — komandamız baxacaq.</Text>
-            <Button title="Bağla" onPress={() => router.back()} style={{ marginTop: spacing.lg, width: 160 }} />
+            <Text style={styles.sentTitle}>{t('feedbackThanksTitle')}</Text>
+            <Text style={styles.sentBody}>{t('feedbackThanksBody')}</Text>
+            <Button title={t('feedbackClose')} onPress={() => router.back()} style={{ marginTop: spacing.lg, width: 160 }} />
           </View>
         ) : (
           <>
-            <Text style={styles.intro}>
-              Bir xəta ilə qarşılaşdınız, ya da təklifiniz var? Aşağıda yazın — birbaşa komandamıza gedəcək.
-              Telefonu silkələməklə də bu ekranı istənilən vaxt aça bilərsiniz.
-            </Text>
+            <Text style={styles.intro}>{t('feedbackIntro')}</Text>
             {screenshot && (
               <View style={styles.screenshotBox}>
                 <Image source={{ uri: screenshot }} style={styles.screenshot} resizeMode="cover" />
-                <Text style={styles.screenshotCaption}>Bu ekranın şəkli mesajınızla göndəriləcək</Text>
+                <Text style={styles.screenshotCaption}>{t('feedbackScreenshotCaption')}</Text>
               </View>
             )}
             <TextInput
               value={message}
               onChangeText={setMessage}
-              placeholder="Nə baş verdi, ya da nə təklif edirsiniz?"
+              placeholder={t('feedbackPlaceholder')}
               placeholderTextColor={colors.gray}
               multiline
               style={styles.input}
             />
             <Button
-              title={submitting ? 'Göndərilir…' : 'Göndər'}
+              title={submitting ? t('feedbackSending') : t('feedbackSend')}
               onPress={onSubmit}
               loading={submitting}
               style={{ marginTop: spacing.md }}

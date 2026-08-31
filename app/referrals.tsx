@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../lib/auth-context';
+import { useLanguage } from '../lib/i18n-context';
 import {
   getOrCreateReferralCode,
   hasRedeemedReferral,
@@ -27,6 +28,7 @@ import { colors, radius, spacing, typography } from '../constants/theme';
 
 export default function ReferralsScreen() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [code, setCode] = useState<string | null>(null);
   const [redeemed, setRedeemed] = useState(false);
@@ -40,7 +42,7 @@ export default function ReferralsScreen() {
         setCode(c);
         setRedeemed(r);
       })
-      .catch((err) => Alert.alert('Xəta', err.message ?? 'Dəvət kodu yüklənmədi.'))
+      .catch((err) => Alert.alert(t('referralsErrorTitle'), err.message ?? t('referralsErrorBody')))
       .finally(() => setLoading(false));
   }, [user]);
 
@@ -48,7 +50,7 @@ export default function ReferralsScreen() {
     if (!code) return;
     try {
       await Share.share({
-        message: `Halalzur — halal sertifikatlı məhsulları barkoddan yoxla! Mənim dəvət kodumla qeydiyyatdan keç, ikimiz də ${REFERRAL_BONUS_POINTS} xal qazanaq: ${code}`,
+        message: `${t('referralsShareMessage').replace('{n}', String(REFERRAL_BONUS_POINTS))} ${code}`,
       });
     } catch {
       // user cancelled the share sheet — nothing to do
@@ -62,9 +64,9 @@ export default function ReferralsScreen() {
       await redeemReferralCode(user.id, user.name, inputCode);
       setRedeemed(true);
       setInputCode('');
-      Alert.alert('Uğurlu!', `${REFERRAL_BONUS_POINTS} xal qazandınız.`);
+      Alert.alert(t('referralsSuccessTitle'), `${REFERRAL_BONUS_POINTS} ${t('referralsSuccessBody')}`);
     } catch (err: any) {
-      Alert.alert('Olmadı', err.message ?? 'Kod istifadə edilmədi.');
+      Alert.alert(t('referralsFailedTitle'), err.message ?? t('referralsFailedBody'));
     } finally {
       setRedeeming(false);
     }
@@ -76,7 +78,7 @@ export default function ReferralsScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.black} />
         </Pressable>
-        <Text style={styles.headerTitle}>Dostunu dəvət et</Text>
+        <Text style={styles.headerTitle}>{t('referralsTitle')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -91,38 +93,35 @@ export default function ReferralsScreen() {
           keyboardShouldPersistTaps="handled"
           automaticallyAdjustKeyboardInsets
         >
-          <Text style={styles.intro}>
-            Dostunu dəvət et, o qeydiyyatdan keçib sənin kodunu daxil etsin — ikiniz də{' '}
-            {REFERRAL_BONUS_POINTS} xal qazanın.
-          </Text>
+          <Text style={styles.intro}>{t('referralsIntro').replace('{n}', String(REFERRAL_BONUS_POINTS))}</Text>
 
           <View style={styles.codeBox}>
-            <Text style={styles.codeLabel}>Sənin kodun</Text>
+            <Text style={styles.codeLabel}>{t('referralsYourCode')}</Text>
             <Text style={styles.codeValue}>{code}</Text>
           </View>
-          <Button title="Paylaş" onPress={onShare} style={{ marginTop: spacing.md }} />
+          <Button title={t('referralsShare')} onPress={onShare} style={{ marginTop: spacing.md }} />
 
           <View style={styles.divider} />
 
           {redeemed ? (
             <View style={styles.redeemedBox}>
               <Ionicons name="checkmark-circle" size={22} color={colors.primary} />
-              <Text style={styles.redeemedText}>Siz artıq bir dəvət kodu istifadə etmisiniz.</Text>
+              <Text style={styles.redeemedText}>{t('referralsAlreadyRedeemed')}</Text>
             </View>
           ) : (
             <>
-              <Text style={styles.sectionTitle}>Dəvət kodu daxil et</Text>
+              <Text style={styles.sectionTitle}>{t('referralsEnterCodeTitle')}</Text>
               <TextInput
                 value={inputCode}
-                onChangeText={(t) => setInputCode(t.toUpperCase())}
-                placeholder="Məsələn: AB23CD"
+                onChangeText={(txt) => setInputCode(txt.toUpperCase())}
+                placeholder={t('referralsCodePlaceholder')}
                 placeholderTextColor={colors.gray}
                 autoCapitalize="characters"
                 autoCorrect={false}
                 style={styles.input}
               />
               <Button
-                title={redeeming ? 'Göndərilir…' : 'Təsdiqlə'}
+                title={redeeming ? t('referralsSending') : t('referralsConfirm')}
                 onPress={onRedeem}
                 loading={redeeming}
                 disabled={!inputCode.trim()}
