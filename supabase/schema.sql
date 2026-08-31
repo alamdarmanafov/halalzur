@@ -420,6 +420,11 @@ create table feedback_reports (
   user_name text,
   message text not null,
   screenshot_url text,
+  -- Mirrors this report as a GitHub Issue (admin-panel/api/github-issue.js)
+  -- so bugs/suggestions are trackable outside the admin panel too; set
+  -- best-effort right after insert, null if that call failed.
+  github_issue_number integer,
+  github_issue_url text,
   created_at timestamptz not null default now()
 );
 

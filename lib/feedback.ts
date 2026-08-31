@@ -2,6 +2,9 @@ import { supabase, isSupabaseConfigured } from './supabase';
 import { sendPushNotification } from './pushNotify';
 import { ADMIN_EMAIL } from './admin';
 
+const API_BASE = process.env.EXPO_PUBLIC_ADMIN_API_URL;
+const NOTIFY_SECRET = process.env.EXPO_PUBLIC_NOTIFY_SECRET;
+
 export async function submitFeedback(
   userId: string | null,
   userName: string | null,
@@ -16,15 +19,47 @@ export async function submitFeedback(
 
   const screenshotUrl = screenshotUri ? await uploadScreenshot(screenshotUri) : null;
 
-  const { error } = await supabase.from('feedback_reports').insert({
-    user_id: userId,
-    user_name: userName,
-    message: trimmed,
-    screenshot_url: screenshotUrl,
-  });
+  const { data: inserted, error } = await supabase
+    .from('feedback_reports')
+    .insert({
+      user_id: userId,
+      user_name: userName,
+      message: trimmed,
+      screenshot_url: screenshotUrl,
+    })
+    .select('id')
+    .single();
   if (error) throw error;
 
   notifyAdmin(userName, trimmed);
+  createGithubIssue(inserted.id, userName, trimmed, screenshotUrl);
+}
+
+// Best-effort — mirrors the report as a GitHub Issue so it's trackable
+// outside the admin panel too. Never blocks or fails the submission.
+function createGithubIssue(
+  feedbackId: string,
+  userName: string | null,
+  message: string,
+  screenshotUrl: string | null
+) {
+  if (!API_BASE || !supabase) return;
+  fetch(`${API_BASE.replace(/\/$/, '')}/api/github-issue`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-notify-secret': NOTIFY_SECRET ?? '' },
+    body: JSON.stringify({ action: 'create', message, userName, screenshotUrl }),
+  })
+    .then((res) => (res.ok ? res.json() : null))
+    .then((issue: { number: number; url: string } | null) => {
+      if (!issue || !supabase) return;
+      return supabase
+        .from('feedback_reports')
+        .update({ github_issue_number: issue.number, github_issue_url: issue.url })
+        .eq('id', feedbackId);
+    })
+    .catch(() => {
+      // best-effort
+    });
 }
 
 // Best-effort — a screenshot upload failing should never block the actual

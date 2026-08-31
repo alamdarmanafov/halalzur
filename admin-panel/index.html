@@ -2252,14 +2252,21 @@
             'style="max-width:220px; border-radius:8px; margin-top:8px; display:block;" />' +
         '</a>'
       : '';
+    var githubHtml = row.github_issue_number
+      ? '<a href="' + esc(row.github_issue_url) + '" target="_blank" rel="noopener" ' +
+          'style="display:inline-block; margin-top:6px; font-size:12.5px; font-weight:700; color:var(--brand-dark);">' +
+          '🐙 GitHub Issue #' + row.github_issue_number +
+        '</a>'
+      : '';
     card.innerHTML =
       '<div style="flex:1;">' +
         '<div class="pc-title">' + esc(row.user_name || "Naməlum istifadəçi") + '</div>' +
         '<div class="pc-sub" style="margin-top:6px; white-space:pre-wrap;">' + esc(row.message) + '</div>' +
         screenshotHtml +
+        githubHtml +
         '<div class="pc-sub" style="margin-top:6px;">' + new Date(row.created_at).toLocaleString("az-AZ") + '</div>' +
       '</div>' +
-      '<button type="button" class="place-delete-btn" data-action="delete-feedback">Sil</button>';
+      '<button type="button" class="place-delete-btn" data-action="delete-feedback">Həll oldu (sil)</button>';
 
     card.querySelector('[data-action="delete-feedback"]').addEventListener("click", function (e) {
       deleteFeedback(row, card, e.target);
@@ -2267,9 +2274,24 @@
     return card;
   }
 
+  function closeGithubIssue(issueNumber) {
+    if (!issueNumber) return Promise.resolve();
+    // Best-effort — the admin panel has no server-verified session (see
+    // admin-panel/api/github-issue.js's header comment), so this is only
+    // ever a courtesy call; a failure here must never block deleting the
+    // feedback report itself.
+    return fetch("/api/github-issue", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-app-key": SUPABASE_ANON_KEY },
+      body: JSON.stringify({ action: "close", issueNumber: issueNumber }),
+    }).catch(function () {});
+  }
+
   function deleteFeedback(row, card, btn) {
     btn.disabled = true;
-    sb("feedback_reports?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+    closeGithubIssue(row.github_issue_number).then(function () {
+      return sb("feedback_reports?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } });
+    })
       .then(function () {
         card.remove();
         loadFeedback();
