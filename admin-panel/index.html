@@ -1735,24 +1735,83 @@
   function buildPlaceCard(row) {
     var card = document.createElement("div");
     card.className = "place-card";
+    card.style.flexDirection = "column";
+    card.style.alignItems = "stretch";
     var pending = row.approved === false;
     card.innerHTML =
-      '<div>' +
+      '<div style="display:flex; flex-direction:column; gap:12px;">' +
         (pending
-          ? '<div class="pc-badge pc-badge-pending">⏳ Gözləyir' +
+          ? '<div class="pc-badge pc-badge-pending" style="align-self:flex-start;">⏳ Gözləyir' +
             (row.submitted_by_name ? ' — ' + esc(row.submitted_by_name) : '') + '</div>'
           : '') +
-        '<div class="pc-title">' + esc(row.name) + '</div>' +
-        '<div class="pc-sub">' + (STATUS_LABEL[row.status] || row.status) + ' · ' +
-          (PLACE_CATEGORY_LABEL[row.category] || row.category) + ' · ' + esc(row.address) + '</div>' +
-        (row.certifier_name ? '<div class="pc-sub">Sertifikat: ' + esc(row.certifier_name) + '</div>' : '') +
-        (row.note ? '<div class="pc-note">' + esc(row.note) + '</div>' : '') +
+        '<div style="display:flex; gap:12px; align-items:flex-start;">' +
+          (row.image_url
+            ? '<img src="' + esc(row.image_url) + '" alt="" style="width:64px; height:64px; object-fit:cover; border-radius:8px; flex-shrink:0;" onerror="this.style.display=\'none\'" />'
+            : '') +
+          '<div style="flex:1; min-width:0;">' +
+            '<div class="pc-title">' + esc(row.name) + '</div>' +
+            '<div class="pc-sub">' + (STATUS_LABEL[row.status] || row.status) + ' · ' +
+              (PLACE_CATEGORY_LABEL[row.category] || row.category) + '</div>' +
+            '<div class="pc-sub">' + esc(row.address) + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex; flex-wrap:wrap; gap:12px;">' +
+          '<div class="field" style="flex:1 1 180px; margin:0;">' +
+            '<label>Ad</label>' +
+            '<input type="text" data-role="edit-name" />' +
+          '</div>' +
+          '<div class="field" style="flex:1 1 140px; margin:0;">' +
+            '<label>Status</label>' +
+            '<select data-role="edit-status">' +
+              '<option value="halal">Halal</option>' +
+              '<option value="mushbooh">Şübhəli</option>' +
+              '<option value="haram">Tövsiyə edilmir</option>' +
+              '<option value="unknown">Naməlum</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="field" style="flex:1 1 140px; margin:0;">' +
+            '<label>Kateqoriya</label>' +
+            '<select data-role="edit-category">' +
+              '<option value="restoran">Restoran</option>' +
+              '<option value="kafe">Kafe</option>' +
+              '<option value="coffee_shop">Coffee Shop</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="field" style="flex:1 1 220px; margin:0;">' +
+            '<label>Ünvan</label>' +
+            '<input type="text" data-role="edit-address" />' +
+          '</div>' +
+          '<div class="field" style="flex:1 1 180px; margin:0;">' +
+            '<label>Sertifikat</label>' +
+            '<input type="text" data-role="edit-certifier" placeholder="Məs. GIMDES" />' +
+          '</div>' +
+          '<div class="field" style="flex:1 1 200px; margin:0;">' +
+            '<label>Şəkil linki</label>' +
+            '<input type="text" data-role="edit-image" placeholder="Şəkil linki" />' +
+          '</div>' +
+          '<div class="field field-wide" style="margin:0;">' +
+            '<label>Qeyd</label>' +
+            '<textarea data-role="edit-note" rows="2"></textarea>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
-      '<div style="display:flex; gap:8px;">' +
+      '<div style="display:flex; gap:8px; margin-top:12px;">' +
         (pending ? '<button class="place-delete-btn" data-action="approve-place" style="background:var(--ok-bg); color:var(--ok);">Təsdiqlə</button>' : '') +
+        '<button class="btn btn-approve" data-action="save-place">Yadda saxla</button>' +
         '<button class="place-delete-btn" data-action="delete-place">Sil</button>' +
       '</div>';
 
+    card.querySelector('[data-role="edit-name"]').value = row.name || "";
+    card.querySelector('[data-role="edit-status"]').value = row.status || "unknown";
+    card.querySelector('[data-role="edit-category"]').value = row.category || "restoran";
+    card.querySelector('[data-role="edit-address"]').value = row.address || "";
+    card.querySelector('[data-role="edit-certifier"]').value = row.certifier_name || "";
+    card.querySelector('[data-role="edit-image"]').value = row.image_url || "";
+    card.querySelector('[data-role="edit-note"]').value = row.note || "";
+
+    card.querySelector('[data-action="save-place"]').addEventListener("click", function (e) {
+      savePlace(row, card, e.target);
+    });
     card.querySelector('[data-action="delete-place"]').addEventListener("click", function (e) {
       deletePlace(row, card, e.target);
     });
@@ -1763,6 +1822,48 @@
       });
     }
     return card;
+  }
+
+  function savePlace(row, card, btn) {
+    var name = card.querySelector('[data-role="edit-name"]').value.trim();
+    var address = card.querySelector('[data-role="edit-address"]').value.trim();
+    if (!name || !address) {
+      toast("Ad və ünvan boş ola bilməz");
+      return;
+    }
+    var body = {
+      name: name,
+      status: card.querySelector('[data-role="edit-status"]').value,
+      category: card.querySelector('[data-role="edit-category"]').value,
+      address: address,
+      certifier_name: card.querySelector('[data-role="edit-certifier"]').value.trim() || null,
+      image_url: card.querySelector('[data-role="edit-image"]').value.trim() || null,
+      note: card.querySelector('[data-role="edit-note"]').value.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+    btn.disabled = true;
+    var originalText = btn.textContent;
+    btn.textContent = "Yadda saxlanır…";
+    sb("places?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=representation" },
+      body: body,
+    })
+      .then(function (updatedRows) {
+        if (!updatedRows || !updatedRows.length) {
+          toast("Yadda saxlanmadı: icazə yoxdur (places update policy Supabase-də işə salınmayıb)");
+          return;
+        }
+        toast("Yeniləndi: " + name);
+        loadPlaces();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      });
   }
 
   function approvePlace(row, card, btn) {
