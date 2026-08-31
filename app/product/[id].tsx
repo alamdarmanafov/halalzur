@@ -406,8 +406,8 @@ export default function ProductDetailScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('productIngredientsTitle')}</Text>
             <View style={styles.ingredientWrap}>
-              {product.ingredients.map((ing) => (
-                <View key={ing} style={styles.ingredientChip}>
+              {product.ingredients.map((ing, index) => (
+                <View key={`${ing}-${index}`} style={styles.ingredientChip}>
                   <Text style={styles.ingredientText}>{translateIngredientTerm(ing, language)}</Text>
                 </View>
               ))}

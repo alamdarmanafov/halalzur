@@ -1442,10 +1442,14 @@
     ingredients.push(code);
     sb("certified_entries?id=eq." + row.id, {
       method: "PATCH",
-      headers: { "Prefer": "return=minimal" },
+      headers: { "Prefer": "return=representation" },
       body: { ingredients: ingredients, updated_at: new Date().toISOString() },
     })
-      .then(function () {
+      .then(function (updatedRows) {
+        if (!updatedRows || !updatedRows.length) {
+          toast("Yadda saxlanmadı: icazə yoxdur (certified_entries update policy Supabase-də işə salınmayıb)");
+          return;
+        }
         row.ingredients = ingredients;
         toast(code + " əlavə edildi");
         loadProducts();
@@ -1461,7 +1465,7 @@
     btn.textContent = "Yadda saxlanır…";
     sb("certified_entries?id=eq." + row.id, {
       method: "PATCH",
-      headers: { "Prefer": "return=minimal" },
+      headers: { "Prefer": "return=representation" },
       body: {
         status: status,
         category: category || null,
@@ -1469,7 +1473,13 @@
         updated_at: new Date().toISOString(),
       },
     })
-      .then(function () {
+      .then(function (updatedRows) {
+        if (!updatedRows || !updatedRows.length) {
+          toast("Yadda saxlanmadı: icazə yoxdur (certified_entries update policy Supabase-də işə salınmayıb)");
+          btn.disabled = false;
+          btn.textContent = originalText;
+          return;
+        }
         toast("Yeniləndi: " + (row.product_name || row.brand));
         row.status = status;
         row.category = category || null;
