@@ -3,10 +3,14 @@ import { rootViewRef } from './screenshotRef';
 
 /** Best-effort — returns null rather than throwing if capture fails. */
 export async function captureAppScreenshot(): Promise<string | null> {
+  if (!rootViewRef.current) {
+    console.warn('captureAppScreenshot: rootViewRef.current is not set yet');
+    return null;
+  }
   try {
-    if (!rootViewRef.current) return null;
     return await captureRef(rootViewRef, { format: 'jpg', quality: 0.6 });
-  } catch {
+  } catch (err) {
+    console.warn('captureAppScreenshot failed:', err);
     return null;
   }
 }
