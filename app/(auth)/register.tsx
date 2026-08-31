@@ -56,6 +56,8 @@ export default function RegisterScreen() {
     } catch (err) {
       if (err instanceof GoogleSignInUnavailableError) {
         Alert.alert('Tezliklə', 'Google ilə qeydiyyat hələ əlçatan deyil — indilik e-poçt və ya Apple ilə davam edin.');
+      } else {
+        Alert.alert('Uğursuz oldu', 'Google ilə qeydiyyat alınmadı, yenidən cəhd edin.');
       }
     }
   };

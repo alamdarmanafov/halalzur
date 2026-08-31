@@ -247,8 +247,8 @@ create policy "Public delete" on announcements
   for delete using (true);
 
 -- Mirrors lib/types.ts User for the admin panel's "İstifadəçilər" list.
--- SCOPE CAVEAT: only synced for Apple Sign-In users (lib/userSync.ts) —
--- email/password sign-in is still the demo-only stub in auth-context.tsx
+-- SCOPE CAVEAT: only synced for Apple/Google Sign-In users (lib/userSync.ts)
+-- — email/password sign-in is still the demo-only stub in auth-context.tsx
 -- that hands every such user the same id ('local-user'), so syncing those
 -- would just overwrite one row instead of listing real people. `plan` is
 -- also self-reported by the client after StoreKit's on-device purchase

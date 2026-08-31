@@ -2,15 +2,22 @@ import { User } from './types';
 import { supabase, isSupabaseConfigured } from './supabase';
 
 /**
- * Backs the admin panel's "İstifadəçilər" list. Scoped to Apple Sign-In
- * users only — email/password sign-in is still auth-context.tsx's
- * demo-only stub, which hands every such user the id 'local-user', so
- * syncing those here would just overwrite one row instead of listing
- * real people. See supabase/schema.sql's `users` table comment.
+ * A stable per-account id — Apple ('apple-...') or Google ('google-...')
+ * sign-in. Email/password sign-in is still auth-context.tsx's demo-only
+ * stub, which hands every such user the id 'local-user', so syncing those
+ * would just overwrite one row instead of listing real people.
+ */
+function isSyncableUserId(id: string): boolean {
+  return id.startsWith('apple-') || id.startsWith('google-');
+}
+
+/**
+ * Backs the admin panel's "İstifadəçilər" list. See supabase/schema.sql's
+ * `users` table comment for the email/password scope caveat.
  */
 export async function syncUser(user: User): Promise<void> {
   if (!isSupabaseConfigured || !supabase) return;
-  if (!user.id.startsWith('apple-')) return;
+  if (!isSyncableUserId(user.id)) return;
 
   await supabase.from('users').upsert(
     {
@@ -41,11 +48,11 @@ export type RemoteAccountState = {
  * before this, those two only ever lived in local AsyncStorage, so signing
  * back in reset them to null/[] and let the same tier be re-claimed, or
  * left an already-granted Premium with no expiry to ever clear it. Same
- * Apple-only scope as syncUser.
+ * scope as syncUser.
  */
 export async function fetchRemoteAccountState(userId: string): Promise<RemoteAccountState | null> {
   if (!isSupabaseConfigured || !supabase) return null;
-  if (!userId.startsWith('apple-')) return null;
+  if (!isSyncableUserId(userId)) return null;
 
   const { data, error } = await supabase
     .from('users')

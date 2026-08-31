@@ -51,6 +51,8 @@ export default function LoginScreen() {
     } catch (err) {
       if (err instanceof GoogleSignInUnavailableError) {
         Alert.alert('Tezliklə', 'Google ilə giriş hələ əlçatan deyil — indilik e-poçt və ya Apple ilə daxil olun.');
+      } else {
+        Alert.alert('Uğursuz oldu', 'Google ilə giriş alınmadı, yenidən cəhd edin.');
       }
     }
   };

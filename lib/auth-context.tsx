@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { GoogleSignin, isSuccessResponse } from '@react-native-google-signin/google-signin';
 import { createContext, useContext, useEffect, useMemo, useState, PropsWithChildren } from 'react';
 import { User } from './types';
 import { syncUser, fetchRemoteAccountState } from './userSync';
@@ -8,6 +9,18 @@ import { AchievementTier } from './achievements';
 const STORAGE_KEY = 'halalzur.user';
 
 export class GoogleSignInUnavailableError extends Error {}
+
+// GoogleSignin.configure() only needs to run once per app launch.
+let googleConfigured = false;
+function ensureGoogleConfigured(): boolean {
+  const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+  if (!iosClientId) return false;
+  if (!googleConfigured) {
+    GoogleSignin.configure({ iosClientId });
+    googleConfigured = true;
+  }
+  return true;
+}
 
 type AuthContextValue = {
   user: User | null;
@@ -150,11 +163,33 @@ export function AuthProvider({ children }: PropsWithChildren) {
           throw err;
         }
       },
-      // NOTE: placeholder — real Google Sign-In needs an OAuth client set up
-      // in Google Cloud Console (@react-native-google-signin/google-signin),
-      // which requires credentials only the project owner can create.
       signInWithGoogle: async () => {
-        throw new GoogleSignInUnavailableError('Google ilə giriş hələ qoşulmayıb.');
+        if (!ensureGoogleConfigured()) {
+          throw new GoogleSignInUnavailableError('Google ilə giriş hələ qoşulmayıb.');
+        }
+        const response = await GoogleSignin.signIn();
+        if (!isSuccessResponse(response)) return; // user cancelled
+
+        const id = `google-${response.data.user.id}`;
+        // Same re-creates-on-every-login shape as signInWithApple — read
+        // back plan/expiry/claims first so a repeat sign-in doesn't reset
+        // an admin-granted premium or a claimed achievement tier.
+        const remote = await fetchRemoteAccountState(id);
+        const googleUser: User = withExpiredAchievementCleared({
+          id,
+          name: response.data.user.name || 'Google istifadəçisi',
+          email: response.data.user.email,
+          plan: remote?.plan ?? 'free',
+          scansToday: 0,
+          lastScanDate: null,
+          premiumExpiresAt: remote?.premiumExpiresAt ?? null,
+          claimedAchievements: remote?.claimedAchievements ?? [],
+        });
+        await persist(googleUser);
+        syncUser(googleUser);
+        // No first-authorization signal like Apple's — a missing remote
+        // row is the next best "this account is new here" check.
+        if (!remote) setJustRegistered(true);
       },
       signOut: async () => {
         await persist(null);
