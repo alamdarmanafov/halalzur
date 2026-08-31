@@ -3,6 +3,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { GoogleSignin, isSuccessResponse } from '@react-native-google-signin/google-signin';
 import { createContext, useContext, useEffect, useMemo, useState, PropsWithChildren } from 'react';
 import { User } from './types';
+import { supabase } from './supabase';
 import { syncUser, fetchRemoteAccountState } from './userSync';
 import { AchievementTier } from './achievements';
 
@@ -27,6 +28,8 @@ type AuthContextValue = {
   isLoading: boolean;
   signInWithApple: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  signUpWithEmail: (email: string, password: string, name: string) => Promise<void>;
+  signInWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   setPlan: (plan: User['plan']) => Promise<void>;
   incrementScanCount: () => Promise<void>;
@@ -162,7 +165,58 @@ export function AuthProvider({ children }: PropsWithChildren) {
         // row is the next best "this account is new here" check.
         if (!remote) setJustRegistered(true);
       },
+      signUpWithEmail: async (email, password, name) => {
+        if (!supabase) throw new Error('Supabase qoşulmayıb.');
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { name } },
+        });
+        if (error) throw error;
+        // Email confirmation is enabled in the Supabase project → no
+        // session comes back until the user clicks the confirmation link.
+        if (!data.session || !data.user) {
+          throw new Error(
+            'Qeydiyyat göndərildi, amma email təsdiqi aktivdir. Supabase → Authentication → Providers → Email-də "Confirm email"-i deaktiv edin.'
+          );
+        }
+        const id = `email-${data.user.id}`;
+        const remote = await fetchRemoteAccountState(id);
+        const emailUser: User = withExpiredAchievementCleared({
+          id,
+          name,
+          email,
+          plan: remote?.plan ?? 'free',
+          scansToday: 0,
+          lastScanDate: null,
+          premiumExpiresAt: remote?.premiumExpiresAt ?? null,
+          claimedAchievements: remote?.claimedAchievements ?? [],
+        });
+        await persist(emailUser);
+        syncUser(emailUser);
+        setJustRegistered(true);
+      },
+      signInWithEmail: async (email, password) => {
+        if (!supabase) throw new Error('Supabase qoşulmayıb.');
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        const id = `email-${data.user.id}`;
+        const remote = await fetchRemoteAccountState(id);
+        const emailUser: User = withExpiredAchievementCleared({
+          id,
+          name: (data.user.user_metadata?.name as string | undefined) || email.split('@')[0],
+          email,
+          plan: remote?.plan ?? 'free',
+          scansToday: 0,
+          lastScanDate: null,
+          premiumExpiresAt: remote?.premiumExpiresAt ?? null,
+          claimedAchievements: remote?.claimedAchievements ?? [],
+        });
+        await persist(emailUser);
+        syncUser(emailUser);
+      },
       signOut: async () => {
+        await supabase?.auth.signOut();
         await persist(null);
       },
       setPlan: async (plan) => {

@@ -2,13 +2,12 @@ import { User } from './types';
 import { supabase, isSupabaseConfigured } from './supabase';
 
 /**
- * A stable per-account id — Apple ('apple-...') or Google ('google-...')
- * sign-in. Email/password sign-in is still auth-context.tsx's demo-only
- * stub, which hands every such user the id 'local-user', so syncing those
- * would just overwrite one row instead of listing real people.
+ * A stable per-account id — Apple ('apple-...'), Google ('google-...'), or
+ * real email/password via Supabase Auth ('email-...', prefixed with the
+ * auth.users uuid).
  */
 function isSyncableUserId(id: string): boolean {
-  return id.startsWith('apple-') || id.startsWith('google-');
+  return id.startsWith('apple-') || id.startsWith('google-') || id.startsWith('email-');
 }
 
 /**
