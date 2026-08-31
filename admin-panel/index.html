@@ -1025,11 +1025,15 @@
     if (status) params += "&status=eq." + encodeURIComponent(status);
     if (search) {
       var safe = search.replace(/[,()%]/g, "");
+      // A purely numeric search is a barcode — match it exactly, not as a
+      // substring, so e.g. "3279425019752" doesn't also pull in other
+      // products whose barcode merely contains that digit sequence.
+      var barcodeCondition = /^\d+$/.test(safe) ? "barcode.eq." + safe : "barcode.ilike.%" + safe + "%";
       params +=
         "&or=(" +
         "product_name.ilike.%" + safe + "%," +
         "brand.ilike.%" + safe + "%," +
-        "barcode.ilike.%" + safe + "%" +
+        barcodeCondition +
         ")";
     }
     return { params: params, filtered: !!status || !!search };
