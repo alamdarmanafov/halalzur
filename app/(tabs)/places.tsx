@@ -23,39 +23,47 @@ import {
   getPlacesByCategory,
   submitPlace,
   Place,
-  PLACE_CATEGORY_LABEL,
   PLACE_CATEGORY_ICON,
   PlaceCategory,
 } from '../../lib/places';
 import { useAuth } from '../../lib/auth-context';
+import { useLanguage } from '../../lib/i18n-context';
 import { distanceKm } from '../../lib/geo';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Button } from '../../components/Button';
 import { BrandModal } from '../../components/BrandModal';
 import { sendPushNotification } from '../../lib/pushNotify';
 import { colors, radius, spacing, typography } from '../../constants/theme';
+import { TranslationKey } from '../../lib/i18n';
 
 const SUBMIT_CATEGORIES: PlaceCategory[] = ['restoran', 'kafe', 'coffee_shop'];
 
-function openInMaps(place: Place) {
+const CATEGORY_LABEL_KEY: Record<PlaceCategory, TranslationKey> = {
+  restoran: 'placeCategoryRestoran',
+  kafe: 'placeCategoryKafe',
+  coffee_shop: 'placeCategoryCoffeeShop',
+};
+
+function openInMaps(place: Place, t: (key: TranslationKey) => string) {
   const url =
     place.latitude != null && place.longitude != null
       ? `https://maps.apple.com/?daddr=${place.latitude},${place.longitude}&dirflg=d`
       : `https://maps.apple.com/?q=${encodeURIComponent(`${place.name} ${place.address}`)}`;
   Linking.openURL(url).catch(() => {
-    Alert.alert('Açıla bilmədi', 'Xəritə tətbiqi açılmadı.');
+    Alert.alert(t('placesMapOpenFailedTitle'), t('placesMapOpenFailedBody'));
   });
 }
 
-const FILTERS: { key: PlaceCategory | 'hamısı'; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'hamısı', label: 'Hamısı', icon: 'apps-outline' },
-  { key: 'restoran', label: PLACE_CATEGORY_LABEL.restoran, icon: PLACE_CATEGORY_ICON.restoran as any },
-  { key: 'kafe', label: PLACE_CATEGORY_LABEL.kafe, icon: PLACE_CATEGORY_ICON.kafe as any },
-  { key: 'coffee_shop', label: PLACE_CATEGORY_LABEL.coffee_shop, icon: PLACE_CATEGORY_ICON.coffee_shop as any },
-];
-
 export default function PlacesScreen() {
   const { user } = useAuth();
+  const { t } = useLanguage();
+  const categoryLabel = (cat: PlaceCategory) => t(CATEGORY_LABEL_KEY[cat]);
+  const FILTERS: { key: PlaceCategory | 'hamısı'; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+    { key: 'hamısı', label: t('placesCategoryAll'), icon: 'apps-outline' },
+    { key: 'restoran', label: categoryLabel('restoran'), icon: PLACE_CATEGORY_ICON.restoran as any },
+    { key: 'kafe', label: categoryLabel('kafe'), icon: PLACE_CATEGORY_ICON.kafe as any },
+    { key: 'coffee_shop', label: categoryLabel('coffee_shop'), icon: PLACE_CATEGORY_ICON.coffee_shop as any },
+  ];
   const [filter, setFilter] = useState<PlaceCategory | 'hamısı'>('hamısı');
   const [data, setData] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,7 +132,7 @@ export default function PlacesScreen() {
   const handleSubmitPlace = async () => {
     if (!user) return;
     if (!formName.trim() || !formAddress.trim()) {
-      Alert.alert('Doldurun', 'Məkanın adı və ünvanı tələb olunur.');
+      Alert.alert(t('placesFormIncompleteTitle'), t('placesFormIncompleteBody'));
       return;
     }
     const submittedName = formName.trim();
@@ -141,11 +149,14 @@ export default function PlacesScreen() {
       setFormVisible(false);
       resetForm();
       setSubmittedNotice(true);
-      sendPushNotification(user.id, 'Məkan təklifi göndərildi ✅', `"${submittedName}" baxılmaq üçün göndərildi.`, {
-        route: '/(tabs)/places',
-      });
+      sendPushNotification(
+        user.id,
+        t('placesSubmittedPushTitle'),
+        `"${submittedName}" ${t('placesSubmittedPushBody')}`,
+        { route: '/(tabs)/places' }
+      );
     } catch (err: any) {
-      Alert.alert('Göndərilmədi', err.message ?? 'Xəta baş verdi, yenidən cəhd edin.');
+      Alert.alert(t('placesFormFailedTitle'), err.message ?? t('placesFormFailedBody'));
     } finally {
       setSubmitting(false);
     }
@@ -155,8 +166,8 @@ export default function PlacesScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.titleRow}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Məkanlar</Text>
-          <Text style={styles.subtitle}>Halal sertifikatlı restoran, kafe və coffee shop-lar</Text>
+          <Text style={styles.title}>{t('placesTitle')}</Text>
+          <Text style={styles.subtitle}>{t('placesSubtitle')}</Text>
         </View>
         <Pressable style={styles.addBtn} onPress={() => setFormVisible(true)}>
           <Ionicons name="add" size={22} color={colors.white} />
@@ -198,7 +209,7 @@ export default function PlacesScreen() {
           ) : (
             <View style={styles.empty}>
               <Ionicons name="location-outline" size={32} color={colors.grayLight} />
-              <Text style={styles.emptyText}>Bu kateqoriyada məkan tapılmadı</Text>
+              <Text style={styles.emptyText}>{t('placesEmpty')}</Text>
             </View>
           )
         }
@@ -216,7 +227,7 @@ export default function PlacesScreen() {
                 {item.name}
               </Text>
               <Text style={styles.address} numberOfLines={1}>
-                {PLACE_CATEGORY_LABEL[item.category]} · {item.address}
+                {categoryLabel(item.category)} · {item.address}
                 {userLocation && item.latitude != null && item.longitude != null
                   ? ` · ${distanceKm(userLocation.latitude, userLocation.longitude, item.latitude, item.longitude).toFixed(1)} km`
                   : ''}
@@ -228,7 +239,7 @@ export default function PlacesScreen() {
                 </Text>
               )}
             </View>
-            <Pressable hitSlop={8} onPress={() => openInMaps(item)} style={styles.directionsBtn}>
+            <Pressable hitSlop={8} onPress={() => openInMaps(item, t)} style={styles.directionsBtn}>
               <Ionicons name="navigate-outline" size={20} color={colors.primary} />
             </Pressable>
           </View>
@@ -239,7 +250,7 @@ export default function PlacesScreen() {
         <KeyboardAvoidingView style={styles.modalBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Məkan təklif et</Text>
+              <Text style={styles.modalTitle}>{t('placesFormTitle')}</Text>
               <Pressable onPress={() => setFormVisible(false)}>
                 <Ionicons name="close" size={22} color={colors.gray} />
               </Pressable>
@@ -249,7 +260,7 @@ export default function PlacesScreen() {
               <TextInput
                 value={formName}
                 onChangeText={setFormName}
-                placeholder="Məkanın adı"
+                placeholder={t('placesFormNamePlaceholder')}
                 placeholderTextColor={colors.gray}
                 style={styles.input}
               />
@@ -263,7 +274,7 @@ export default function PlacesScreen() {
                     <Text
                       style={[styles.categoryChipText, formCategory === c && styles.categoryChipTextActive]}
                     >
-                      {PLACE_CATEGORY_LABEL[c]}
+                      {categoryLabel(c)}
                     </Text>
                   </Pressable>
                 ))}
@@ -271,23 +282,21 @@ export default function PlacesScreen() {
               <TextInput
                 value={formAddress}
                 onChangeText={setFormAddress}
-                placeholder="Ünvan"
+                placeholder={t('placesFormAddressPlaceholder')}
                 placeholderTextColor={colors.gray}
                 style={styles.input}
               />
               <TextInput
                 value={formNote}
                 onChangeText={setFormNote}
-                placeholder="Qeyd (istəyə bağlı)"
+                placeholder={t('placesFormNotePlaceholder')}
                 placeholderTextColor={colors.gray}
                 multiline
                 style={[styles.input, { minHeight: 70, textAlignVertical: 'top' }]}
               />
-              <Text style={styles.formHint}>
-                Təklifiniz admin tərəfindən baxılıb təsdiqlənəndən sonra Məkanlar siyahısında görünəcək.
-              </Text>
+              <Text style={styles.formHint}>{t('placesFormHint')}</Text>
               <Button
-                title={submitting ? 'Göndərilir…' : 'Göndər'}
+                title={submitting ? t('placesFormSending') : t('placesFormSend')}
                 onPress={handleSubmitPlace}
                 loading={submitting}
                 style={{ marginTop: spacing.sm, marginBottom: spacing.lg }}
@@ -299,9 +308,9 @@ export default function PlacesScreen() {
 
       <BrandModal
         visible={submittedNotice}
-        title="Təşəkkürlər!"
-        body="Məkan təklifiniz göndərildi — admin baxıb təsdiqləyəndən sonra siyahıda görünəcək."
-        ctaLabel="Əla"
+        title={t('placesThanksTitle')}
+        body={t('placesThanksBody')}
+        ctaLabel={t('placesThanksCta')}
         onCta={() => setSubmittedNotice(false)}
         onClose={() => setSubmittedNotice(false)}
       />
