@@ -356,6 +356,23 @@
       <span id="productsCountLabel"></span>
     </div>
 
+    <div class="place-form" style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+      <div class="field" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+        <label for="productSearch">Axtar (ad, marka, barkod)</label>
+        <input type="text" id="productSearch" placeholder="Məs. Fındıq, ya da 8690..." />
+      </div>
+      <div class="field" style="min-width: 180px; margin-bottom: 0;">
+        <label for="productStatusFilter">Status</label>
+        <select id="productStatusFilter">
+          <option value="">Hamısı</option>
+          <option value="halal">Halal</option>
+          <option value="mushbooh">Şübhəli</option>
+          <option value="haram">Tövsiyə edilmir</option>
+          <option value="unknown">Naməlum</option>
+        </select>
+      </div>
+    </div>
+
     <div class="place-form" id="unclassifiedWrap" style="margin-bottom: 16px;">
       <div class="panel-head" style="margin-bottom: 8px;">
         <h3 style="margin: 0; font-size: 15px;">Ən çox axtarılan naməlum məhsullar</h3>
@@ -955,14 +972,36 @@
 
   // ---- products (admin-added certified_entries) ----
   function loadProducts() {
-    sb("certified_entries?order=created_at.desc&limit=100&select=*")
+    var status = document.getElementById("productStatusFilter").value;
+    var search = document.getElementById("productSearch").value.trim();
+
+    var params = "order=created_at.desc&limit=200&select=*";
+    if (status) params += "&status=eq." + encodeURIComponent(status);
+    if (search) {
+      var safe = search.replace(/[,()%]/g, "");
+      params +=
+        "&or=(" +
+        "product_name.ilike.%" + safe + "%," +
+        "brand.ilike.%" + safe + "%," +
+        "barcode.ilike.%" + safe + "%" +
+        ")";
+    }
+
+    sb("certified_entries?" + params)
       .then(function (rows) {
-        renderProductCards(rows || []);
+        renderProductCards(rows || [], !!status || !!search);
       })
       .catch(function (err) {
         toast("Məhsullar yüklənmədi: " + err.message);
       });
   }
+
+  var productFilterDebounce;
+  document.getElementById("productSearch").addEventListener("input", function () {
+    clearTimeout(productFilterDebounce);
+    productFilterDebounce = setTimeout(loadProducts, 350);
+  });
+  document.getElementById("productStatusFilter").addEventListener("change", loadProducts);
 
   function loadUnclassified() {
     var wrap = document.getElementById("unclassifiedList");
@@ -1034,10 +1073,11 @@
 
   document.getElementById("unclassifiedRefreshBtn").addEventListener("click", loadUnclassified);
 
-  function renderProductCards(list) {
+  function renderProductCards(list, filtered) {
     var container = document.getElementById("productCards");
     var empty = document.getElementById("productsEmptyState");
-    document.getElementById("productsCountLabel").textContent = list.length + " məhsul (son 100)";
+    document.getElementById("productsCountLabel").textContent =
+      list.length + (filtered ? " nəticə" : " məhsul (son 200)");
     container.innerHTML = "";
     if (!list.length) {
       empty.hidden = false;
