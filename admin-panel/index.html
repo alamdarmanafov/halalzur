@@ -461,13 +461,14 @@
           <label for="placeAddress">Ünvan</label>
           <input type="text" id="placeAddress" placeholder="Məs. Nizami küç. 14, Bakı" required />
         </div>
-        <div class="field">
-          <label for="placeLat">Enlik (latitude)</label>
-          <input type="text" inputmode="decimal" id="placeLat" placeholder="40.3728" required />
-        </div>
-        <div class="field">
-          <label for="placeLng">Uzunluq (longitude)</label>
-          <input type="text" inputmode="decimal" id="placeLng" placeholder="49.8442" required />
+        <div class="field field-wide">
+          <label for="placeMapsLink">Google Maps linki</label>
+          <input
+            type="text"
+            id="placeMapsLink"
+            placeholder="Məs. https://www.google.com/maps/place/.../@40.3728,49.8442,17z/..."
+            required
+          />
         </div>
         <div class="field">
           <label for="placeStatus">Status</label>
@@ -1341,6 +1342,24 @@
       });
   }
 
+  // Google Maps URLs carry the coordinates in a few different shapes
+  // depending on how the link was copied. Prefer the "!3d..!4d.." pin
+  // marker (the actual place, when present) over "@lat,lng" (just the map
+  // center) over the plain "q=" / "ll=" query params.
+  function extractLatLngFromMapsUrl(url) {
+    var patterns = [
+      /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/,
+      /[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/,
+      /[?&]ll=(-?\d+\.\d+),(-?\d+\.\d+)/,
+      /@(-?\d+\.\d+),(-?\d+\.\d+)/,
+    ];
+    for (var i = 0; i < patterns.length; i++) {
+      var m = url.match(patterns[i]);
+      if (m) return { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+    }
+    return null;
+  }
+
   document.getElementById("placeForm").addEventListener("submit", function (e) {
     e.preventDefault();
     var errorEl = document.getElementById("placeFormError");
@@ -1348,17 +1367,25 @@
 
     var name = document.getElementById("placeName").value.trim();
     var address = document.getElementById("placeAddress").value.trim();
-    var lat = parseFloat(document.getElementById("placeLat").value);
-    var lng = parseFloat(document.getElementById("placeLng").value);
+    var mapsLink = document.getElementById("placeMapsLink").value.trim();
     var category = document.getElementById("placeCategory").value;
     var status = document.getElementById("placeStatus").value;
     var certifier = document.getElementById("placeCertifier").value.trim();
     var note = document.getElementById("placeNote").value.trim();
 
-    if (!name || !address || isNaN(lat) || isNaN(lng)) {
-      errorEl.textContent = "Ad, ünvan və düzgün enlik/uzunluq dəyərləri tələb olunur.";
+    if (!name || !address || !mapsLink) {
+      errorEl.textContent = "Ad, ünvan və Google Maps linki tələb olunur.";
       return;
     }
+
+    var coords = extractLatLngFromMapsUrl(mapsLink);
+    if (!coords) {
+      errorEl.textContent =
+        'Linkdən koordinat tapılmadı. Qısaldılmış (maps.app.goo.gl) linklər dəstəklənmir — Google Maps-də məkanı açıb, tam ünvan sətirindəki linki ("@en,uz" formasında) köçürün.';
+      return;
+    }
+    var lat = coords.lat;
+    var lng = coords.lng;
 
     var submitBtn = e.target.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
