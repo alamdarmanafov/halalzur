@@ -8,6 +8,8 @@ import { Logo } from '../components/Logo';
 import { Button } from '../components/Button';
 import { PremiumSuccessOverlay } from '../components/PremiumSuccessOverlay';
 import { useAuth } from '../lib/auth-context';
+import { useLanguage } from '../lib/i18n-context';
+import { TranslationKey } from '../lib/i18n';
 import { sendPushNotification } from '../lib/pushNotify';
 import { maybeRequestReview } from '../lib/reviewPrompt';
 import { colors, radius, spacing, typography } from '../constants/theme';
@@ -37,25 +39,28 @@ import { colors, radius, spacing, typography } from '../constants/theme';
 const PLANS = {
   monthly: {
     id: 'com.halalzur.app.premium.monthly',
-    label: 'Aylıq',
+    labelKey: 'subPlanMonthly',
     price: '$2.99',
-    period: 'ay',
+    periodKey: 'subPeriodMonth',
   },
   sixMonth: {
     id: 'com.halalzur.app.premium.sixmonth',
-    label: '6 Aylıq',
+    labelKey: 'subPlanSixMonth',
     price: '$9.99',
-    period: '6 ay',
-    badge: '44% qənaət',
+    periodKey: 'subPeriodSixMonths',
+    badgeKey: 'subBadgeSixMonthSavings',
   },
   yearly: {
     id: 'com.halalzur.app.premium.yearly',
-    label: 'İllik',
+    labelKey: 'subPlanYearly',
     price: '$19.99',
-    period: 'il',
-    badge: 'Ən sərfəli',
+    periodKey: 'subPeriodYear',
+    badgeKey: 'subBadgeYearlyBest',
   },
-} as const;
+} as const satisfies Record<
+  string,
+  { id: string; labelKey: TranslationKey; price: string; periodKey: TranslationKey; badgeKey?: TranslationKey }
+>;
 
 const PLAN_SKUS = Object.values(PLANS).map((p) => p.id);
 
@@ -65,15 +70,16 @@ const PLAN_SKUS = Object.values(PLANS).map((p) => p.id);
  * shows it to every user); history, favorites, and ad-removal are
  * explicitly NOT premium differentiators here.
  */
-const FEATURES = [
-  { icon: 'infinite-outline', label: 'Limitsiz Scan' },
+const FEATURES: { icon: string; label?: string; labelKey?: TranslationKey }[] = [
+  { icon: 'infinite-outline', labelKey: 'subFeatureUnlimitedScan' },
   { icon: 'flask-outline', label: 'Deep Ingredient Check' },
   { icon: 'leaf-outline', label: 'Halal Alternatives' },
   { icon: 'cart-outline', label: 'Shopping Scan' },
-] as const;
+];
 
 export default function SubscriptionScreen() {
   const { user, setPlan } = useAuth();
+  const { t } = useLanguage();
   const [selected, setSelected] = useState<keyof typeof PLANS>('yearly');
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -97,8 +103,8 @@ export default function SubscriptionScreen() {
         if (user) {
           sendPushNotification(
             user.id,
-            'Premium aktivləşdi! 💎',
-            'İndi limitsiz skan və tam tarixçədən istifadə edə bilərsiniz.',
+            t('subPremiumActivatedPushTitle'),
+            t('subPremiumActivatedPushBody'),
             { route: '/(tabs)/profile' }
           );
           maybeRequestReview();
@@ -110,7 +116,7 @@ export default function SubscriptionScreen() {
     onPurchaseError: (error) => {
       setPurchasing(false);
       if (error.code === ErrorCode.UserCancelled) return;
-      Alert.alert('Alış tamamlanmadı', error.message);
+      Alert.alert(t('subPurchaseFailedTitle'), error.message);
     },
     onError: (error) => {
       setIapError(error.message);
@@ -130,7 +136,7 @@ export default function SubscriptionScreen() {
 
   const purchasePremium = async () => {
     if (Platform.OS !== 'ios') {
-      Alert.alert('Dəstəklənmir', 'Premium hazırda yalnız iOS-da əlçatandır.');
+      Alert.alert(t('subNotSupportedTitle'), t('subNotSupportedBody'));
       return;
     }
     setPurchasing(true);
@@ -139,10 +145,7 @@ export default function SubscriptionScreen() {
       // result lands in onPurchaseSuccess / onPurchaseError above
     } catch (err: any) {
       setPurchasing(false);
-      Alert.alert(
-        'StoreKit əlçatan deyil',
-        'Bu, real cihazda (EAS build və ya TestFlight) işləyir — Expo Go-da native ödəniş modulu yoxdur.'
-      );
+      Alert.alert(t('subStoreKitUnavailableTitle'), t('subStoreKitUnavailableBody'));
     }
   };
 
@@ -153,13 +156,13 @@ export default function SubscriptionScreen() {
       const active = await getActiveSubscriptions(PLAN_SKUS);
       if (active.length > 0) {
         await setPlan('premium');
-        Alert.alert('Bərpa edildi', 'Premium abunəliyiniz tapıldı və aktivləşdirildi.');
+        Alert.alert(t('subRestoredTitle'), t('subRestoredBody'));
         router.back();
       } else {
-        Alert.alert('Tapılmadı', 'Aktiv Premium abunəlik tapılmadı.');
+        Alert.alert(t('subNotFoundTitle'), t('subNotFoundBody'));
       }
     } catch (err: any) {
-      Alert.alert('Bərpa alınmadı', err.message ?? 'Xəta baş verdi, yenidən cəhd edin.');
+      Alert.alert(t('subRestoreFailedTitle'), err.message ?? t('subRestoreFailedBody'));
     } finally {
       setRestoring(false);
     }
@@ -170,8 +173,8 @@ export default function SubscriptionScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.center}>
           <Ionicons name="checkmark-circle" size={64} color={colors.primary} />
-          <Text style={styles.title}>Siz artıq Premium üzvsünüz</Text>
-          <Button title="Bağla" onPress={() => router.back()} style={{ marginTop: spacing.lg }} />
+          <Text style={styles.title}>{t('subAlreadyPremium')}</Text>
+          <Button title={t('subClose')} onPress={() => router.back()} style={{ marginTop: spacing.lg }} />
         </View>
       </SafeAreaView>
     );
@@ -186,7 +189,7 @@ export default function SubscriptionScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <Logo size={64} />
-          <Text style={styles.heroTitle}>Daha çox yoxla.{'\n'}Daha ağıllı seçim et.</Text>
+          <Text style={styles.heroTitle}>{t('subHeroTitle')}</Text>
         </View>
 
         <View style={styles.table}>
@@ -195,7 +198,7 @@ export default function SubscriptionScreen() {
               <View style={styles.featureIconWrap}>
                 <Ionicons name={f.icon as keyof typeof Ionicons.glyphMap} size={20} color={colors.primaryDark} />
               </View>
-              <Text style={styles.featureLabel}>{f.label}</Text>
+              <Text style={styles.featureLabel}>{f.labelKey ? t(f.labelKey) : f.label}</Text>
             </View>
           ))}
         </View>
@@ -210,14 +213,14 @@ export default function SubscriptionScreen() {
                   style={[styles.planOption, isSelected && styles.planOptionSelected]}
                   onPress={() => setSelected(key)}
                 >
-                  {'badge' in plan && plan.badge && (
+                  {'badgeKey' in plan && plan.badgeKey && (
                     <View style={styles.planBadge}>
-                      <Text style={styles.planBadgeText}>{plan.badge}</Text>
+                      <Text style={styles.planBadgeText}>{t(plan.badgeKey)}</Text>
                     </View>
                   )}
-                  <Text style={styles.planPeriod}>{plan.label}</Text>
+                  <Text style={styles.planPeriod}>{t(plan.labelKey)}</Text>
                   <Text style={styles.planPrice}>{priceFor(key)}</Text>
-                  <Text style={styles.planPer}>/ {plan.period}</Text>
+                  <Text style={styles.planPer}>/ {t(plan.periodKey)}</Text>
                 </Pressable>
               );
             }
@@ -225,35 +228,26 @@ export default function SubscriptionScreen() {
         </View>
 
         <Button
-          title={purchasing ? 'Aktivləşdirilir…' : `Premium-a keç · ${priceFor(selected)}`}
+          title={purchasing ? t('subActivating') : `${t('subUpgradeTo')} ${priceFor(selected)}`}
           onPress={purchasePremium}
           loading={purchasing}
           style={{ marginTop: spacing.lg }}
         />
 
         <Pressable onPress={restorePurchases} style={{ marginTop: spacing.md }} disabled={restoring}>
-          <Text style={styles.restoreText}>{restoring ? 'Bərpa edilir…' : 'Alışları bərpa et'}</Text>
+          <Text style={styles.restoreText}>{restoring ? t('subRestoring') : t('subRestorePurchases')}</Text>
         </Pressable>
 
-        {iapError && Platform.OS === 'ios' && (
-          <Text style={styles.iapNotice}>
-            StoreKit-ə qoşulmadı — bu, Expo Go-da gözlənilən haldır. Real qiymətlər üçün EAS build/TestFlight
-            lazımdır.
-          </Text>
-        )}
+        {iapError && Platform.OS === 'ios' && <Text style={styles.iapNotice}>{t('subIapNotice')}</Text>}
 
-        <Text style={styles.legal}>
-          Abunəlik App Store hesabınızdan tutulur və dövr bitməzdən 24 saat əvvəl ləğv edilmədiyi
-          təqdirdə avtomatik yenilənir. Abunəliyi App Store → Ayarlar bölməsindən istənilən vaxt idarə
-          edə və ya ləğv edə bilərsiniz.
-        </Text>
+        <Text style={styles.legal}>{t('subLegal')}</Text>
         <View style={styles.legalLinks}>
           <Pressable onPress={() => Linking.openURL('https://halalzur.app/terms')}>
-            <Text style={styles.legalLink}>İstifadə şərtləri</Text>
+            <Text style={styles.legalLink}>{t('subTerms')}</Text>
           </Pressable>
           <Text style={styles.legalDot}>·</Text>
           <Pressable onPress={() => Linking.openURL('https://halalzur.app/privacy')}>
-            <Text style={styles.legalLink}>Məxfilik siyasəti</Text>
+            <Text style={styles.legalLink}>{t('subPrivacy')}</Text>
           </Pressable>
         </View>
       </ScrollView>

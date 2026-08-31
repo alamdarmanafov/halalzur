@@ -2,6 +2,7 @@ export type AchievementTier = {
   threshold: number;
   days: number;
   label: string;
+  labelEn: string;
 };
 
 /**
@@ -12,10 +13,10 @@ export type AchievementTier = {
  * (see lib/auth-context.tsx grantAchievementPremium).
  */
 export const ACHIEVEMENT_TIERS: AchievementTier[] = [
-  { threshold: 10, days: 7, label: '1 həftəlik Premium' },
-  { threshold: 30, days: 30, label: '1 aylıq Premium' },
-  { threshold: 50, days: 90, label: '3 aylıq Premium' },
-  { threshold: 100, days: 365, label: '1 illik Premium' },
+  { threshold: 10, days: 7, label: '1 həftəlik Premium', labelEn: '1-week Premium' },
+  { threshold: 30, days: 30, label: '1 aylıq Premium', labelEn: '1-month Premium' },
+  { threshold: 50, days: 90, label: '3 aylıq Premium', labelEn: '3-month Premium' },
+  { threshold: 100, days: 365, label: '1 illik Premium', labelEn: '1-year Premium' },
 ];
 
 /** The highest tier the user has crossed but not yet been rewarded for. */

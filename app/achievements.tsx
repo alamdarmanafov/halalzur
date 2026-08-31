@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../lib/auth-context';
+import { useLanguage } from '../lib/i18n-context';
 import { getApprovedCount } from '../lib/submissions';
 import { ACHIEVEMENT_TIERS, highestUnclaimedTier } from '../lib/achievements';
 import { sendPushNotification } from '../lib/pushNotify';
@@ -13,6 +14,7 @@ import { colors, radius, spacing, typography } from '../constants/theme';
 
 export default function AchievementsScreen() {
   const { user, grantAchievementPremium } = useAuth();
+  const { t, language } = useLanguage();
   const [approvedCount, setApprovedCount] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [unlocked, setUnlocked] = useState<{ label: string } | null>(null);
@@ -25,8 +27,9 @@ export default function AchievementsScreen() {
       const tier = highestUnclaimedTier(count, user.claimedAchievements);
       if (tier) {
         await grantAchievementPremium(tier);
-        setUnlocked({ label: tier.label });
-        sendPushNotification(user.id, 'Təbriklər! 🎉', `${tier.label} qazandınız — hesabınıza əlavə olundu.`, {
+        const label = language === 'en' ? tier.labelEn : tier.label;
+        setUnlocked({ label });
+        sendPushNotification(user.id, t('achievementsPushTitle'), `${label} ${t('achievementsCongratsBody')}`, {
           route: '/achievements',
         });
         maybeRequestReview();
@@ -34,7 +37,7 @@ export default function AchievementsScreen() {
     } catch {
       setApprovedCount(0);
     }
-  }, [user, grantAchievementPremium]);
+  }, [user, grantAchievementPremium, language, t]);
 
   useEffect(() => {
     load();
@@ -55,7 +58,7 @@ export default function AchievementsScreen() {
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.black} />
         </Pressable>
-        <Text style={styles.headerTitle}>Nailiyyətlər</Text>
+        <Text style={styles.headerTitle}>{t('achievementsTitle')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -67,17 +70,14 @@ export default function AchievementsScreen() {
       >
         <View style={styles.introCard}>
           <Ionicons name="trophy" size={26} color={colors.primaryDark} />
-          <Text style={styles.introTitle}>Məhsul əlavə et, Premium qazan</Text>
-          <Text style={styles.introBody}>
-            Təklif etdiyiniz məhsullar admin tərəfindən təsdiqlənəndə sayına əlavə olunur. Aşağıdakı
-            həddlərə çatanda hesabınıza avtomatik müvəqqəti Premium verilir.
-          </Text>
+          <Text style={styles.introTitle}>{t('achievementsIntroTitle')}</Text>
+          <Text style={styles.introBody}>{t('achievementsIntroBody')}</Text>
           {approvedCount === null ? (
             <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.md }} />
           ) : (
             <View style={styles.countBadge}>
               <Text style={styles.countNumber}>{approvedCount}</Text>
-              <Text style={styles.countLabel}>təsdiqlənmiş məhsul</Text>
+              <Text style={styles.countLabel}>{t('achievementsApprovedLabel')}</Text>
             </View>
           )}
         </View>
@@ -96,12 +96,14 @@ export default function AchievementsScreen() {
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.tierTitle}>{tier.threshold} məhsul → {tier.label}</Text>
+                <Text style={styles.tierTitle}>
+                  {tier.threshold} {t('achievementsTierTitle')} {language === 'en' ? tier.labelEn : tier.label}
+                </Text>
                 <View style={styles.progressTrack}>
                   <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
                 </View>
                 <Text style={styles.tierSub}>
-                  {claimed ? 'Qazanıldı' : `${Math.min(count, tier.threshold)}/${tier.threshold}`}
+                  {claimed ? t('achievementsClaimed') : `${Math.min(count, tier.threshold)}/${tier.threshold}`}
                 </Text>
               </View>
             </View>
@@ -111,9 +113,9 @@ export default function AchievementsScreen() {
 
       <BrandModal
         visible={!!unlocked}
-        title="Təbriklər! 🎉"
-        body={unlocked ? `${unlocked.label} qazandınız — hesabınıza əlavə olundu.` : ''}
-        ctaLabel="Əla!"
+        title={t('achievementsCongratsTitle')}
+        body={unlocked ? `${unlocked.label} ${t('achievementsCongratsBody')}` : ''}
+        ctaLabel={t('achievementsCongratsCta')}
         onCta={() => setUnlocked(null)}
         onClose={() => setUnlocked(null)}
       />
