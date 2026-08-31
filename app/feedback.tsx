@@ -69,16 +69,6 @@ export default function FeedbackScreen() {
               loading={submitting}
               style={{ marginTop: spacing.md }}
             />
-            <Pressable
-              onPress={() => {
-                // Temporary: confirms Sentry is actually receiving events
-                // from a real build. Remove once verified on sentry.io.
-                (globalThis as any).myUndefinedFunction();
-              }}
-              style={styles.sentryTestBtn}
-            >
-              <Text style={styles.sentryTestText}>Sentry testi (müvəqqəti)</Text>
-            </Pressable>
           </>
         )}
       </ScrollView>
@@ -116,8 +106,6 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     backgroundColor: colors.surface,
   },
-  sentryTestBtn: { alignItems: 'center', marginTop: spacing.lg, padding: spacing.sm },
-  sentryTestText: { ...typography.small, color: colors.grayLight },
   sentBox: { alignItems: 'center', marginTop: spacing.xl, gap: spacing.xs },
   sentTitle: { ...typography.h3, color: colors.black, marginTop: spacing.sm },
   sentBody: { ...typography.small, color: colors.gray, textAlign: 'center' },
