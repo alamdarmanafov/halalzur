@@ -7,7 +7,7 @@ import { User } from './types';
  * is not real access control, just keeps the admin UI out of normal users'
  * way until real auth exists.
  */
-const ADMIN_EMAIL = 'alamdarmanafov@gmail.com';
+export const ADMIN_EMAIL = 'alamdarmanafov@gmail.com';
 
 export function isAdmin(user: User | null): boolean {
   return !!user && user.email.toLowerCase() === ADMIN_EMAIL;
