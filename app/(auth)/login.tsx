@@ -1,38 +1,18 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Pressable, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Logo } from '../../components/Logo';
-import { TextField } from '../../components/TextField';
-import { Button } from '../../components/Button';
 import { AppleSignInButton } from '../../components/AppleSignInButton';
 import { GoogleSignInButton } from '../../components/GoogleSignInButton';
 import { useAuth, GoogleSignInUnavailableError } from '../../lib/auth-context';
 import { colors, spacing, typography } from '../../constants/theme';
 
 export default function LoginScreen() {
-  const { signIn, signInWithApple, signInWithGoogle } = useAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { signInWithApple, signInWithGoogle } = useAuth();
   const [error, setError] = useState<string | null>(null);
 
   const goToTabs = () => router.replace('/(tabs)');
-
-  const onSubmit = async () => {
-    if (!email || !password) {
-      setError('E-poçt və şifrəni daxil edin.');
-      return;
-    }
-    setError(null);
-    setLoading(true);
-    try {
-      await signIn(email, password);
-      goToTabs();
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const onApple = async () => {
     setError(null);
@@ -45,70 +25,45 @@ export default function LoginScreen() {
   };
 
   const onGoogle = async () => {
+    setError(null);
     try {
       await signInWithGoogle();
       goToTabs();
     } catch (err) {
       if (err instanceof GoogleSignInUnavailableError) {
-        Alert.alert('Tezliklə', 'Google ilə giriş hələ əlçatan deyil — indilik e-poçt və ya Apple ilə daxil olun.');
+        Alert.alert('Tezliklə', 'Google ilə giriş hələ əlçatan deyil — indilik Apple ilə daxil olun.');
       } else {
-        Alert.alert('Uğursuz oldu', 'Google ilə giriş alınmadı, yenidən cəhd edin.');
+        setError('Google ilə giriş alınmadı, yenidən cəhd edin.');
       }
     }
   };
 
   return (
     <View style={styles.screen}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color={colors.black} />
-          </Pressable>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Ionicons name="arrow-back" size={22} color={colors.black} />
+        </Pressable>
 
-          <View style={styles.logoWrap}>
-            <Logo size={64} />
-            <Text style={styles.title}>Xoş gəldiniz</Text>
-            <Text style={styles.subtitle}>Hesabınıza daxil olun</Text>
-          </View>
+        <View style={styles.logoWrap}>
+          <Logo size={64} />
+          <Text style={styles.title}>Xoş gəldiniz</Text>
+          <Text style={styles.subtitle}>Hesabınıza daxil olun</Text>
+        </View>
 
-          <AppleSignInButton onPress={onApple} />
-          <View style={{ height: spacing.sm }} />
-          <GoogleSignInButton onPress={onGoogle} />
+        <AppleSignInButton onPress={onApple} />
+        <View style={{ height: spacing.sm }} />
+        <GoogleSignInButton onPress={onGoogle} />
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>və ya</Text>
-            <View style={styles.dividerLine} />
-          </View>
+        {error && <Text style={styles.error}>{error}</Text>}
 
-          <TextField
-            label="E-poçt"
-            placeholder="siz@example.com"
-            autoCapitalize="none"
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-          />
-          <TextField
-            label="Şifrə"
-            placeholder="••••••••"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-
-          {error && <Text style={styles.error}>{error}</Text>}
-
-          <Button title="Daxil ol" onPress={onSubmit} loading={loading} style={{ marginTop: spacing.sm }} />
-
-          <View style={styles.footerRow}>
-            <Text style={styles.footerText}>Hesabınız yoxdur? </Text>
-            <Link href="/(auth)/register" replace style={styles.footerLink}>
-              Qeydiyyatdan keçin
-            </Link>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        <View style={styles.footerRow}>
+          <Text style={styles.footerText}>Hesabınız yoxdur? </Text>
+          <Link href="/(auth)/register" replace style={styles.footerLink}>
+            Qeydiyyatdan keçin
+          </Link>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -125,14 +80,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: spacing.lg,
   },
-  logoWrap: { alignItems: 'center', marginBottom: spacing.lg },
+  logoWrap: { alignItems: 'center', marginBottom: spacing.xl },
   title: { ...typography.h2, color: colors.black, marginTop: spacing.md },
   subtitle: { ...typography.body, color: colors.gray, marginTop: 2 },
-  divider: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginVertical: spacing.lg },
-  dividerLine: { flex: 1, height: 1, backgroundColor: colors.grayLight },
-  dividerText: { color: colors.gray, fontSize: typography.small.fontSize },
-  error: { color: colors.danger, marginBottom: spacing.sm, fontSize: typography.small.fontSize },
-  footerRow: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.lg, paddingBottom: spacing.md },
+  error: { color: colors.danger, marginTop: spacing.md, textAlign: 'center', fontSize: typography.small.fontSize },
+  footerRow: { flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xl, paddingBottom: spacing.md },
   footerText: { color: colors.gray },
   footerLink: { color: colors.primary, fontWeight: '700' },
 });

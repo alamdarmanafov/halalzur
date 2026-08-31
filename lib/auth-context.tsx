@@ -25,8 +25,6 @@ function ensureGoogleConfigured(): boolean {
 type AuthContextValue = {
   user: User | null;
   isLoading: boolean;
-  signIn: (email: string, _password: string) => Promise<void>;
-  signUp: (name: string, email: string, _password: string) => Promise<void>;
   signInWithApple: () => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -35,7 +33,7 @@ type AuthContextValue = {
   refreshPlan: () => Promise<void>;
   grantAchievementPremium: (tier: AchievementTier) => Promise<void>;
   // In-memory only (not persisted) — true for one app session right after
-  // signUp/first-time signInWithApple, so (tabs)/_layout.tsx's
+  // first sign-in with a given account, so (tabs)/_layout.tsx's
   // WelcomeModal knows to greet the new account exactly once.
   justRegistered: boolean;
   clearJustRegistered: () => void;
@@ -92,33 +90,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
     () => ({
       user,
       isLoading,
-      // NOTE: demo-only local auth. Swap for a real backend (Supabase/Firebase/
-      // custom API) before shipping — this does not verify passwords.
-      signIn: async (email) => {
-        await persist({
-          id: 'local-user',
-          name: email.split('@')[0] || 'İstifadəçi',
-          email,
-          plan: 'free',
-          scansToday: 0,
-          lastScanDate: null,
-          premiumExpiresAt: null,
-          claimedAchievements: [],
-        });
-      },
-      signUp: async (name, email) => {
-        await persist({
-          id: 'local-user',
-          name,
-          email,
-          plan: 'free',
-          scansToday: 0,
-          lastScanDate: null,
-          premiumExpiresAt: null,
-          claimedAchievements: [],
-        });
-        setJustRegistered(true);
-      },
       signInWithApple: async () => {
         try {
           const credential = await AppleAuthentication.signInAsync({

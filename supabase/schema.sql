@@ -305,3 +305,35 @@ create policy "Public insert" on scan_events
 
 create policy "Public read" on scan_events
   for select using (true);
+
+-- Favorites for a signed-in (Apple/Google) account (lib/favorites.ts,
+-- lib/favorites-context.tsx) — lets Favoritlər survive a reinstall or
+-- device change instead of only living in local AsyncStorage. `data`
+-- stores the full CertificationResult snapshot, not just a barcode,
+-- since a favorited product may have come from an external lookup (Open
+-- Food Facts/UPCitemdb) with no certified_entries row to join back to.
+-- Same no-real-backend-auth caveat as product_submissions above.
+create table favorites (
+  id uuid primary key default gen_random_uuid(),
+  user_id text not null,
+  barcode text not null,
+  data jsonb not null,
+  created_at timestamptz not null default now(),
+  unique (user_id, barcode)
+);
+
+create index idx_favorites_user on favorites (user_id);
+
+alter table favorites enable row level security;
+
+create policy "Public select" on favorites
+  for select using (true);
+
+create policy "Public insert" on favorites
+  for insert with check (true);
+
+create policy "Public update" on favorites
+  for update using (true) with check (true);
+
+create policy "Public delete" on favorites
+  for delete using (true);

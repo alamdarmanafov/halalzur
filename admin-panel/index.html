@@ -220,6 +220,8 @@
   }
   .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--brand); }
   .field textarea { resize: vertical; }
+  p.hint { color: var(--ink-muted); font-size: 13.5px; line-height: 1.6; margin: 0 0 10px; }
+  p.hint code { background: var(--surface); border-radius: 4px; padding: 1px 5px; font-size: 12.5px; }
 
   .place-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px 20px;
@@ -392,6 +394,30 @@
       <button type="submit" class="btn btn-approve" style="margin-top: 12px;">Məhsulu əlavə et</button>
       <div class="gate-error" id="productFormError"></div>
     </form>
+
+    <div style="margin-top: 16px;">
+      <button type="button" class="btn" id="bulkToggleBtn">Toplu əlavə et</button>
+    </div>
+    <div class="place-form" id="bulkAddWrap" hidden style="margin-top: 12px;">
+      <p class="hint">
+        Hər sətirdə bir məhsul, sahələri <code>|</code> işarəsi ilə ayırın:<br />
+        <code>barkod|ad|marka|kateqoriya|status|tərkib1,tərkib2,...</code><br />
+        Status: <code>halal</code>, <code>mushbooh</code> (şübhəli), <code>haram</code> (tövsiyə edilmir),
+        <code>unknown</code> (naməlum). Kateqoriya və tərkib istəyə bağlıdır, status boş qalsa "naməlum" qəbul olunur.
+      </p>
+      <div class="field">
+        <textarea
+          id="bulkAddInput"
+          rows="8"
+          placeholder="8690504048068|Fındık Kreması|Örnek Gıda A.Ş.|Şirniyyat|halal|Şəkər,Fındıq,Bitki yağı
+8690506042027|Tam Buğday Ekmeği|Anadolu Fırın|Çörək|halal|Un,Su,Maya,Duz"
+        ></textarea>
+      </div>
+      <button type="button" class="btn btn-approve" id="bulkAddSubmit" style="margin-top: 12px;">
+        Hamısını əlavə et
+      </button>
+      <div class="gate-error" id="bulkAddError"></div>
+    </div>
 
     <div class="cards" id="productCards" style="margin-top: 20px;"></div>
     <div class="empty-state" id="productsEmptyState" hidden>Hələ heç bir məhsul əlavə edilməyib.</div>
@@ -1046,6 +1072,88 @@
       .finally(function () {
         submitBtn.disabled = false;
         submitBtn.textContent = "Məhsulu əlavə et";
+      });
+  });
+
+  document.getElementById("bulkToggleBtn").addEventListener("click", function () {
+    var wrap = document.getElementById("bulkAddWrap");
+    wrap.hidden = !wrap.hidden;
+  });
+
+  document.getElementById("bulkAddSubmit").addEventListener("click", function () {
+    var errorEl = document.getElementById("bulkAddError");
+    errorEl.textContent = "";
+
+    var validStatuses = ["halal", "mushbooh", "haram", "unknown"];
+    var lines = document
+      .getElementById("bulkAddInput")
+      .value.split("\n")
+      .map(function (l) { return l.trim(); })
+      .filter(Boolean);
+
+    if (!lines.length) {
+      errorEl.textContent = "Ən azı bir sətir yazın.";
+      return;
+    }
+
+    var rows = [];
+    var skipped = [];
+    lines.forEach(function (line, i) {
+      var parts = line.split("|").map(function (p) { return p.trim(); });
+      var barcode = parts[0], name = parts[1], brand = parts[2], category = parts[3];
+      var status = (parts[4] || "unknown").toLowerCase();
+      var ingredientsRaw = parts[5];
+
+      if (!barcode || !name || !brand) {
+        skipped.push(i + 1);
+        return;
+      }
+      if (validStatuses.indexOf(status) === -1) status = "unknown";
+
+      rows.push({
+        entry_type: "product",
+        barcode: barcode,
+        product_name: name,
+        brand: brand,
+        category: category || null,
+        status: status,
+        certifier_id: "halalzur",
+        certificate_number: null,
+        verified_at: new Date().toISOString().slice(0, 10),
+        ingredients: ingredientsRaw ? ingredientsRaw.split(",").map(function (s) { return s.trim(); }).filter(Boolean) : [],
+        notes: null,
+      });
+    });
+
+    if (!rows.length) {
+      errorEl.textContent = "Düzgün sətir tapılmadı — hər sətirdə ən azı barkod, ad və marka olmalıdır.";
+      return;
+    }
+
+    var btn = document.getElementById("bulkAddSubmit");
+    btn.disabled = true;
+    btn.textContent = "Əlavə edilir…";
+
+    sb("certified_entries", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: rows,
+    })
+      .then(function () {
+        toast(
+          rows.length + " məhsul əlavə edildi" +
+          (skipped.length ? " (" + skipped.length + " sətir keçildi: " + skipped.join(", ") + ")" : "")
+        );
+        document.getElementById("bulkAddInput").value = "";
+        document.getElementById("bulkAddWrap").hidden = true;
+        loadProducts();
+      })
+      .catch(function (err) {
+        errorEl.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = "Hamısını əlavə et";
       });
   });
 
