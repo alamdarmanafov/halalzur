@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import {
   getPlacesByCategory,
@@ -174,26 +175,37 @@ export default function PlacesScreen() {
         </Pressable>
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.categoryRow}
-        contentContainerStyle={{ gap: spacing.sm }}
-      >
-        {FILTERS.map((f) => {
-          const active = f.key === filter;
-          return (
-            <Pressable
-              key={f.key}
-              style={[styles.categoryChip, active && styles.categoryChipActive]}
-              onPress={() => setFilter(f.key)}
-            >
-              <Ionicons name={f.icon} size={14} color={active ? colors.white : colors.primaryDark} />
-              <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>{f.label}</Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      <View style={styles.categoryRowWrap}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoryRow}
+          contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.xl }}
+        >
+          {FILTERS.map((f) => {
+            const active = f.key === filter;
+            return (
+              <Pressable
+                key={f.key}
+                style={[styles.categoryChip, active && styles.categoryChipActive]}
+                onPress={() => setFilter(f.key)}
+              >
+                <Ionicons name={f.icon} size={14} color={active ? colors.white : colors.primaryDark} />
+                <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>{f.label}</Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+        {/* Hints that the row scrolls, instead of the last chip just
+            slamming into the screen edge looking like a rendering glitch. */}
+        <LinearGradient
+          colors={['rgba(255,255,255,0)', colors.white]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.categoryFade}
+          pointerEvents="none"
+        />
+      </View>
 
       <FlatList
         data={sortedData}
@@ -359,7 +371,9 @@ const styles = StyleSheet.create({
   },
   categoryPickRow: { flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm },
   formHint: { ...typography.small, color: colors.gray, marginTop: spacing.xs, lineHeight: 17 },
+  categoryRowWrap: { position: 'relative' },
   categoryRow: { marginTop: spacing.md, flexGrow: 0 },
+  categoryFade: { position: 'absolute', right: 0, top: spacing.md, bottom: 0, width: 28 },
   categoryChip: {
     flexDirection: 'row',
     alignItems: 'center',

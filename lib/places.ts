@@ -146,7 +146,12 @@ export async function getAllPlaces(): Promise<Place[]> {
       .order('created_at', { ascending: false });
 
     if (!error) return (data ?? []).map(mapRowToPlace);
-    console.warn('Supabase getAllPlaces failed, falling back to local data:', error.message);
+    // A real query error (e.g. a schema column not yet migrated) must NOT
+    // silently substitute the demo dataset in production — that showed
+    // users/admins fictional restaurants that don't exist and were never
+    // approved, which looked like "the app disagrees with the admin panel".
+    console.warn('Supabase getAllPlaces failed:', error.message);
+    return [];
   }
 
   return MOCK_PLACES;

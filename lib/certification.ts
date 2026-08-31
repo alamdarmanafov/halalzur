@@ -192,7 +192,13 @@ export async function searchProducts(query: string): Promise<CertificationResult
     if (!error) {
       return (data ?? []).map((row) => mapRowToResult(row, row.barcode ?? ''));
     }
-    console.warn('Supabase searchProducts failed, falling back to local data:', error.message);
+    // A real query error must NOT silently substitute the demo dataset in
+    // production — that showed users fictional products that don't exist
+    // in the real database, looking like the app disagrees with the admin
+    // panel. MOCK_DB stays below only for when Supabase isn't configured
+    // at all (local dev before it's set up).
+    console.warn('Supabase searchProducts failed:', error.message);
+    return [];
   }
 
   await new Promise((resolve) => setTimeout(resolve, 300));
