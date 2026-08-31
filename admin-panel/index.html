@@ -1054,8 +1054,12 @@
   function loadProducts() {
     var f = productFilterParams();
     var offset = currentProductPage * PRODUCT_PAGE_SIZE;
+    // status.desc relies on halal_status's declaration order (halal, haram,
+    // mushbooh, unknown) — descending puts unknown first and halal last,
+    // so unreviewed products surface at the top and confirmed ones sink to
+    // the bottom without needing a separate "reviewed" flag.
     var params =
-      "order=created_at.desc&limit=" + PRODUCT_PAGE_SIZE + "&offset=" + offset + "&select=*" + f.params;
+      "order=status.desc,created_at.desc&limit=" + PRODUCT_PAGE_SIZE + "&offset=" + offset + "&select=*" + f.params;
 
     sbCount("certified_entries?select=id" + f.params)
       .then(function (total) {
