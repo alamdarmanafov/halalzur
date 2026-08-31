@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useHistory } from '../../lib/history-context';
+import { useLanguage } from '../../lib/i18n-context';
 import { searchProducts, getAllProducts, getManyByBarcode } from '../../lib/certification';
 import { PRODUCT_CATEGORIES } from '../../lib/categories';
 import { CertificationResult } from '../../lib/types';
@@ -26,6 +27,7 @@ const CATEGORIES: { label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
 
 export default function ProductsScreen() {
   const { history, removeScan } = useHistory();
+  const { t } = useLanguage();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('Hamısı');
   const [results, setResults] = useState<CertificationResult[]>(getAllProducts());
@@ -88,21 +90,21 @@ export default function ProductsScreen() {
   // applies to.
   const isHistoryView = !query && history.length > 0;
   const confirmDelete = (item: CertificationResult) => {
-    Alert.alert('Tarixçədən sil', `"${item.productName}" səhv skan edilibsə, tarixçədən silə bilərsiniz.`, [
-      { text: 'Ləğv et', style: 'cancel' },
-      { text: 'Sil', style: 'destructive', onPress: () => removeScan(item.barcode) },
+    Alert.alert(t('productsDeleteTitle'), `"${item.productName}" ${t('productsDeleteBody')}`, [
+      { text: t('productsDeleteCancel'), style: 'cancel' },
+      { text: t('productsDeleteConfirm'), style: 'destructive', onPress: () => removeScan(item.barcode) },
     ]);
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Text style={styles.title}>Məhsullar</Text>
+      <Text style={styles.title}>{t('productsTitle')}</Text>
       <View style={styles.searchWrap}>
         <Ionicons name="search" size={18} color={colors.gray} />
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Məhsul, marka və ya kateqoriya axtar"
+          placeholder={t('productsSearchPlaceholder')}
           placeholderTextColor={colors.gray}
           style={styles.searchInput}
         />
@@ -125,7 +127,7 @@ export default function ProductsScreen() {
               >
                 <Ionicons name={c.icon} size={14} color={active ? colors.white : colors.primaryDark} />
                 <Text style={[styles.categoryChipText, active && styles.categoryChipTextActive]}>
-                  {c.label}
+                  {c.label === 'Hamısı' ? t('productsCategoryAll') : c.label}
                 </Text>
               </Pressable>
             );
@@ -144,7 +146,7 @@ export default function ProductsScreen() {
 
       {!query && (
         <Text style={styles.sectionLabel}>
-          {history.length ? 'Son skan etdikləriniz' : 'Populyar məhsullar'}
+          {history.length ? t('productsRecentLabel') : t('productsPopularLabel')}
         </Text>
       )}
 
@@ -159,7 +161,7 @@ export default function ProductsScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="search-outline" size={32} color={colors.grayLight} />
-            <Text style={styles.emptyText}>Nəticə tapılmadı</Text>
+            <Text style={styles.emptyText}>{t('productsEmptyResult')}</Text>
           </View>
         }
         renderItem={({ item }) => (

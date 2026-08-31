@@ -7,6 +7,7 @@ import { useAuth } from '../../lib/auth-context';
 import { registerForPushNotifications, onForegroundMessage, setupNotificationNavigation } from '../../lib/notifications';
 import { sendPushNotification } from '../../lib/pushNotify';
 import { onShake } from '../../lib/shake';
+import { useLanguage } from '../../lib/i18n-context';
 import { AnnouncementModal } from '../../components/AnnouncementModal';
 import { WelcomeModal } from '../../components/WelcomeModal';
 import { colors, radius } from '../../constants/theme';
@@ -37,6 +38,7 @@ function ScanTabButton({ onPress, accessibilityState }: ScanTabButtonProps) {
 export default function TabsLayout() {
   const { user, justRegistered } = useAuth();
   const pathname = usePathname();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const unsubscribeShake = onShake(() => {
@@ -94,7 +96,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="products"
         options={{
-          title: 'Məhsullar',
+          title: t('tabProducts'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'basket' : 'basket-outline'} color={color} size={TAB_ICON_SIZE} />
           ),
@@ -103,7 +105,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="favorites"
         options={{
-          title: 'Favoritlər',
+          title: t('tabFavorites'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'heart' : 'heart-outline'} color={color} size={TAB_ICON_SIZE} />
           ),
@@ -119,7 +121,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="places"
         options={{
-          title: 'Məkanlar',
+          title: t('tabPlaces'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'location' : 'location-outline'} color={color} size={TAB_ICON_SIZE} />
           ),
@@ -128,7 +130,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Profil',
+          title: t('tabProfile'),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'person' : 'person-outline'} color={color} size={TAB_ICON_SIZE} />
           ),

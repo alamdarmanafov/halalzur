@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../lib/auth-context';
 import { useHistory } from '../../lib/history-context';
 import { useFavorites } from '../../lib/favorites-context';
+import { useLanguage } from '../../lib/i18n-context';
 import { registerForPushNotifications } from '../../lib/notifications';
 import { isAdmin } from '../../lib/admin';
 import { getPoints, fetchPendingSubmissions } from '../../lib/submissions';
@@ -19,14 +20,19 @@ type MenuItem = {
   danger?: boolean;
 };
 
-function formatExpiryDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' });
+function formatExpiryDate(iso: string, language: 'az' | 'en'): string {
+  return new Date(iso).toLocaleDateString(language === 'en' ? 'en-US' : 'az-AZ', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
 }
 
 export default function ProfileScreen() {
   const { user, signOut, refreshPlan } = useAuth();
   const { history, clear } = useHistory();
   const { favorites } = useFavorites();
+  const { language, setLanguage, t } = useLanguage();
   const isPremium = user?.plan === 'premium';
   const admin = isAdmin(user);
   const [points, setPoints] = useState(0);
@@ -60,80 +66,77 @@ export default function ProfileScreen() {
   const menuItems: MenuItem[] = [
     {
       icon: 'time-outline',
-      label: `Skan tarixçəsi (${history.length})`,
+      label: `${t('profileHistoryItem')} (${history.length})`,
       onPress: () => router.push('/(tabs)/products'),
     },
     {
       icon: 'heart-outline',
-      label: `Favoritlər (${favorites.length})`,
+      label: `${t('profileFavoritesItem')} (${favorites.length})`,
       onPress: () => router.push('/favorites'),
     },
     {
       icon: 'notifications-outline',
-      label: 'Bildirişlər',
+      label: t('profileNotifications'),
       onPress: async () => {
         const token = user ? await registerForPushNotifications(user.id) : null;
         if (token) {
-          Alert.alert('Bildirişlər aktivdir', 'Halalzur elanlarını alacaqsınız.');
+          Alert.alert(t('profileNotificationsOnTitle'), t('profileNotificationsOnBody'));
         } else {
-          Alert.alert(
-            'Bildirişlər deaktivdir',
-            'İcazə verilməyib, ya da bu build-də (Expo Go) native bildiriş modulu yoxdur. Ayarlar → Bildirişlər-dən aça bilərsiniz.'
-          );
+          Alert.alert(t('profileNotificationsOffTitle'), t('profileNotificationsOffBody'));
         }
       },
     },
     {
       icon: 'flask-outline',
-      label: 'E-kod bələdçisi',
+      label: t('profileEcodes'),
       onPress: () => router.push('/ecodes'),
     },
     {
       icon: 'trophy-outline',
-      label: 'Nailiyyətlər',
+      label: t('profileAchievements'),
       onPress: () => router.push('/achievements'),
     },
     {
       icon: 'globe-outline',
-      label: 'Dil',
-      onPress: () => Alert.alert('Dil seçimi', 'Hazırda yalnız Azərbaycan dili var. Digər dillər tezliklə əlçatan olacaq.'),
+      label: `${t('profileLanguage')}: ${language === 'az' ? t('profileLanguageAz') : t('profileLanguageEn')}`,
+      onPress: () =>
+        Alert.alert(t('profileLanguageTitle'), undefined, [
+          { text: t('profileLanguageAz'), onPress: () => setLanguage('az') },
+          { text: t('profileLanguageEn'), onPress: () => setLanguage('en') },
+        ]),
     },
     {
       icon: 'shield-checkmark-outline',
-      label: 'Sertifikat orqanları haqqında',
-      onPress: () =>
-        Alert.alert(
-          'Sertifikat orqanları',
-          'Halalzur GIMDES, Helal Akreditasyon Kurumu (HAK), SMIIC, JAKIM və AZSTANDART Halal (Azərbaycan) qeydiyyatları ilə çarpaz yoxlama aparır.'
-        ),
+      label: t('profileCertifiers'),
+      onPress: () => Alert.alert(t('profileCertifiersTitle'), t('profileCertifiersBody')),
     },
     {
       icon: 'gift-outline',
-      label: 'Dostunu dəvət et',
+      label: t('profileInvite'),
       onPress: () => router.push('/referrals'),
     },
     {
       icon: 'chatbox-ellipses-outline',
-      label: 'Xəta bildir / Rəy',
+      label: t('profileFeedback'),
       onPress: () => router.push('/feedback'),
     },
     ...(admin
       ? [
           {
             icon: 'shield-half-outline' as const,
-            label: `Admin: Təsdiq gözləyənlər (${pendingCount})`,
+            label: `${t('profileAdminPending')} (${pendingCount})`,
             onPress: () => router.push('/admin'),
           },
         ]
       : []),
     {
       icon: 'trash-outline',
-      label: 'Tarixçəni təmizlə',
+      label: t('profileClearHistory'),
       onPress: () => clear(),
     },
     {
       icon: 'log-out-outline',
-      label: 'Çıxış et',
+      label: t('profileSignOut'),
       onPress: async () => {
         await signOut();
         router.replace('/(auth)/welcome');
@@ -150,7 +153,7 @@ export default function ProfileScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        <Text style={styles.title}>Profil</Text>
+        <Text style={styles.title}>{t('profileTitle')}</Text>
 
         <View style={styles.userCard}>
           <View style={styles.avatar}>
@@ -169,7 +172,7 @@ export default function ProfileScreen() {
             <Text style={styles.email}>{user?.email}</Text>
             {isPremium && user?.premiumExpiresAt && (
               <Text style={styles.premiumExpiry}>
-                Nailiyyət mükafatı — {formatExpiryDate(user.premiumExpiresAt)} tarixinə qədər
+                {t('profilePremiumExpiryLine').replace('{date}', formatExpiryDate(user.premiumExpiresAt, language))}
               </Text>
             )}
           </View>
@@ -188,8 +191,8 @@ export default function ProfileScreen() {
               style={styles.planCard}
             >
               <View style={{ flex: 1 }}>
-                <Text style={styles.planLabel}>Pulsuz plan</Text>
-                <Text style={styles.planDesc}>Gündə 3 skan · Premium-a keçin, limitsiz olsun</Text>
+                <Text style={styles.planLabel}>{t('profileFreePlan')}</Text>
+                <Text style={styles.planDesc}>{t('profileFreePlanDesc')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={22} color={colors.white} />
             </LinearGradient>
