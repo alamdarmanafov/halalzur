@@ -27,6 +27,7 @@ import { useFavorites } from '../../lib/favorites-context';
 import { useHistory } from '../../lib/history-context';
 import { useAuth } from '../../lib/auth-context';
 import { useLanguage } from '../../lib/i18n-context';
+import { translateIngredientTerm } from '../../lib/ingredientGlossary';
 import { submitProduct, hasSubmittedProduct } from '../../lib/submissions';
 import { sendPushNotification } from '../../lib/pushNotify';
 import { CertificationResult } from '../../lib/types';
@@ -46,7 +47,7 @@ const STATUS_TINT: Record<CertificationResult['status'], string> = {
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const isPremium = user?.plan === 'premium';
   const { isFavorite, toggleFavorite } = useFavorites();
   const { history, removeScan } = useHistory();
@@ -407,7 +408,7 @@ export default function ProductDetailScreen() {
             <View style={styles.ingredientWrap}>
               {product.ingredients.map((ing) => (
                 <View key={ing} style={styles.ingredientChip}>
-                  <Text style={styles.ingredientText}>{ing}</Text>
+                  <Text style={styles.ingredientText}>{translateIngredientTerm(ing, language)}</Text>
                 </View>
               ))}
             </View>
