@@ -11,6 +11,7 @@ import { useLanguage } from '../../lib/i18n-context';
 import { registerForPushNotifications } from '../../lib/notifications';
 import { isAdmin } from '../../lib/admin';
 import { getPoints, fetchPendingSubmissions } from '../../lib/submissions';
+import { deleteAccount } from '../../lib/deleteAccount';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 type MenuItem = {
@@ -140,6 +141,30 @@ export default function ProfileScreen() {
       onPress: async () => {
         await signOut();
         router.replace('/(auth)/welcome');
+      },
+      danger: true,
+    },
+    {
+      icon: 'person-remove-outline',
+      label: t('profileDeleteAccount'),
+      onPress: () => {
+        if (!user) return;
+        Alert.alert(t('profileDeleteAccountConfirmTitle'), t('profileDeleteAccountConfirmBody'), [
+          { text: t('productCancel'), style: 'cancel' },
+          {
+            text: t('profileDeleteAccountConfirmCta'),
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deleteAccount(user.id);
+                await signOut();
+                router.replace('/(auth)/welcome');
+              } catch (err: any) {
+                Alert.alert(t('profileDeleteAccountFailedTitle'), err.message ?? t('profileDeleteAccountFailedTitle'));
+              }
+            },
+          },
+        ]);
       },
       danger: true,
     },
