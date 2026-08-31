@@ -7,6 +7,7 @@ import { useAuth } from '../../lib/auth-context';
 import { registerForPushNotifications, onForegroundMessage, setupNotificationNavigation } from '../../lib/notifications';
 import { sendPushNotification } from '../../lib/pushNotify';
 import { onShake } from '../../lib/shake';
+import { captureAppScreenshot } from '../../lib/screenshot';
 import { useLanguage } from '../../lib/i18n-context';
 import { AnnouncementModal } from '../../components/AnnouncementModal';
 import { WelcomeModal } from '../../components/WelcomeModal';
@@ -41,8 +42,10 @@ export default function TabsLayout() {
   const { t } = useLanguage();
 
   useEffect(() => {
-    const unsubscribeShake = onShake(() => {
-      if (pathname !== '/feedback') router.push('/feedback');
+    const unsubscribeShake = onShake(async () => {
+      if (pathname === '/feedback') return;
+      const screenshot = await captureAppScreenshot();
+      router.push({ pathname: '/feedback', params: screenshot ? { screenshot } : {} });
     });
     return unsubscribeShake;
   }, [pathname]);

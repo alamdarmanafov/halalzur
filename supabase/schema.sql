@@ -407,6 +407,7 @@ create table feedback_reports (
   user_id text,
   user_name text,
   message text not null,
+  screenshot_url text,
   created_at timestamptz not null default now()
 );
 
@@ -420,6 +421,22 @@ create policy "Public select" on feedback_reports
 
 create policy "Public delete" on feedback_reports
   for delete using (true);
+
+-- Storage bucket for the shake-to-report screenshot (lib/screenshot.ts,
+-- lib/feedback.ts uploadScreenshot). Public, matching this schema's
+-- existing client-side-only-gating pattern — nothing here is more
+-- sensitive than the feedback message itself, which is already public-read.
+insert into storage.buckets (id, name, public)
+values ('feedback-screenshots', 'feedback-screenshots', true)
+on conflict (id) do nothing;
+
+create policy "Public upload feedback screenshots" on storage.objects
+  for insert to public
+  with check (bucket_id = 'feedback-screenshots');
+
+create policy "Public read feedback screenshots" on storage.objects
+  for select to public
+  using (bucket_id = 'feedback-screenshots');
 
 -- Referral system (lib/referrals.ts, app/referrals.tsx). Each account
 -- gets a short code lazily on first visit to the "Dostunu dəvət et"

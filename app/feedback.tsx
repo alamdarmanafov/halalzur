@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../lib/auth-context';
 import { submitFeedback } from '../lib/feedback';
@@ -10,6 +10,7 @@ import { colors, radius, spacing, typography } from '../constants/theme';
 
 export default function FeedbackScreen() {
   const { user } = useAuth();
+  const { screenshot } = useLocalSearchParams<{ screenshot?: string }>();
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
@@ -21,7 +22,7 @@ export default function FeedbackScreen() {
     }
     setSubmitting(true);
     try {
-      await submitFeedback(user?.id ?? null, user?.name ?? null, message);
+      await submitFeedback(user?.id ?? null, user?.name ?? null, message, screenshot ?? null);
       setSent(true);
       setMessage('');
     } catch (err: any) {
@@ -60,6 +61,12 @@ export default function FeedbackScreen() {
               Bir xəta ilə qarşılaşdınız, ya da təklifiniz var? Aşağıda yazın — birbaşa komandamıza gedəcək.
               Telefonu silkələməklə də bu ekranı istənilən vaxt aça bilərsiniz.
             </Text>
+            {screenshot && (
+              <View style={styles.screenshotBox}>
+                <Image source={{ uri: screenshot }} style={styles.screenshot} resizeMode="cover" />
+                <Text style={styles.screenshotCaption}>Bu ekranın şəkli mesajınızla göndəriləcək</Text>
+              </View>
+            )}
             <TextInput
               value={message}
               onChangeText={setMessage}
@@ -101,6 +108,14 @@ const styles = StyleSheet.create({
   },
   headerTitle: { ...typography.h3, color: colors.black },
   intro: { ...typography.small, color: colors.gray, lineHeight: 19, marginBottom: spacing.lg },
+  screenshotBox: { marginBottom: spacing.lg },
+  screenshot: {
+    width: '100%',
+    height: 220,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+  },
+  screenshotCaption: { ...typography.small, color: colors.gray, marginTop: spacing.xs, textAlign: 'center' },
   input: {
     minHeight: 140,
     borderRadius: radius.md,

@@ -1693,10 +1693,17 @@
   function buildFeedbackCard(row) {
     var card = document.createElement("div");
     card.className = "place-card";
+    var screenshotHtml = row.screenshot_url
+      ? '<a href="' + esc(row.screenshot_url) + '" target="_blank" rel="noopener">' +
+          '<img src="' + esc(row.screenshot_url) + '" alt="Ekran şəkli" ' +
+            'style="max-width:220px; border-radius:8px; margin-top:8px; display:block;" />' +
+        '</a>'
+      : '';
     card.innerHTML =
       '<div style="flex:1;">' +
         '<div class="pc-title">' + esc(row.user_name || "Naməlum istifadəçi") + '</div>' +
         '<div class="pc-sub" style="margin-top:6px; white-space:pre-wrap;">' + esc(row.message) + '</div>' +
+        screenshotHtml +
         '<div class="pc-sub" style="margin-top:6px;">' + new Date(row.created_at).toLocaleString("az-AZ") + '</div>' +
       '</div>' +
       '<button type="button" class="place-delete-btn" data-action="delete-feedback">Sil</button>';

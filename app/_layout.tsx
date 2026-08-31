@@ -1,3 +1,4 @@
+import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider } from '../lib/auth-context';
@@ -6,11 +7,13 @@ import { FavoritesProvider } from '../lib/favorites-context';
 import { LanguageProvider } from '../lib/i18n-context';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { initSentry, Sentry } from '../lib/sentry';
+import { rootViewRef } from '../lib/screenshotRef';
 
 initSentry();
 
 function RootLayout() {
   return (
+    <View ref={rootViewRef} style={{ flex: 1 }} collapsable={false}>
     <LanguageProvider>
       <AuthProvider>
         <HistoryProvider>
@@ -59,6 +62,7 @@ function RootLayout() {
         </HistoryProvider>
       </AuthProvider>
     </LanguageProvider>
+    </View>
   );
 }
 
