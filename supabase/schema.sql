@@ -39,7 +39,11 @@ create table certified_entries (
   updated_at timestamptz not null default now()
 );
 
-create index idx_certified_entries_barcode on certified_entries (barcode) where barcode is not null;
+-- Unique (not just indexed) so a barcode can only ever have one row —
+-- scripts/sync/run.ts's Open Food Facts import relies on this via
+-- upsert(..., { onConflict: 'barcode' }); without it, a large batch could
+-- silently write duplicate rows for the same barcode.
+create unique index idx_certified_entries_barcode_unique on certified_entries (barcode) where barcode is not null;
 create index idx_certified_entries_brand_trgm on certified_entries using gin (brand gin_trgm_ops);
 create index idx_certified_entries_product_trgm on certified_entries using gin (coalesce(product_name, '') gin_trgm_ops);
 

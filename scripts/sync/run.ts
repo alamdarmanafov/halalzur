@@ -50,8 +50,14 @@ async function syncCertifier(certifierId: string, entries: SyncedEntry[]) {
  * Unlike syncCertifier's full-refresh (a certifier's list is a complete
  * snapshot), this is additive: Open Food Facts isn't a certifier and must
  * never overwrite a real certification (or an earlier OFF import) for a
- * barcode that already has a row, so each entry is inserted only if that
- * barcode doesn't exist yet.
+ * barcode that already has a row, so each entry is upserted with
+ * onConflict: 'barcode' + ignoreDuplicates — that leans on the database's
+ * own unique index (idx_certified_entries_barcode_unique, see
+ * supabase/schema.sql) to decide "already exists", which is atomic and
+ * correct at any batch size. An earlier version pre-checked existing
+ * barcodes with a single big `.in(barcode, [...])` lookup before a plain
+ * insert — with thousands of barcodes in one query that silently missed
+ * some matches often enough to write real duplicate rows.
  */
 async function syncOpenFoodFacts(maxEntries: number) {
   console.log(`\n[openfoodfacts] fetching up to ${maxEntries} products (this can take a while)…`);
@@ -70,27 +76,18 @@ async function syncOpenFoodFacts(maxEntries: number) {
     return;
   }
 
-  const barcodes = entries.map((e) => e.barcode).filter((b): b is string => !!b);
-  const { data: existing, error: existingError } = await supabaseAdmin
-    .from('certified_entries')
-    .select('barcode')
-    .in('barcode', barcodes);
-  if (existingError) throw new Error(`[openfoodfacts] lookup failed: ${existingError.message}`);
-
-  const existingBarcodes = new Set((existing ?? []).map((r) => r.barcode));
-  const toInsert = entries.filter((e) => e.barcode && !existingBarcodes.has(e.barcode));
-
-  if (toInsert.length === 0) {
-    console.log('[openfoodfacts] every fetched barcode already exists, nothing new to write');
-    return;
+  const BATCH_SIZE = 500;
+  let written = 0;
+  for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+    const batch = entries.slice(i, i + BATCH_SIZE);
+    const { error, count } = await supabaseAdmin
+      .from('certified_entries')
+      .upsert(batch, { onConflict: 'barcode', ignoreDuplicates: true, count: 'exact' });
+    if (error) throw new Error(`[openfoodfacts] upsert failed: ${error.message}`);
+    written += count ?? 0;
   }
 
-  const { error: insertError } = await supabaseAdmin.from('certified_entries').insert(toInsert);
-  if (insertError) throw new Error(`[openfoodfacts] insert failed: ${insertError.message}`);
-
-  console.log(
-    `[openfoodfacts] wrote ${toInsert.length} new products (${entries.length - toInsert.length} already existed)`
-  );
+  console.log(`[openfoodfacts] wrote ${written} new products (${entries.length - written} already existed)`);
 }
 
 async function main() {
