@@ -62,7 +62,7 @@ export default function FeedbackScreen() {
             <Text style={styles.intro}>{t('feedbackIntro')}</Text>
             {screenshot && (
               <View style={styles.screenshotBox}>
-                <Image source={{ uri: screenshot }} style={styles.screenshot} resizeMode="cover" />
+                <Image source={{ uri: screenshot }} style={styles.screenshot} resizeMode="contain" />
                 <Text style={styles.screenshotCaption}>{t('feedbackScreenshotCaption')}</Text>
               </View>
             )}
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   screenshotBox: { marginBottom: spacing.lg },
   screenshot: {
     width: '100%',
-    height: 220,
+    height: 340,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
   },
