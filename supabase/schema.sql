@@ -117,6 +117,13 @@ create policy "Public update" on device_tokens
 insert into certifiers (id, name, short_name, country, source_url) values
   ('halalzur', 'Halalzur icma yoxlaması (istifadəçi təklifi, komanda tərəfindən təsdiqlənib)', 'Halalzur', 'İcma', null);
 
+-- Not a certifier — a placeholder for scripts/sync/openFoodFacts.ts's bulk
+-- import, so certified_entries.certifier_id (not null) has somewhere valid
+-- to point. Every row synced under this id is status='unknown': it's raw
+-- product/ingredient data for barcode coverage, not a halal claim.
+insert into certifiers (id, name, short_name, country, source_url) values
+  ('openfoodfacts', 'Open Food Facts (açıq baza, hələ yoxlanılmayıb)', 'Open Food Facts', 'Beynəlxalq', 'https://world.openfoodfacts.org/');
+
 create table product_submissions (
   id uuid primary key default gen_random_uuid(),
   submitted_by text not null,       -- local user id (lib/types.ts User.id)
