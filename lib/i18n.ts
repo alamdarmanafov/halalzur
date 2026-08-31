@@ -225,6 +225,16 @@ export const translations: Record<Language, Dict> = {
     referralsFailedTitle: 'Olmadı',
     referralsFailedBody: 'Kod istifadə edilmədi.',
 
+    shoppingResultTitle: 'Alış-veriş nəticəsi',
+    shoppingGoToProducts: 'Məhsullara keç',
+    shoppingNewTrip: 'Yeni alış-veriş',
+    shoppingPermissionNeeded: 'Kameraya icazə lazımdır',
+    shoppingGrantPermission: 'İcazə ver',
+    shoppingCancel: 'Ləğv et',
+    shoppingHeaderSubtitle: 'Bir-bir bütün məhsulları skan edin',
+    shoppingChecking: 'Yoxlanılır…',
+    shoppingFinish: 'Bitir',
+
     statusLabelHalal: 'HALAL',
     statusLabelHaram: 'TÖVSİYƏ EDİLMİR',
     statusLabelMushbooh: 'ŞÜBHƏLİ',
@@ -508,6 +518,16 @@ export const translations: Record<Language, Dict> = {
     referralsSuccessBody: 'points earned.',
     referralsFailedTitle: "Didn't work",
     referralsFailedBody: "The code couldn't be used.",
+
+    shoppingResultTitle: 'Shopping trip results',
+    shoppingGoToProducts: 'Go to Products',
+    shoppingNewTrip: 'New shopping trip',
+    shoppingPermissionNeeded: 'Camera permission needed',
+    shoppingGrantPermission: 'Grant permission',
+    shoppingCancel: 'Cancel',
+    shoppingHeaderSubtitle: 'Scan all your products one by one',
+    shoppingChecking: 'Checking…',
+    shoppingFinish: 'Finish',
 
     statusLabelHalal: 'HALAL',
     statusLabelHaram: 'NOT RECOMMENDED',

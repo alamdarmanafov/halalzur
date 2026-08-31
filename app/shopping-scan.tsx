@@ -10,7 +10,8 @@ import { Button } from '../components/Button';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../lib/auth-context';
 import { useHistory } from '../lib/history-context';
-import { lookupBarcode } from '../lib/certification';
+import { useLanguage } from '../lib/i18n-context';
+import { lookupBarcode, STATUS_LABEL_KEY } from '../lib/certification';
 import { logScanEvent } from '../lib/scanEvents';
 import { hasInternetConnection } from '../lib/network';
 import { hapticForStatus } from '../lib/haptics';
@@ -27,6 +28,7 @@ import { colors, radius, spacing, typography } from '../constants/theme';
 export default function ShoppingScanScreen() {
   const { incrementScanCount } = useAuth();
   const { addScan } = useHistory();
+  const { t } = useLanguage();
   const [permission, requestPermission] = useCameraPermissions();
   const [items, setItems] = useState<CertificationResult[]>([]);
   const [isBusy, setIsBusy] = useState(false);
@@ -82,7 +84,7 @@ export default function ShoppingScanScreen() {
           <Pressable onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="close" size={22} color={colors.black} />
           </Pressable>
-          <Text style={styles.summaryTitle}>Alış-veriş nəticəsi</Text>
+          <Text style={styles.summaryTitle}>{t('shoppingResultTitle')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -90,17 +92,17 @@ export default function ShoppingScanScreen() {
           <View style={[styles.tallyCard, { backgroundColor: '#E8F7ED' }]}>
             <Text style={styles.tallyEmoji}>🟢</Text>
             <Text style={[styles.tallyNum, { color: colors.primary }]}>{halalCount}</Text>
-            <Text style={styles.tallyLabel}>Halal</Text>
+            <Text style={styles.tallyLabel}>{t(STATUS_LABEL_KEY.halal)}</Text>
           </View>
           <View style={[styles.tallyCard, { backgroundColor: '#FBF2DE' }]}>
             <Text style={styles.tallyEmoji}>🟡</Text>
             <Text style={[styles.tallyNum, { color: colors.warning }]}>{mushboohCount}</Text>
-            <Text style={styles.tallyLabel}>Şübhəli</Text>
+            <Text style={styles.tallyLabel}>{t(STATUS_LABEL_KEY.mushbooh)}</Text>
           </View>
           <View style={[styles.tallyCard, { backgroundColor: '#FBE9E9' }]}>
             <Text style={styles.tallyEmoji}>🔴</Text>
             <Text style={[styles.tallyNum, { color: colors.danger }]}>{haramCount}</Text>
-            <Text style={styles.tallyLabel}>Tövsiyə{'\n'}edilmir</Text>
+            <Text style={styles.tallyLabel}>{t(STATUS_LABEL_KEY.haram)}</Text>
           </View>
         </View>
 
@@ -130,12 +132,12 @@ export default function ShoppingScanScreen() {
 
         <View style={styles.summaryFooter}>
           <Button
-            title="Məhsullara keç"
+            title={t('shoppingGoToProducts')}
             onPress={() => router.replace('/(tabs)/products')}
             style={{ marginBottom: spacing.sm }}
           />
           <Pressable onPress={resetTrip}>
-            <Text style={styles.doneLink}>Yeni alış-veriş</Text>
+            <Text style={styles.doneLink}>{t('shoppingNewTrip')}</Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -154,10 +156,10 @@ export default function ShoppingScanScreen() {
     return (
       <LinearGradient colors={[colors.primaryDark, colors.primary]} style={styles.permissionWrap}>
         <Logo size={72} />
-        <Text style={styles.permissionTitle}>Kameraya icazə lazımdır</Text>
-        <Button title="İcazə ver" onPress={requestPermission} style={{ marginTop: spacing.lg, width: '100%' }} />
+        <Text style={styles.permissionTitle}>{t('shoppingPermissionNeeded')}</Text>
+        <Button title={t('shoppingGrantPermission')} onPress={requestPermission} style={{ marginTop: spacing.lg, width: '100%' }} />
         <Pressable onPress={() => router.back()} style={{ marginTop: spacing.md }}>
-          <Text style={styles.permissionCancel}>Ləğv et</Text>
+          <Text style={styles.permissionCancel}>{t('shoppingCancel')}</Text>
         </Pressable>
       </LinearGradient>
     );
@@ -184,7 +186,7 @@ export default function ShoppingScanScreen() {
             <Text style={styles.cartBadgeText}>Shopping Scan · {items.length}</Text>
           </View>
         </View>
-        <Text style={styles.headerSubtitle}>Bir-bir bütün məhsulları skan edin</Text>
+        <Text style={styles.headerSubtitle}>{t('shoppingHeaderSubtitle')}</Text>
       </LinearGradient>
 
       <View style={styles.frameWrap} pointerEvents="none">
@@ -192,7 +194,7 @@ export default function ShoppingScanScreen() {
         {isBusy && (
           <View style={styles.busyBadge}>
             <ActivityIndicator color={colors.white} size="small" />
-            <Text style={styles.busyText}>Yoxlanılır…</Text>
+            <Text style={styles.busyText}>{t('shoppingChecking')}</Text>
           </View>
         )}
       </View>
@@ -206,7 +208,7 @@ export default function ShoppingScanScreen() {
           </View>
         )}
         <Button
-          title={`Bitir${items.length > 0 ? ` (${items.length})` : ''}`}
+          title={`${t('shoppingFinish')}${items.length > 0 ? ` (${items.length})` : ''}`}
           onPress={() => setFinished(true)}
           disabled={items.length === 0}
           style={{ width: '100%' }}
