@@ -1218,11 +1218,19 @@
 
   function dismissUnclassified(barcode, item) {
     if (!window.confirm('"' + barcode + '" üçün bütün skan qeydləri silinsin? Bu geri qaytarıla bilməz — amma barkod yenidən skan edilsə, siyahıda təzədən çıxa bilər.')) return;
+    // return=representation (instead of minimal) so we get the deleted
+    // rows back — if RLS silently matches zero rows (no error, just
+    // nothing deleted), the old code reported "success" anyway and the
+    // row kept reappearing after any reload.
     sb("scan_events?barcode=eq." + encodeURIComponent(barcode), {
       method: "DELETE",
-      headers: { "Prefer": "return=minimal" },
+      headers: { "Prefer": "return=representation" },
     })
-      .then(function () {
+      .then(function (deletedRows) {
+        if (!deletedRows || !deletedRows.length) {
+          toast("Silinmədi: icazə yoxdur (scan_events delete policy Supabase-də işə salınmayıb)");
+          return;
+        }
         toast("Silindi: " + barcode);
         item.remove();
       })
