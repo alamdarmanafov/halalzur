@@ -344,7 +344,12 @@ create policy "Public delete" on favorites
 -- around to adding, without depending on anyone filling in the
 -- product-submission form. Both source tables are already public-read,
 -- so this view exposes nothing that wasn't already readable.
-create view unclassified_scan_counts as
+-- security_invoker: run this view under the querying role's own RLS,
+-- not the view creator's — otherwise it silently bypasses RLS on its
+-- source tables, which Supabase's security linter (correctly) flags even
+-- though both source tables here are already public-read.
+create view unclassified_scan_counts
+with (security_invoker = true) as
 select
   barcode,
   count(*) as scan_count,
