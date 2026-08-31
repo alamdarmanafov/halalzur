@@ -173,7 +173,7 @@ export default function ProductsScreen() {
 
       <FlatList
         data={data}
-        keyExtractor={(item) => item.barcode}
+        keyExtractor={(item, index) => `${item.barcode}-${index}`}
         contentContainerStyle={{ paddingBottom: spacing.xl }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
         refreshControl={

@@ -178,6 +178,7 @@ export async function searchProducts(query: string): Promise<CertificationResult
       .select(
         'barcode, product_name, brand, category, status, certificate_number, verified_at, ingredients, notes, image_url, certifiers(id, name, short_name, country)'
       )
+      .eq('entry_type', 'product')
       .order('created_at', { ascending: false })
       .limit(30);
 
