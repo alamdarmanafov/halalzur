@@ -19,6 +19,10 @@ type MenuItem = {
   danger?: boolean;
 };
 
+function formatExpiryDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('az-AZ', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 export default function ProfileScreen() {
   const { user, signOut, refreshPlan } = useAuth();
   const { history, clear } = useHistory();
@@ -153,6 +157,11 @@ export default function ProfileScreen() {
               )}
             </View>
             <Text style={styles.email}>{user?.email}</Text>
+            {isPremium && user?.premiumExpiresAt && (
+              <Text style={styles.premiumExpiry}>
+                Nailiyyət mükafatı — {formatExpiryDate(user.premiumExpiresAt)} tarixinə qədər
+              </Text>
+            )}
           </View>
           <View style={styles.pointsBadge}>
             <Ionicons name="trophy" size={14} color={colors.primaryDark} />
@@ -230,6 +239,7 @@ const styles = StyleSheet.create({
   },
   premiumBadgeText: { color: colors.white, fontSize: 10, fontWeight: '800', letterSpacing: 0.3 },
   email: { ...typography.small, color: colors.gray, marginTop: 2 },
+  premiumExpiry: { ...typography.small, color: colors.primaryDark, marginTop: 2, fontWeight: '600' },
   pointsBadge: {
     flexDirection: 'row',
     alignItems: 'center',

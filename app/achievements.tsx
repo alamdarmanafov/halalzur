@@ -25,7 +25,9 @@ export default function AchievementsScreen() {
       if (tier) {
         await grantAchievementPremium(tier);
         setUnlocked({ label: tier.label });
-        sendPushNotification(user.id, 'Təbriklər! 🎉', `${tier.label} qazandınız — hesabınıza əlavə olundu.`);
+        sendPushNotification(user.id, 'Təbriklər! 🎉', `${tier.label} qazandınız — hesabınıza əlavə olundu.`, {
+          route: '/achievements',
+        });
       }
     } catch {
       setApprovedCount(0);

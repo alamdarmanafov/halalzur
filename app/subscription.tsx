@@ -94,7 +94,12 @@ export default function SubscriptionScreen() {
         await setPlan('premium');
         setShowSuccess(true);
         if (user) {
-          sendPushNotification(user.id, 'Premium aktivləşdi! 💎', 'İndi limitsiz skan və tam tarixçədən istifadə edə bilərsiniz.');
+          sendPushNotification(
+            user.id,
+            'Premium aktivləşdi! 💎',
+            'İndi limitsiz skan və tam tarixçədən istifadə edə bilərsiniz.',
+            { route: '/(tabs)/profile' }
+          );
         }
       } finally {
         setPurchasing(false);

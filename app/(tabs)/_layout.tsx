@@ -1,10 +1,10 @@
 import { Fragment, useEffect } from 'react';
-import { Tabs } from 'expo-router';
+import { router, Tabs } from 'expo-router';
 import { Pressable, StyleSheet, GestureResponderEvent, AccessibilityState, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../lib/auth-context';
-import { registerForPushNotifications, onForegroundMessage } from '../../lib/notifications';
+import { registerForPushNotifications, onForegroundMessage, setupNotificationNavigation } from '../../lib/notifications';
 import { sendPushNotification } from '../../lib/pushNotify';
 import { AnnouncementModal } from '../../components/AnnouncementModal';
 import { WelcomeModal } from '../../components/WelcomeModal';
@@ -46,14 +46,26 @@ export default function TabsLayout() {
         sendPushNotification(
           user.id,
           'Xoş gəldiniz, Halalzur-a! 👋',
-          'Barkodu skan edərək məhsulun halal statusunu dərhal görə bilərsiniz.'
+          'Barkodu skan edərək məhsulun halal statusunu dərhal görə bilərsiniz.',
+          { route: '/(tabs)/products' }
         );
       }
     });
-    const unsubscribe = onForegroundMessage((title, body) => {
-      Alert.alert(title, body);
+    const unsubscribeForeground = onForegroundMessage((title, body, route) => {
+      Alert.alert(
+        title,
+        body,
+        route ? [{ text: 'Bax', onPress: () => router.push(route as any) }, { text: 'Bağla', style: 'cancel' }] : undefined
+      );
     });
-    return unsubscribe;
+    // Handles the tap itself when the notification arrived while
+    // backgrounded or cold-started the app — onForegroundMessage only
+    // covers the app-already-open case above.
+    const unsubscribeOpened = setupNotificationNavigation();
+    return () => {
+      unsubscribeForeground();
+      unsubscribeOpened();
+    };
   }, [user, justRegistered]);
 
   return (

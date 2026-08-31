@@ -102,7 +102,9 @@ export default function PlacesScreen() {
       setFormVisible(false);
       resetForm();
       setSubmittedNotice(true);
-      sendPushNotification(user.id, 'Məkan təklifi göndərildi ✅', `"${submittedName}" baxılmaq üçün göndərildi.`);
+      sendPushNotification(user.id, 'Məkan təklifi göndərildi ✅', `"${submittedName}" baxılmaq üçün göndərildi.`, {
+        route: '/(tabs)/places',
+      });
     } catch (err: any) {
       Alert.alert('Göndərilmədi', err.message ?? 'Xəta baş verdi, yenidən cəhd edin.');
     } finally {

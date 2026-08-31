@@ -216,7 +216,8 @@ export default function ProductDetailScreen() {
       sendPushNotification(
         user.id,
         'Təklif göndərildi ✅',
-        `"${submitName.trim()}" təklifiniz baxılmaq üçün göndərildi.`
+        `"${submitName.trim()}" təklifiniz baxılmaq üçün göndərildi.`,
+        { route: `/product/${product.barcode}` }
       );
     } catch (err: any) {
       Alert.alert('Göndərilmədi', err.message ?? 'Xəta baş verdi, yenidən cəhd edin.');

@@ -13,6 +13,7 @@ import { useHistory } from '../lib/history-context';
 import { lookupBarcode } from '../lib/certification';
 import { logScanEvent } from '../lib/scanEvents';
 import { hasInternetConnection } from '../lib/network';
+import { hapticForStatus } from '../lib/haptics';
 import { CertificationResult } from '../lib/types';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
@@ -42,6 +43,7 @@ export default function ShoppingScanScreen() {
         const online = await hasInternetConnection();
         if (!online) return;
         const result = await lookupBarcode(barcode);
+        hapticForStatus(result.status);
         setItems((prev) => [...prev, result]);
         await addScan(result);
         logScanEvent(result);

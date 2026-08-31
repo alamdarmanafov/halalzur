@@ -12,6 +12,7 @@ import { useHistory } from '../../lib/history-context';
 import { lookupBarcode } from '../../lib/certification';
 import { logScanEvent } from '../../lib/scanEvents';
 import { hasInternetConnection } from '../../lib/network';
+import { hapticForStatus } from '../../lib/haptics';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 const FREE_DAILY_SCAN_LIMIT = 3;
@@ -49,6 +50,7 @@ export default function ScanScreen() {
           return;
         }
         const result = await lookupBarcode(barcode);
+        hapticForStatus(result.status);
         await addScan(result);
         logScanEvent(result);
         if (!isPremium) await incrementScanCount();

@@ -47,7 +47,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { userId, title, body } = req.body || {};
+  const { userId, title, body, data } = req.body || {};
   if (!userId || !title || !body) {
     console.error('send-notification: missing_fields', { userId: !!userId, title: !!title, body: !!body });
     res.status(400).json({ error: 'missing_fields' });
@@ -92,7 +92,13 @@ export default async function handler(req, res) {
     let sent = 0;
     for (const { fcm_token } of tokens) {
       try {
-        await messaging.send({ token: fcm_token, notification: { title, body } });
+        // FCM data payloads must be flat string maps — route is the only
+        // field lib/pushNotify.ts ever sends, but guard anyway.
+        const fcmData =
+          data && typeof data === 'object'
+            ? Object.fromEntries(Object.entries(data).filter(([, v]) => typeof v === 'string'))
+            : undefined;
+        await messaging.send({ token: fcm_token, notification: { title, body }, data: fcmData });
         sent++;
       } catch (err) {
         console.error('send-notification: FCM send failed', err.code, err.message);

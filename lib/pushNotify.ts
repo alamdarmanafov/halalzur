@@ -13,7 +13,18 @@
 const API_BASE = process.env.EXPO_PUBLIC_ADMIN_API_URL;
 const NOTIFY_SECRET = process.env.EXPO_PUBLIC_NOTIFY_SECRET;
 
-export async function sendPushNotification(userId: string, title: string, body: string): Promise<void> {
+/**
+ * `data.route`, if set, is an expo-router path (e.g. "/achievements" or
+ * "/product/8690504048068") — lib/notifications.ts uses it to take the
+ * user straight to the relevant screen when they tap the notification,
+ * instead of just opening the app to wherever it was left.
+ */
+export async function sendPushNotification(
+  userId: string,
+  title: string,
+  body: string,
+  data?: { route?: string }
+): Promise<void> {
   if (!API_BASE) return;
   try {
     await fetch(`${API_BASE.replace(/\/$/, '')}/api/send-notification`, {
@@ -22,7 +33,7 @@ export async function sendPushNotification(userId: string, title: string, body: 
         'Content-Type': 'application/json',
         'x-notify-secret': NOTIFY_SECRET ?? '',
       },
-      body: JSON.stringify({ userId, title, body }),
+      body: JSON.stringify({ userId, title, body, data }),
     });
   } catch {
     // best-effort

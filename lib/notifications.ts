@@ -5,8 +5,11 @@ import {
   getToken,
   subscribeToTopic,
   onMessage,
+  onNotificationOpenedApp,
+  getInitialNotification,
   AuthorizationStatus,
 } from '@react-native-firebase/messaging';
+import { router } from 'expo-router';
 import { supabase, isSupabaseConfigured } from './supabase';
 
 /**
@@ -67,11 +70,39 @@ export async function registerForPushNotifications(userId: string): Promise<stri
 /**
  * FCM doesn't show a system banner for foreground messages on its own —
  * that's standard iOS/Android behavior, not a bug. The caller decides how
- * to surface it (e.g. an Alert, or an in-app banner).
+ * to surface it (e.g. an Alert, or an in-app banner). `route`, if the
+ * notification carried one (lib/pushNotify.ts's `data.route`), is where a
+ * tap on it should take the user.
  */
-export function onForegroundMessage(handler: (title: string, body: string) => void) {
+export function onForegroundMessage(handler: (title: string, body: string, route?: string) => void) {
   const messaging = getMessaging();
   return onMessage(messaging, async (remoteMessage) => {
-    handler(remoteMessage.notification?.title ?? 'Halalzur', remoteMessage.notification?.body ?? '');
+    handler(
+      remoteMessage.notification?.title ?? 'Halalzur',
+      remoteMessage.notification?.body ?? '',
+      remoteMessage.data?.route as string | undefined
+    );
   });
+}
+
+function navigateToNotificationRoute(remoteMessage: { data?: Record<string, string | object> } | null) {
+  const route = remoteMessage?.data?.route;
+  if (!route || typeof route !== 'string') return;
+  try {
+    router.push(route as any);
+  } catch {
+    // Route may not resolve if the app's still initializing — not fatal.
+  }
+}
+
+/**
+ * Handles the two cases FCM's foreground `onMessage` doesn't cover:
+ * tapping a notification that arrived while backgrounded, and one that
+ * cold-started the app (getInitialNotification). Call once on mount.
+ */
+export function setupNotificationNavigation(): () => void {
+  const messaging = getMessaging();
+  const unsubscribe = onNotificationOpenedApp(messaging, navigateToNotificationRoute);
+  getInitialNotification(messaging).then(navigateToNotificationRoute);
+  return unsubscribe;
 }
