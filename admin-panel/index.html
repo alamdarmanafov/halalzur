@@ -1318,18 +1318,43 @@
   function buildIngredientsHtml(ingredients) {
     if (!ingredients || !ingredients.length) return "";
     var chips = ingredients
-      .map(function (ing) {
+      .map(function (ing, index) {
         var isECode = ECODE_PATTERN.test(ing.trim());
         return (
-          '<span style="display:inline-block; margin:2px 4px 2px 0; padding:2px 8px; border-radius:10px; font-size:12px; ' +
+          '<span style="display:inline-flex; align-items:center; gap:4px; margin:2px 4px 2px 0; padding:2px 6px 2px 8px; border-radius:10px; font-size:12px; ' +
           (isECode
             ? "background:#fff3cd; color:#8a6100; font-weight:600;"
             : "background:#f0f0f0; color:#444;") +
-          '">' + esc(ing) + "</span>"
+          '">' + esc(ing) +
+          '<span data-remove-ingredient-index="' + index + '" title="Sil" style="cursor:pointer; opacity:0.6; font-weight:700; padding:0 2px;">×</span>' +
+          '</span>'
         );
       })
       .join("");
     return '<div class="pc-sub" style="margin-top:6px;">Tərkib: ' + chips + "</div>";
+  }
+
+  /** Saves a product's edited ingredients list, updating the card's chips
+   * in place (no full list reload) — shared by both add-E-code and
+   * remove-ingredient so a card never jumps around while an admin is
+   * actively editing it. */
+  function saveIngredients(row, card, ingredients) {
+    sb("certified_entries?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=representation" },
+      body: { ingredients: ingredients, updated_at: new Date().toISOString() },
+    })
+      .then(function (updatedRows) {
+        if (!updatedRows || !updatedRows.length) {
+          toast("Yadda saxlanmadı: icazə yoxdur (certified_entries update policy Supabase-də işə salınmayıb)");
+          return;
+        }
+        row.ingredients = ingredients;
+        card.querySelector('[data-role="ingredients-block"]').innerHTML = buildIngredientsHtml(ingredients);
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      });
   }
 
   function buildProductCard(row) {
@@ -1422,6 +1447,11 @@
     card.querySelector('[data-action="add-ecode-btn"]').addEventListener("click", function () {
       addEcodeToProduct(row, card, ecodeInput);
     });
+    card.querySelector('[data-role="ingredients-block"]').addEventListener("click", function (e) {
+      var target = e.target.closest("[data-remove-ingredient-index]");
+      if (!target) return;
+      removeIngredientFromProduct(row, card, parseInt(target.getAttribute("data-remove-ingredient-index"), 10));
+    });
     return card;
   }
 
@@ -1440,27 +1470,19 @@
       return;
     }
     ingredients.push(code);
-    sb("certified_entries?id=eq." + row.id, {
-      method: "PATCH",
-      headers: { "Prefer": "return=representation" },
-      body: { ingredients: ingredients, updated_at: new Date().toISOString() },
-    })
-      .then(function (updatedRows) {
-        if (!updatedRows || !updatedRows.length) {
-          toast("Yadda saxlanmadı: icazə yoxdur (certified_entries update policy Supabase-də işə salınmayıb)");
-          return;
-        }
-        row.ingredients = ingredients;
-        // Update this card's ingredient chips in place — no full reload,
-        // so the card doesn't jump elsewhere in the (re-sorted) list and
-        // adding several E-codes in a row stays on the same card.
-        card.querySelector('[data-role="ingredients-block"]').innerHTML = buildIngredientsHtml(ingredients);
-        input.value = "";
-        toast(code + " əlavə edildi");
-      })
-      .catch(function (err) {
-        toast("Xəta: " + err.message);
-      });
+    input.value = "";
+    saveIngredients(row, card, ingredients);
+    toast(code + " əlavə edildi");
+  }
+
+  function removeIngredientFromProduct(row, card, index) {
+    var ingredients = (row.ingredients || []).slice();
+    var removed = ingredients[index];
+    if (removed == null) return;
+    if (!window.confirm('"' + removed + '" tərkibdən silinsin?')) return;
+    ingredients.splice(index, 1);
+    saveIngredients(row, card, ingredients);
+    toast(removed + " silindi");
   }
 
   function updateProduct(row, card, btn, status, category, imageUrl) {
