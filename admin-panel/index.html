@@ -351,6 +351,20 @@
       <span id="productsCountLabel"></span>
     </div>
 
+    <div class="place-form" id="unclassifiedWrap" style="margin-bottom: 16px;">
+      <div class="panel-head" style="margin-bottom: 8px;">
+        <h3 style="margin: 0; font-size: 15px;">Ən çox axtarılan naməlum məhsullar</h3>
+        <button type="button" class="btn" id="unclassifiedRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+          Yenilə
+        </button>
+      </div>
+      <p class="hint">
+        İstifadəçilər bu barkodları skan edib, amma heç kim təklif etməyib — bazada yoxdur. Barkoda toxunun,
+        aşağıdakı formaya köçürülsün.
+      </p>
+      <div id="unclassifiedList"></div>
+    </div>
+
     <form class="place-form" id="productForm">
       <div class="field-grid">
         <div class="field">
@@ -672,6 +686,7 @@
     loadDashboard();
     loadAll();
     loadProducts();
+    loadUnclassified();
     loadPlaces();
     loadAnnouncements();
     loadUsers();
@@ -924,6 +939,52 @@
       });
   }
 
+  function loadUnclassified() {
+    var wrap = document.getElementById("unclassifiedList");
+    wrap.textContent = "Yüklənir…";
+    sb("unclassified_scan_counts?order=scan_count.desc&limit=25")
+      .then(function (rows) {
+        rows = rows || [];
+        wrap.innerHTML = "";
+        if (!rows.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Hazırda gözləyən naməlum barkod yoxdur.";
+          wrap.appendChild(empty);
+          return;
+        }
+        rows.forEach(function (row) {
+          var item = document.createElement("div");
+          item.className = "place-card";
+          item.style.cursor = "pointer";
+          item.style.marginBottom = "8px";
+          item.innerHTML =
+            '<div>' +
+              '<div class="pc-title">' + esc(row.barcode) + '</div>' +
+              '<div class="pc-sub">' + row.scan_count + ' dəfə skan edilib · son: ' +
+                new Date(row.last_scanned_at).toLocaleDateString("az-AZ") + '</div>' +
+            '</div>' +
+            '<span class="btn">Formaya köçür</span>';
+          item.addEventListener("click", function () {
+            var barcodeInput = document.getElementById("productBarcode");
+            barcodeInput.value = row.barcode;
+            barcodeInput.scrollIntoView({ behavior: "smooth", block: "center" });
+            document.getElementById("productName").focus();
+          });
+          wrap.appendChild(item);
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Yüklənmədi: " + err.message;
+        wrap.appendChild(errEl);
+      });
+  }
+
+  document.getElementById("unclassifiedRefreshBtn").addEventListener("click", loadUnclassified);
+
   function renderProductCards(list) {
     var container = document.getElementById("productCards");
     var empty = document.getElementById("productsEmptyState");
@@ -1065,6 +1126,7 @@
         toast("Məhsul əlavə edildi: " + name);
         e.target.reset();
         loadProducts();
+        loadUnclassified();
       })
       .catch(function (err) {
         errorEl.textContent = "Xəta: " + err.message;
@@ -1147,6 +1209,7 @@
         document.getElementById("bulkAddInput").value = "";
         document.getElementById("bulkAddWrap").hidden = true;
         loadProducts();
+        loadUnclassified();
       })
       .catch(function (err) {
         errorEl.textContent = "Xəta: " + err.message;

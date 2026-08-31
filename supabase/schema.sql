@@ -337,3 +337,22 @@ create policy "Public update" on favorites
 
 create policy "Public delete" on favorites
   for delete using (true);
+
+-- Powers the admin panel's "Ən çox axtarılan naməlum məhsullar" widget —
+-- scan_events already records every scan regardless of whether the user
+-- submits it, so this surfaces demand for barcodes nobody has gotten
+-- around to adding, without depending on anyone filling in the
+-- product-submission form. Both source tables are already public-read,
+-- so this view exposes nothing that wasn't already readable.
+create view unclassified_scan_counts as
+select
+  barcode,
+  count(*) as scan_count,
+  max(created_at) as last_scanned_at
+from scan_events
+where barcode is not null
+  and barcode not in (select barcode from certified_entries where barcode is not null)
+group by barcode
+order by count(*) desc;
+
+grant select on unclassified_scan_counts to anon;
