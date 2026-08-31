@@ -1,12 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ScrollView, RefreshControl, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Pressable,
+  TextInput,
+  ScrollView,
+  RefreshControl,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useHistory } from '../../lib/history-context';
 import { useLanguage } from '../../lib/i18n-context';
-import { searchProducts, getAllProducts, getManyByBarcode } from '../../lib/certification';
+import { searchProducts, getManyByBarcode } from '../../lib/certification';
 import { PRODUCT_CATEGORIES } from '../../lib/categories';
 import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -30,7 +41,8 @@ export default function ProductsScreen() {
   const { t } = useLanguage();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('Hamısı');
-  const [results, setResults] = useState<CertificationResult[]>(getAllProducts());
+  const [results, setResults] = useState<CertificationResult[]>([]);
+  const [loadingResults, setLoadingResults] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   // History stores a frozen snapshot from scan time, so a product admin
   // approves/re-statuses later never updates there on its own — this
@@ -39,8 +51,11 @@ export default function ProductsScreen() {
 
   useEffect(() => {
     let active = true;
+    setLoadingResults(true);
     searchProducts(query).then((r) => {
-      if (active) setResults(r);
+      if (!active) return;
+      setResults(r);
+      setLoadingResults(false);
     });
     return () => {
       active = false;
@@ -159,10 +174,14 @@ export default function ProductsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Ionicons name="search-outline" size={32} color={colors.grayLight} />
-            <Text style={styles.emptyText}>{t('productsEmptyResult')}</Text>
-          </View>
+          loadingResults && !isHistoryView ? (
+            <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+          ) : (
+            <View style={styles.empty}>
+              <Ionicons name="search-outline" size={32} color={colors.grayLight} />
+              <Text style={styles.emptyText}>{t('productsEmptyResult')}</Text>
+            </View>
+          )
         }
         renderItem={({ item }) => (
           <Pressable
