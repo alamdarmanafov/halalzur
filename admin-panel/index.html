@@ -1357,7 +1357,7 @@
             (row.certificate_number ? '<div class="pc-sub">Sertifikat: ' + esc(row.certificate_number) + '</div>' : '') +
           '</div>' +
         '</div>' +
-        buildIngredientsHtml(row.ingredients) +
+        '<div data-role="ingredients-block">' + buildIngredientsHtml(row.ingredients) + '</div>' +
         '<div style="display:flex; flex-wrap:wrap; gap:12px;">' +
           '<div class="field" style="flex:1 1 140px; margin:0;">' +
             '<label>Status</label>' +
@@ -1420,12 +1420,12 @@
     var ecodeInput = card.querySelector('[data-role="add-ecode"]');
     setupEcodeAutocomplete(ecodeInput, card.querySelector('[data-role="ecode-dropdown"]'));
     card.querySelector('[data-action="add-ecode-btn"]').addEventListener("click", function () {
-      addEcodeToProduct(row, ecodeInput);
+      addEcodeToProduct(row, card, ecodeInput);
     });
     return card;
   }
 
-  function addEcodeToProduct(row, input) {
+  function addEcodeToProduct(row, card, input) {
     var raw = input.value.trim();
     if (!raw) return;
     var code = raw.split(" — ")[0].trim().toUpperCase().replace(/\s+/g, "");
@@ -1451,8 +1451,12 @@
           return;
         }
         row.ingredients = ingredients;
+        // Update this card's ingredient chips in place — no full reload,
+        // so the card doesn't jump elsewhere in the (re-sorted) list and
+        // adding several E-codes in a row stays on the same card.
+        card.querySelector('[data-role="ingredients-block"]').innerHTML = buildIngredientsHtml(ingredients);
+        input.value = "";
         toast(code + " əlavə edildi");
-        loadProducts();
       })
       .catch(function (err) {
         toast("Xəta: " + err.message);
