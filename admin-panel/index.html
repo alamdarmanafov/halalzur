@@ -4167,6 +4167,27 @@
     toast(removed + " silindi");
   }
 
+  // "My brands": pushes a notification to everyone who follows this brand
+  // (app's brand_follows table, set from the 🔖 icon on the product
+  // page) whenever a product's halal status actually changes. Best-effort
+  // — never blocks the status update itself if a push fails.
+  function notifyBrandFollowers(brand, productName, newStatus) {
+    sb("brand_follows?select=user_id&brand=eq." + encodeURIComponent(brand))
+      .then(function (followers) {
+        if (!followers || !followers.length) return;
+        var title = "Təqib etdiyiniz marka: " + brand;
+        var body = '"' + productName + '" indi ' + (STATUS_LABEL[newStatus] || newStatus);
+        followers.forEach(function (f) {
+          fetch("/api/send-user-notification", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-app-key": SUPABASE_ANON_KEY },
+            body: JSON.stringify({ userId: f.user_id, title: title, body: body }),
+          }).catch(function () {});
+        });
+      })
+      .catch(function () {});
+  }
+
   function updateProduct(row, card, btn, status, category, imageUrl, adminNote) {
     btn.disabled = true;
     var originalText = btn.textContent;
@@ -4192,6 +4213,7 @@
         toast("Yeniləndi: " + (row.product_name || row.brand));
         if (row.status !== status) {
           logAudit("status_change", "certified_entries", row.id, (row.product_name || row.brand) + " → " + status);
+          if (row.brand) notifyBrandFollowers(row.brand, row.product_name || row.brand, status);
         }
         row.status = status;
         row.category = category || null;

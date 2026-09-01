@@ -936,3 +936,18 @@ drop policy if exists "Public read" on points_log;
 create policy "Public read" on points_log for select using (true);
 drop policy if exists "Public insert" on points_log;
 create policy "Public insert" on points_log for insert with check (true);
+
+-- "My brands": a user follows a brand (app/product/[id].tsx's bell icon)
+-- and gets a push when the admin panel changes the halal status of any
+-- product from that brand (admin-panel/index.html's updateProduct()
+-- looks this table up by brand, no separate notification setup needed).
+create table if not exists brand_follows (
+  id uuid primary key default gen_random_uuid(),
+  user_id text not null,
+  brand text not null,
+  created_at timestamptz not null default now(),
+  unique (user_id, brand)
+);
+alter table brand_follows enable row level security;
+drop policy if exists "Public read/insert/delete" on brand_follows;
+create policy "Public read/insert/delete" on brand_follows for all using (true) with check (true);

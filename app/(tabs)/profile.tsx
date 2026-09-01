@@ -125,6 +125,11 @@ export default function ProfileScreen() {
       onPress: () => router.push('/ecodes'),
     },
     {
+      icon: 'bookmark-outline',
+      label: t('profileFollowedBrands'),
+      onPress: () => router.push('/followed-brands'),
+    },
+    {
       icon: 'trophy-outline',
       label: t('profileAchievements'),
       onPress: () => router.push('/achievements'),

@@ -23,6 +23,9 @@ export const translations: Record<Language, Dict> = {
     profileNotificationsOffBody:
       'İcazə verilməyib, ya da bu build-də (Expo Go) native bildiriş modulu yoxdur. Ayarlar → Bildirişlər-dən aça bilərsiniz.',
     profileEcodes: 'E-kod bələdçisi',
+    profileFollowedBrands: 'Təqib etdiyim markalar',
+    followedBrandsTitle: 'Təqib etdiyim markalar',
+    followedBrandsEmpty: 'Hələ heç bir marka təqib etmirsiniz. Məhsul səhifəsindəki 🔖 düyməsinə basaraq marka əlavə edin.',
     profileAchievements: 'Nailiyyətlər',
     profileLanguage: 'Dil',
     profileLanguageTitle: 'Dil seçimi',
@@ -400,6 +403,9 @@ export const translations: Record<Language, Dict> = {
     profileNotificationsOffBody:
       "Permission wasn't granted, or this build (Expo Go) has no native notification module. You can enable it from Settings → Notifications.",
     profileEcodes: 'E-code guide',
+    profileFollowedBrands: 'Brands I follow',
+    followedBrandsTitle: 'Brands I follow',
+    followedBrandsEmpty: "You aren't following any brands yet. Tap the 🔖 icon on a product page to follow one.",
     profileAchievements: 'Achievements',
     profileLanguage: 'Language',
     profileLanguageTitle: 'Choose language',

@@ -32,6 +32,7 @@ import { useLanguage } from '../../lib/i18n-context';
 import { translateIngredientTerm } from '../../lib/ingredientGlossary';
 import { submitProduct, hasSubmittedProduct } from '../../lib/submissions';
 import { getRecommendCount, hasRecommended, toggleRecommend } from '../../lib/recommendations';
+import { isFollowingBrand, followBrand, unfollowBrand } from '../../lib/brandFollows';
 import { sendPushNotification } from '../../lib/pushNotify';
 import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -75,6 +76,7 @@ export default function ProductDetailScreen() {
   const [recommended, setRecommended] = useState(false);
   const [recommendCount, setRecommendCount] = useState(0);
   const [recommending, setRecommending] = useState(false);
+  const [followingBrand, setFollowingBrand] = useState(false);
 
   useEffect(() => {
     getDistinctBrands()
@@ -153,6 +155,31 @@ export default function ProductDetailScreen() {
       cancelled = true;
     };
   }, [id, user]);
+
+  useEffect(() => {
+    if (!user || !product) {
+      setFollowingBrand(false);
+      return;
+    }
+    let cancelled = false;
+    isFollowingBrand(user.id, product.brand).then((yes) => {
+      if (!cancelled) setFollowingBrand(yes);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user, product?.brand]);
+
+  const onToggleFollowBrand = async () => {
+    if (!user || !product) {
+      Alert.alert(t('productRecommendSignInTitle'), t('productRecommendSignInBody'));
+      return;
+    }
+    const next = !followingBrand;
+    setFollowingBrand(next);
+    if (next) await followBrand(user.id, product.brand);
+    else await unfollowBrand(user.id, product.brand);
+  };
 
   const onToggleRecommend = async () => {
     if (!product) return;
@@ -400,9 +427,18 @@ export default function ProductDetailScreen() {
             <Text style={styles.emoji}>{product.imageEmoji}</Text>
           )}
           <Text style={styles.name}>{product.productName}</Text>
-          <Text style={styles.brand}>
-            {product.brand} · {product.category}
-          </Text>
+          <View style={styles.brandRow}>
+            <Text style={styles.brand}>
+              {product.brand} · {product.category}
+            </Text>
+            <Pressable onPress={onToggleFollowBrand} hitSlop={8}>
+              <Ionicons
+                name={followingBrand ? 'bookmark' : 'bookmark-outline'}
+                size={18}
+                color={followingBrand ? colors.primary : colors.gray}
+              />
+            </Pressable>
+          </View>
           <View style={{ marginTop: spacing.sm }}>
             <StatusBadge status={product.status} />
           </View>
@@ -780,7 +816,8 @@ const styles = StyleSheet.create({
   emoji: { fontSize: 56 },
   productImage: { width: 120, height: 120, borderRadius: radius.lg },
   name: { ...typography.h1, color: colors.black, marginTop: spacing.sm, textAlign: 'center', paddingHorizontal: spacing.lg },
-  brand: { ...typography.body, color: colors.gray, marginTop: 4 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: 4 },
+  brand: { ...typography.body, color: colors.gray },
   statusDesc: {
     ...typography.small,
     color: colors.gray,
