@@ -2380,7 +2380,12 @@
   function loadCustomEcodes() {
     sb("custom_ecodes?order=created_at.desc&select=*")
       .then(function (rows) {
-        renderCustomEcodeCards(rows || []);
+        rows = rows || [];
+        CUSTOM_ECODE_LIST = rows.map(function (row) {
+          return [row.code, row.name, row.status];
+        });
+        rebuildEcodeStatusMap();
+        renderCustomEcodeCards(rows);
       })
       .catch(function (err) {
         toast("E-kodlar yüklənmədi: " + err.message);
@@ -2639,6 +2644,11 @@
     loadUsers();
     loadReferralReport();
     loadFeedback();
+    // Not lazy like "certifiers"/"trash"/"audit" — the product-edit
+    // E-code autocomplete (setupEcodeAutocomplete) needs custom_ecodes
+    // merged in immediately, not only once the admin happens to visit
+    // the "E-kodlar" section.
+    loadCustomEcodes();
   }
 
   if (sessionStorage.getItem(SESSION_KEY) === "1") {
@@ -3882,7 +3892,7 @@
       var q = query.trim().toLowerCase();
       var matches = !q
         ? []
-        : ECODE_LIST.filter(function (pair) {
+        : allEcodePairs().filter(function (pair) {
             return pair[0].toLowerCase().indexOf(q) !== -1 || pair[1].toLowerCase().indexOf(q) !== -1;
           }).slice(0, 25);
 
@@ -3932,12 +3942,28 @@
   var ECODE_CHIP_STYLE = {
     halal: "background:#e3f6e8; color:#177245; font-weight:600;",
     depends: "background:#fff3cd; color:#8a6100; font-weight:600;",
+    mushbooh: "background:#fff3cd; color:#8a6100; font-weight:600;",
     haram: "background:#fde2e1; color:#b3241c; font-weight:600;",
   };
+  // Admin-added E-codes (custom_ecodes table) — kept separate from the
+  // hardcoded ECODE_LIST and merged in at read time via allEcodePairs(),
+  // so the product-edit autocomplete and ingredient-chip coloring both
+  // see a code the moment it's added, not just inside the "E-kodlar"
+  // section that created it (loadCustomEcodes() below also refreshes
+  // this — see its call from enterApp() so it's populated on login,
+  // before the admin ever opens that section).
+  var CUSTOM_ECODE_LIST = [];
+  function allEcodePairs() {
+    return ECODE_LIST.concat(CUSTOM_ECODE_LIST);
+  }
   var ECODE_STATUS_MAP = {};
-  ECODE_LIST.forEach(function (pair) {
-    ECODE_STATUS_MAP[pair[0]] = pair[2];
-  });
+  function rebuildEcodeStatusMap() {
+    ECODE_STATUS_MAP = {};
+    allEcodePairs().forEach(function (pair) {
+      ECODE_STATUS_MAP[pair[0]] = pair[2];
+    });
+  }
+  rebuildEcodeStatusMap();
 
   function buildIngredientsHtml(ingredients) {
     if (!ingredients || !ingredients.length) return "";
