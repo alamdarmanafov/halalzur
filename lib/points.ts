@@ -19,4 +19,7 @@ export async function awardPoints(userId: string, userName: string | null, amoun
     },
     { onConflict: 'user_id' }
   );
+  // Best-effort — backs the admin panel's "Bu ay" leaderboard toggle,
+  // never blocks the actual point award if it fails.
+  supabase.from('points_log').insert({ user_id: userId, user_name: userName, amount }).then(() => {});
 }

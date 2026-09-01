@@ -918,3 +918,21 @@ drop policy if exists "Public insert" on custom_ecodes;
 create policy "Public insert" on custom_ecodes for insert with check (true);
 drop policy if exists "Public delete" on custom_ecodes;
 create policy "Public delete" on custom_ecodes for delete using (true);
+
+-- Per-event point history — user_points only ever stored a running
+-- total, with no way to ask "who was most active THIS month" (the
+-- admin panel's leaderboard "Bu ay" toggle). Every awardPoints() call
+-- (lib/points.ts) now also inserts one row here.
+create table if not exists points_log (
+  id uuid primary key default gen_random_uuid(),
+  user_id text not null,
+  user_name text,
+  amount integer not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_points_log_created_at on points_log (created_at);
+alter table points_log enable row level security;
+drop policy if exists "Public read" on points_log;
+create policy "Public read" on points_log for select using (true);
+drop policy if exists "Public insert" on points_log;
+create policy "Public insert" on points_log for insert with check (true);

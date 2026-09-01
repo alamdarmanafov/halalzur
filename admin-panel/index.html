@@ -461,6 +461,10 @@
 
     <div class="panel-head" style="margin-top: 32px;">
       <h2>Xal lideri</h2>
+      <div style="display:flex; gap:6px;">
+        <button type="button" class="btn btn-approve" id="leaderboardAllTimeBtn" style="padding: 4px 10px; font-size: 12.5px;">Bütün vaxt</button>
+        <button type="button" class="btn" id="leaderboardMonthBtn" style="padding: 4px 10px; font-size: 12.5px;">Bu ay</button>
+      </div>
     </div>
     <div id="leaderboardList"></div>
 
@@ -1939,40 +1943,78 @@
   document.getElementById("registrationCountriesRefreshBtn").addEventListener("click", loadRegistrationCountries);
 
   // ---- points leaderboard ----
-  function loadLeaderboard() {
+  function renderLeaderboardRows(rows, pointsKey) {
     var wrap = document.getElementById("leaderboardList");
-    wrap.textContent = "Yüklənir…";
-    sb("user_points?order=points.desc&limit=20&select=*")
-      .then(function (rows) {
-        wrap.innerHTML = "";
-        if (!rows || !rows.length) {
-          var empty = document.createElement("div");
-          empty.className = "empty-state";
-          empty.textContent = "Hələ heç kimin xalı yoxdur.";
-          wrap.appendChild(empty);
-          return;
-        }
-        rows.forEach(function (row, i) {
-          var item = document.createElement("div");
-          item.className = "place-card";
-          item.style.marginBottom = "6px";
-          item.innerHTML =
-            '<div style="display:flex; align-items:center; gap:14px;">' +
-              '<span style="font-weight:800; color:var(--ink-muted); width:20px;">' + (i + 1) + '</span>' +
-              '<div class="pc-title" style="margin:0;">' + esc(row.user_name || row.user_id) + '</div>' +
-            '</div>' +
-            '<span style="font-weight:800; color:var(--brand);">🏆 ' + row.points + '</span>';
-          wrap.appendChild(item);
-        });
-      })
-      .catch(function (err) {
-        wrap.innerHTML = "";
-        var errEl = document.createElement("div");
-        errEl.className = "gate-error";
-        errEl.textContent = "Yüklənmədi: " + err.message;
-        wrap.appendChild(errEl);
-      });
+    wrap.innerHTML = "";
+    if (!rows || !rows.length) {
+      var empty = document.createElement("div");
+      empty.className = "empty-state";
+      empty.textContent = "Hələ heç kimin xalı yoxdur.";
+      wrap.appendChild(empty);
+      return;
+    }
+    rows.forEach(function (row, i) {
+      var item = document.createElement("div");
+      item.className = "place-card";
+      item.style.marginBottom = "6px";
+      item.innerHTML =
+        '<div style="display:flex; align-items:center; gap:14px;">' +
+          '<span style="font-weight:800; color:var(--ink-muted); width:20px;">' + (i + 1) + '</span>' +
+          '<div class="pc-title" style="margin:0;">' + esc(row.user_name || row.user_id) + '</div>' +
+        '</div>' +
+        '<span style="font-weight:800; color:var(--brand);">🏆 ' + row[pointsKey] + '</span>';
+      wrap.appendChild(item);
+    });
   }
+
+  function leaderboardError(err) {
+    var wrap = document.getElementById("leaderboardList");
+    wrap.innerHTML = "";
+    var errEl = document.createElement("div");
+    errEl.className = "gate-error";
+    errEl.textContent = "Yüklənmədi: " + err.message;
+    wrap.appendChild(errEl);
+  }
+
+  function loadLeaderboard() {
+    document.getElementById("leaderboardAllTimeBtn").className = "btn btn-approve";
+    document.getElementById("leaderboardMonthBtn").className = "btn";
+    document.getElementById("leaderboardList").textContent = "Yüklənir…";
+    sb("user_points?order=points.desc&limit=20&select=*")
+      .then(function (rows) { renderLeaderboardRows(rows, "points"); })
+      .catch(leaderboardError);
+  }
+
+  // Aggregated client-side from points_log (a timestamped event per
+  // award — user_points is only ever a running lifetime total, with no
+  // way to filter it to "this month"). Volume is small enough (points
+  // events, not scans) that fetching the month's raw rows and summing
+  // in JS is simpler than a server-side view for this one toggle.
+  function loadMonthlyLeaderboard() {
+    document.getElementById("leaderboardAllTimeBtn").className = "btn";
+    document.getElementById("leaderboardMonthBtn").className = "btn btn-approve";
+    document.getElementById("leaderboardList").textContent = "Yüklənir…";
+    var monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    sb("points_log?select=user_id,user_name,amount&created_at=gte." + monthStart.toISOString())
+      .then(function (rows) {
+        var totals = {};
+        (rows || []).forEach(function (r) {
+          if (!totals[r.user_id]) totals[r.user_id] = { user_id: r.user_id, user_name: r.user_name, month_points: 0 };
+          totals[r.user_id].month_points += r.amount;
+          if (r.user_name) totals[r.user_id].user_name = r.user_name;
+        });
+        var ranked = Object.keys(totals)
+          .map(function (id) { return totals[id]; })
+          .sort(function (a, b) { return b.month_points - a.month_points; })
+          .slice(0, 20);
+        renderLeaderboardRows(ranked, "month_points");
+      })
+      .catch(leaderboardError);
+  }
+  document.getElementById("leaderboardAllTimeBtn").addEventListener("click", loadLeaderboard);
+  document.getElementById("leaderboardMonthBtn").addEventListener("click", loadMonthlyLeaderboard);
 
   // ---- CSV export ----
   function toCsv(rows) {
