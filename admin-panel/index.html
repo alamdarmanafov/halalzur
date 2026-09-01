@@ -2395,6 +2395,9 @@
     var errorEl = document.getElementById("customEcodeFormError");
     errorEl.textContent = "";
     var code = document.getElementById("customEcodeCode").value.trim().toUpperCase().replace(/\s+/g, "");
+    // Labels/admins often write just the number ("1422") without the "E"
+    // prefix — treat that the same as "E1422" instead of rejecting it.
+    if (/^\d{3,4}[A-Z]?$/.test(code)) code = "E" + code;
     var name = document.getElementById("customEcodeName").value.trim();
     var category = document.getElementById("customEcodeCategory").value.trim();
     var status = document.getElementById("customEcodeStatus").value;
@@ -4095,6 +4098,7 @@
     var raw = input.value.trim();
     if (!raw) return;
     var code = raw.split(" — ")[0].trim().toUpperCase().replace(/\s+/g, "");
+    if (/^\d{3,4}[A-Z]?$/.test(code)) code = "E" + code;
     if (!ECODE_PATTERN.test(code)) {
       toast("Düzgün E-kod formatı deyil (məs. E100)");
       return;
@@ -4280,6 +4284,7 @@
       var raw = ecodeInput.value.trim();
       if (!raw) return;
       var code = raw.split(" — ")[0].trim().toUpperCase().replace(/\s+/g, "");
+      if (/^\d{3,4}[A-Z]?$/.test(code)) code = "E" + code;
       if (!ECODE_PATTERN.test(code)) {
         toast("Düzgün E-kod formatı deyil (məs. E100)");
         return;
