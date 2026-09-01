@@ -33,12 +33,29 @@
   "operatingSystem": "iOS",
   "url": "https://halalzur.com/",
   "description": "Məhsulun barkodunu skan et, halal statusunu GIMDES, JAKIM, AZSTANDART Halal kimi tanınan sertifikat orqanlarına əsasən dərhal öyrən.",
+  "image": "https://halalzur.com/logo.png",
   "offers": {
     "@type": "Offer",
     "price": "0",
     "priceCurrency": "USD",
     "description": "Pulsuz plan — gündə 3 skan"
   }
+}
+</script>
+
+<!-- Tells Google which image is the official brand logo (the "Logo" rich
+     result shown when someone searches "Halalzur" by name) — the favicon
+     link above is a separate, smaller signal Google uses for the little
+     icon next to search result links. Needs Google to re-crawl/re-index
+     the page before it shows up; requesting indexing in Search Console
+     speeds that up but doesn't make it instant. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "Halalzur",
+  "url": "https://halalzur.com/",
+  "logo": "https://halalzur.com/logo.png"
 }
 </script>
 
