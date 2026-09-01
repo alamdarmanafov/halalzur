@@ -493,6 +493,7 @@
       <button type="button" class="nav-item active" id="productsTabBrowseBtn" style="width: auto;">Məhsullar</button>
       <button type="button" class="nav-item" id="productsTabAddBtn" style="width: auto;">Məhsul əlavə et</button>
       <button type="button" class="nav-item" id="productsTabEditBtn" style="width: auto;">Məhsul redaktə</button>
+      <button type="button" class="nav-item" id="productsTabCategoriesBtn" style="width: auto;">Kateqoriyalar</button>
     </div>
 
     <div id="productsTabBrowse">
@@ -711,6 +712,29 @@
         <span id="editProductPageLabel"></span>
         <button type="button" class="btn" id="editProductNextPageBtn">Növbəti →</button>
       </div>
+    </div>
+
+    <div id="productsTabCategories" hidden>
+      <p class="hint">
+        Bura əlavə/silinən/adı dəyişdirilən kateqoriyalar tətbiqdəki filtr çipləri və "Məhsul təklif et"
+        formasında dərhal görünür — tətbiqi yenidən build etmək lazım deyil.
+      </p>
+      <form class="place-form" id="categoryForm" style="margin-bottom: 16px;">
+        <div class="field-grid">
+          <div class="field">
+            <label for="categoryLabelInput">Ad</label>
+            <input type="text" id="categoryLabelInput" placeholder="Məs. Dəniz məhsulları" required />
+          </div>
+          <div class="field">
+            <label for="categorySortOrderInput">Sıra nömrəsi</label>
+            <input type="number" id="categorySortOrderInput" value="0" />
+          </div>
+        </div>
+        <button type="submit" class="btn btn-approve" style="margin-top: 12px;">Kateqoriya əlavə et</button>
+        <div class="gate-error" id="categoryFormError"></div>
+      </form>
+      <div class="cards" id="categoryCards"></div>
+      <div class="empty-state" id="categoriesEmptyState" hidden>Hələ heç bir kateqoriya yoxdur.</div>
     </div>
     </section>
 
@@ -1088,7 +1112,12 @@
   }
 
   function setProductsTab(which) {
-    var btns = { browse: "productsTabBrowseBtn", add: "productsTabAddBtn", edit: "productsTabEditBtn" };
+    var btns = {
+      browse: "productsTabBrowseBtn",
+      add: "productsTabAddBtn",
+      edit: "productsTabEditBtn",
+      categories: "productsTabCategoriesBtn",
+    };
     Object.keys(btns).forEach(function (key) {
       document.getElementById(btns[key]).classList.toggle("active", key === which);
     });
@@ -1096,7 +1125,9 @@
     document.getElementById("productsTabBrowseList").hidden = which !== "browse";
     document.getElementById("productsTabAdd").hidden = which !== "add";
     document.getElementById("productsTabEdit").hidden = which !== "edit";
+    document.getElementById("productsTabCategories").hidden = which !== "categories";
     if (which === "edit") loadEditProducts();
+    if (which === "categories") loadCategories();
   }
 
   document.getElementById("productsTabBrowseBtn").addEventListener("click", function () {
@@ -1107,6 +1138,9 @@
   });
   document.getElementById("productsTabEditBtn").addEventListener("click", function () {
     setProductsTab("edit");
+  });
+  document.getElementById("productsTabCategoriesBtn").addEventListener("click", function () {
+    setProductsTab("categories");
   });
 
   function toast(msg) {
@@ -2921,6 +2955,114 @@
   document.getElementById("editProductNextPageBtn").addEventListener("click", function () {
     currentEditProductPage += 1;
     loadEditProducts();
+  });
+
+  // ---- product categories ----
+  // Backs lib/categories.ts's getProductCategories() — the app reads this
+  // table directly (falling back to a hardcoded list only if Supabase is
+  // unreachable), so add/rename/delete here shows up in the Products tab's
+  // filter chips and the submission form's category picker without a
+  // rebuild.
+  function loadCategories() {
+    sb("product_categories?select=*&order=sort_order.asc")
+      .then(function (rows) {
+        var container = document.getElementById("categoryCards");
+        var empty = document.getElementById("categoriesEmptyState");
+        container.innerHTML = "";
+        if (!rows || !rows.length) {
+          empty.hidden = false;
+          return;
+        }
+        empty.hidden = true;
+        rows.forEach(function (row) {
+          container.appendChild(buildCategoryCard(row));
+        });
+      })
+      .catch(function (err) {
+        toast("Kateqoriyalar yüklənmədi: " + err.message);
+      });
+  }
+
+  function buildCategoryCard(row) {
+    var card = document.createElement("div");
+    card.className = "place-card";
+    card.innerHTML =
+      '<div>' +
+        '<div class="pc-title">' + esc(row.label) + '</div>' +
+        '<div class="pc-sub">Sıra: ' + row.sort_order + '</div>' +
+      '</div>' +
+      '<div style="display:flex; gap:6px;">' +
+        '<button type="button" class="btn" data-action="rename">Adı dəyiş</button>' +
+        '<button type="button" class="place-delete-btn" data-action="delete">Sil</button>' +
+      '</div>';
+
+    card.querySelector('[data-action="rename"]').addEventListener("click", function (e) {
+      var btn = e.target;
+      var next = window.prompt("Yeni ad:", row.label);
+      if (next === null || !next.trim() || next.trim() === row.label) return;
+      btn.disabled = true;
+      sb("product_categories?id=eq." + row.id, {
+        method: "PATCH",
+        headers: { "Prefer": "return=minimal" },
+        body: { label: next.trim() },
+      })
+        .then(function () {
+          toast("Kateqoriya yeniləndi");
+          logAudit("edit_category", "product_categories", row.id, { from: row.label, to: next.trim() });
+          loadCategories();
+        })
+        .catch(function (err) {
+          toast(/duplicate key|already exists/i.test(err.message) ? "Bu ad artıq var" : "Xəta: " + err.message);
+          btn.disabled = false;
+        });
+    });
+
+    card.querySelector('[data-action="delete"]').addEventListener("click", function (e) {
+      var btn = e.target;
+      if (!window.confirm('"' + row.label + '" kateqoriyası silinsin? Bu kateqoriyadakı məhsullar silinməyəcək, sadəcə filtrdən çıxacaq.')) return;
+      btn.disabled = true;
+      sb("product_categories?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+        .then(function () {
+          toast("Kateqoriya silindi");
+          logAudit("delete_category", "product_categories", row.id, row.label);
+          loadCategories();
+        })
+        .catch(function (err) {
+          toast("Xəta: " + err.message);
+          btn.disabled = false;
+        });
+    });
+
+    return card;
+  }
+
+  document.getElementById("categoryForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var errEl = document.getElementById("categoryFormError");
+    errEl.textContent = "";
+    var label = document.getElementById("categoryLabelInput").value.trim();
+    var sortOrder = parseInt(document.getElementById("categorySortOrderInput").value, 10) || 0;
+    if (!label) return;
+    var btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    sb("product_categories", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: { label: label, sort_order: sortOrder },
+    })
+      .then(function () {
+        toast("Kateqoriya əlavə edildi");
+        logAudit("add_category", "product_categories", null, { label: label });
+        document.getElementById("categoryForm").reset();
+        document.getElementById("categorySortOrderInput").value = 0;
+        loadCategories();
+      })
+      .catch(function (err) {
+        errEl.textContent = /duplicate key|already exists/i.test(err.message) ? "Bu ad artıq var" : "Xəta: " + err.message;
+      })
+      .finally(function () {
+        btn.disabled = false;
+      });
   });
 
   function updateProductBulkBar() {

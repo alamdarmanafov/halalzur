@@ -19,7 +19,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { lookupBarcode, STATUS_DESC_KEY, getHalalAlternatives, getDistinctBrands } from '../../lib/certification';
-import { PRODUCT_CATEGORIES } from '../../lib/categories';
+import { PRODUCT_CATEGORIES, getProductCategories } from '../../lib/categories';
 import { extractECodesFromText, searchECodes, ECODE_STATUS_LABEL_KEY } from '../../lib/eCodes';
 import { recognizeIngredientText } from '../../lib/ocr';
 import { hasInternetConnection } from '../../lib/network';
@@ -69,6 +69,7 @@ export default function ProductDetailScreen() {
   const [fieldPicker, setFieldPicker] = useState<'brand' | 'category' | null>(null);
   const [fieldPickerQuery, setFieldPickerQuery] = useState('');
   const [brandOptions, setBrandOptions] = useState<string[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([...PRODUCT_CATEGORIES]);
   const [recommended, setRecommended] = useState(false);
   const [recommendCount, setRecommendCount] = useState(0);
   const [recommending, setRecommending] = useState(false);
@@ -76,6 +77,12 @@ export default function ProductDetailScreen() {
   useEffect(() => {
     getDistinctBrands()
       .then(setBrandOptions)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    getProductCategories()
+      .then(setCategoryOptions)
       .catch(() => {});
   }, []);
 
@@ -202,7 +209,7 @@ export default function ProductDetailScreen() {
     setManualIngredients(next.join(', '));
   };
 
-  const fieldPickerOptions = fieldPicker === 'brand' ? brandOptions : [...PRODUCT_CATEGORIES];
+  const fieldPickerOptions = fieldPicker === 'brand' ? brandOptions : categoryOptions;
   const filteredFieldPickerOptions = fieldPickerOptions.filter((o) =>
     o.toLowerCase().includes(fieldPickerQuery.trim().toLowerCase())
   );

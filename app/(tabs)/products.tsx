@@ -23,7 +23,7 @@ import {
   getMostRecommendedProducts,
   RecommendedProduct,
 } from '../../lib/certification';
-import { PRODUCT_CATEGORIES } from '../../lib/categories';
+import { PRODUCT_CATEGORIES, getProductCategories } from '../../lib/categories';
 import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
 import { colors, radius, spacing, typography } from '../../constants/theme';
@@ -46,10 +46,14 @@ const CATEGORY_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   Kosmetika: 'sparkles-outline',
 };
 
-const CATEGORIES: { label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { label: 'Hamısı', icon: 'apps-outline' },
-  ...PRODUCT_CATEGORIES.map((label) => ({ label, icon: CATEGORY_ICON[label] })),
-];
+const DEFAULT_CATEGORY_ICON: keyof typeof Ionicons.glyphMap = 'pricetag-outline';
+
+function buildCategoryChips(labels: readonly string[]): { label: string; icon: keyof typeof Ionicons.glyphMap }[] {
+  return [
+    { label: 'Hamısı', icon: 'apps-outline' },
+    ...labels.map((label) => ({ label, icon: CATEGORY_ICON[label] ?? DEFAULT_CATEGORY_ICON })),
+  ];
+}
 
 export default function ProductsScreen() {
   const { history, removeScan } = useHistory();
@@ -68,6 +72,19 @@ export default function ProductsScreen() {
   const [loadingRecommended, setLoadingRecommended] = useState(false);
   const RECOMMENDED_PAGE_SIZE = 10;
   const [recommendedVisibleCount, setRecommendedVisibleCount] = useState(RECOMMENDED_PAGE_SIZE);
+  // Starts from the hardcoded fallback so the chip row isn't empty on
+  // first render, then swaps in the admin-editable DB list once it loads.
+  const [categoryChips, setCategoryChips] = useState(() => buildCategoryChips(PRODUCT_CATEGORIES));
+
+  useEffect(() => {
+    let active = true;
+    getProductCategories().then((labels) => {
+      if (active) setCategoryChips(buildCategoryChips(labels));
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -199,7 +216,7 @@ export default function ProductsScreen() {
           style={styles.categoryRow}
           contentContainerStyle={{ gap: spacing.sm, paddingRight: spacing.xl }}
         >
-          {CATEGORIES.map((c) => {
+          {categoryChips.map((c) => {
             const active = c.label === category;
             return (
               <Pressable
