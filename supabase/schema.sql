@@ -1004,3 +1004,47 @@ create table if not exists haram_keywords (
 alter table haram_keywords enable row level security;
 drop policy if exists "Public read/insert/delete" on haram_keywords;
 create policy "Public read/insert/delete" on haram_keywords for all using (true) with check (true);
+
+-- Real (database-enforced) admin roles for the web admin panel — one
+-- row per admin, keyed to a real Supabase Auth account (auth.users),
+-- not the old single ADMIN_EMAIL/ADMIN_PASSPHRASE env-var pair. See
+-- migration_2026_09_01_admin_roles_stage1.sql for the deploy story:
+-- this table and the two helper functions below are safe to create on
+-- their own (nothing depends on them yet); a SEPARATE, later migration
+-- (migration_2026_09_01_admin_roles_stage2_rls.sql) is what actually
+-- starts requiring is_admin() on the admin-only tables — run that only
+-- after confirming the new login flow works.
+--
+-- Scope note: certified_entries (insert), product_submissions (update),
+-- and users (update) deliberately stay open (using(true)) — the app's
+-- own in-app admin approval screen (app/admin.tsx) writes to those
+-- using the app's ordinary anon-key client, not Supabase Auth, and
+-- users also carries the app's own self-updates (last_seen_at,
+-- language, scansToday, etc.) alongside admin-only fields (banned,
+-- plan). Tightening those would break the phone-based approval flow
+-- and/or normal app usage; only the tables exclusively managed from
+-- the web admin panel are covered by is_admin() below.
+create table if not exists admin_profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text not null,
+  role text not null check (role in ('super_admin', 'moderator')),
+  created_at timestamptz not null default now()
+);
+alter table admin_profiles enable row level security;
+drop policy if exists "Admins can read all profiles" on admin_profiles;
+create policy "Admins can read all profiles" on admin_profiles for select
+  using (exists (select 1 from admin_profiles p where p.id = auth.uid()));
+drop policy if exists "Super admins manage profiles" on admin_profiles;
+create policy "Super admins manage profiles" on admin_profiles for all
+  using (exists (select 1 from admin_profiles p where p.id = auth.uid() and p.role = 'super_admin'))
+  with check (exists (select 1 from admin_profiles p where p.id = auth.uid() and p.role = 'super_admin'));
+
+create or replace function is_admin() returns boolean
+  language sql security definer stable
+  set search_path = public
+  as $$ select exists (select 1 from admin_profiles where id = auth.uid()); $$;
+
+create or replace function is_super_admin() returns boolean
+  language sql security definer stable
+  set search_path = public
+  as $$ select exists (select 1 from admin_profiles where id = auth.uid() and role = 'super_admin'); $$;

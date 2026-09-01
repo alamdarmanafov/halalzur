@@ -254,7 +254,7 @@
   <form class="gate-card" id="gateForm">
     <svg class="gate-logo" viewBox="0 0 100 100"><defs><linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#0A4D2E"/><stop offset="55%" stop-color="#119E4B"/><stop offset="100%" stop-color="#7CFC00"/></linearGradient></defs><rect width="100" height="100" rx="22" fill="url(#lg)"/><path d="M50 30 l16 20 l-30 0 z" fill="none"/><rect x="35" y="26" width="11" height="48" fill="#fff"/><path d="M46 26 h8 v18 h4 v-18 h4 v22 h-16 z" fill="#fff"/><path d="M50 52 l11 13 l20 -26" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
     <h1>Halalzur Admin</h1>
-    <p class="hint">Bu panel məhsul təkliflərinə baxmaq və təsdiqləmək üçündür. Admin e-poçtu və şifrənizi daxil edin.</p>
+    <p class="hint">Bu panel məhsul təkliflərinə baxmaq və təsdiqləmək üçündür. Admin hesabınızın e-poçtu və şifrəsini daxil edin.</p>
     <input type="email" id="emailInput" placeholder="E-poçt" autocomplete="username" />
     <input type="password" id="passInput" placeholder="Admin şifrəsi" autocomplete="current-password" />
     <button type="submit" class="primary">Daxil ol</button>
@@ -285,6 +285,7 @@
           style="position: absolute; top: 100%; left: 0; right: 0; margin-top: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 20px 48px -20px rgba(var(--shadow-color), 0.4); max-height: 420px; overflow-y: auto; z-index: 50;"
         ></div>
       </div>
+      <span id="adminIdentityLabel" style="font-size: 12.5px; color: var(--ink-muted); margin-right: 12px;"></span>
       <button class="logout-btn" id="logoutBtn">Çıxış</button>
     </div>
   </header>
@@ -1327,10 +1328,65 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   var SUPABASE_ANON_KEY = "sb_publishable_YSxBg5SQveiZrRU6H65mVg_Ea4gp2Pl";
   var POINTS_PER_APPROVAL = 10;
 
-  // Login is verified server-side by api/admin-login.js (Vercel function,
-  // reads ADMIN_EMAIL/ADMIN_PASSPHRASE from that project's environment
-  // variables) — neither value ships in this file, unlike before.
+  // Real admin identity: login goes through Supabase Auth directly
+  // (POST /auth/v1/token, same public anon key already used for
+  // everything else — Supabase Auth's password grant is designed to be
+  // called from the browser). The resulting access token is then sent
+  // as the Authorization header on every request instead of the bare
+  // anon key, so Postgres RLS policies that check is_admin()/
+  // is_super_admin() (see supabase/schema.sql's admin_profiles) see a
+  // real, verified identity — not just "anyone who has the anon key",
+  // which used to be true for every admin-panel write. See
+  // supabase/migration_2026_09_01_admin_roles_stage2_rls.sql for
+  // exactly which tables this now actually gates.
   var SESSION_KEY = "halalzur_admin_session";
+  var adminSession = { accessToken: null, refreshToken: null, expiresAt: 0, email: null, role: null };
+  var adminRefreshTimer = null;
+
+  function saveAdminSession() {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(adminSession));
+  }
+
+  function clearAdminSession() {
+    adminSession = { accessToken: null, refreshToken: null, expiresAt: 0, email: null, role: null };
+    sessionStorage.removeItem(SESSION_KEY);
+    if (adminRefreshTimer) clearTimeout(adminRefreshTimer);
+  }
+
+  function scheduleAdminTokenRefresh() {
+    if (adminRefreshTimer) clearTimeout(adminRefreshTimer);
+    // Refresh 5 minutes before expiry (Supabase access tokens default
+    // to a 1-hour lifetime) rather than waiting for a request to fail.
+    var msUntilRefresh = Math.max(30000, adminSession.expiresAt - Date.now() - 5 * 60 * 1000);
+    adminRefreshTimer = setTimeout(refreshAdminSession, msUntilRefresh);
+  }
+
+  function refreshAdminSession() {
+    if (!adminSession.refreshToken) return Promise.reject(new Error("no_refresh_token"));
+    return fetch(SUPABASE_URL + "/auth/v1/token?grant_type=refresh_token", {
+      method: "POST",
+      headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: adminSession.refreshToken }),
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("refresh_failed");
+        return res.json();
+      })
+      .then(function (data) {
+        adminSession.accessToken = data.access_token;
+        adminSession.refreshToken = data.refresh_token;
+        adminSession.expiresAt = Date.now() + data.expires_in * 1000;
+        saveAdminSession();
+        scheduleAdminTokenRefresh();
+      })
+      .catch(function () {
+        // Refresh token expired/invalid — force a real re-login rather
+        // than silently continuing with a stale/expired access token.
+        clearAdminSession();
+        document.getElementById("app").hidden = true;
+        document.getElementById("gate").hidden = false;
+      });
+  }
 
   var STATUS_LABEL = { halal: "🟢 Halal", mushbooh: "🟡 Şübhəli", unknown: "🟡 Naməlum", haram: "🔴 Tövsiyə edilmir" };
 
@@ -1400,7 +1456,11 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   function sb(path, opts) {
     opts = opts || {};
     var headers = Object.assign(
-      { "apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer " + SUPABASE_ANON_KEY, "Content-Type": "application/json" },
+      {
+        "apikey": SUPABASE_ANON_KEY,
+        "Authorization": "Bearer " + (adminSession.accessToken || SUPABASE_ANON_KEY),
+        "Content-Type": "application/json",
+      },
       opts.headers || {}
     );
     return fetch(SUPABASE_URL + "/rest/v1/" + path, {
@@ -1419,7 +1479,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       method: "GET",
       headers: {
         apikey: SUPABASE_ANON_KEY,
-        Authorization: "Bearer " + SUPABASE_ANON_KEY,
+        Authorization: "Bearer " + (adminSession.accessToken || SUPABASE_ANON_KEY),
         Prefer: "count=exact",
         Range: "0-0",
       },
@@ -3167,8 +3227,49 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     loadHaramKeywords();
   }
 
-  if (sessionStorage.getItem(SESSION_KEY) === "1") {
-    enterApp();
+  function showAdminIdentity() {
+    var roleLabel = adminSession.role === "super_admin" ? "super admin" : adminSession.role === "moderator" ? "moderator" : "";
+    document.getElementById("adminIdentityLabel").textContent =
+      adminSession.email + (roleLabel ? " · " + roleLabel : "");
+  }
+
+  // Looks up this admin's role from admin_profiles using their just-
+  // issued token — a valid Supabase Auth login isn't enough on its own,
+  // they also need a matching admin_profiles row (created by a super
+  // admin) to actually be treated as an admin here.
+  function loadAdminProfileAndEnter() {
+    return sb("admin_profiles?select=role,email&id=eq." + encodeURIComponent(adminSession.userId))
+      .then(function (rows) {
+        if (!rows || !rows.length) throw new Error("not_an_admin");
+        adminSession.role = rows[0].role;
+        saveAdminSession();
+        showAdminIdentity();
+        enterApp();
+      });
+  }
+
+  if (sessionStorage.getItem(SESSION_KEY)) {
+    try {
+      var restored = JSON.parse(sessionStorage.getItem(SESSION_KEY));
+      if (restored && restored.accessToken && restored.expiresAt > Date.now()) {
+        adminSession = restored;
+        scheduleAdminTokenRefresh();
+        showAdminIdentity();
+        enterApp();
+      } else if (restored && restored.refreshToken) {
+        adminSession = restored;
+        refreshAdminSession().then(function () {
+          if (adminSession.accessToken) {
+            showAdminIdentity();
+            enterApp();
+          }
+        });
+      } else {
+        clearAdminSession();
+      }
+    } catch (e) {
+      clearAdminSession();
+    }
   }
 
   gateForm.addEventListener("submit", function (e) {
@@ -3179,18 +3280,32 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     submitBtn.disabled = true;
     gateError.textContent = "";
 
-    fetch("/api/admin-login", {
+    fetch(SUPABASE_URL + "/auth/v1/token?grant_type=password", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { apikey: SUPABASE_ANON_KEY, "Content-Type": "application/json" },
       body: JSON.stringify({ email: email, password: pass }),
     })
       .then(function (res) {
         if (!res.ok) throw new Error("bad_credentials");
-        sessionStorage.setItem(SESSION_KEY, "1");
-        enterApp();
+        return res.json();
       })
-      .catch(function () {
-        gateError.textContent = "E-poçt və ya şifrə səhvdir.";
+      .then(function (data) {
+        adminSession.accessToken = data.access_token;
+        adminSession.refreshToken = data.refresh_token;
+        adminSession.expiresAt = Date.now() + data.expires_in * 1000;
+        adminSession.userId = data.user.id;
+        adminSession.email = data.user.email;
+        return loadAdminProfileAndEnter();
+      })
+      .then(function () {
+        scheduleAdminTokenRefresh();
+      })
+      .catch(function (err) {
+        clearAdminSession();
+        gateError.textContent =
+          err.message === "not_an_admin"
+            ? "Bu hesab admin siyahısında deyil (admin_profiles-a əlavə edilməyib)."
+            : "E-poçt və ya şifrə səhvdir.";
       })
       .finally(function () {
         submitBtn.disabled = false;
@@ -3198,7 +3313,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   });
 
   document.getElementById("logoutBtn").addEventListener("click", function () {
-    sessionStorage.removeItem(SESSION_KEY);
+    clearAdminSession();
     appEl.hidden = true;
     gateEl.hidden = false;
     document.getElementById("emailInput").value = "";
