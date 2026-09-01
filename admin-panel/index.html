@@ -4252,7 +4252,7 @@
 
     if (!result || result.source === "not_configured") {
       resultEl.innerHTML =
-        '<div class="pc-note">Open Food Facts-da tapılmadı, AI axtarışı konfiqurasiya edilməyib (ANTHROPIC_API_KEY Vercel-də yoxdur).</div>';
+        '<div class="pc-note">Open Food Facts-da tapılmadı, AI axtarışı konfiqurasiya edilməyib (OPENAI_API_KEY Vercel-də yoxdur).</div>';
       return;
     }
     if (result.source === "error" || !result.ecodes || !result.ecodes.length) {
