@@ -265,14 +265,32 @@ export default function ProductDetailScreen() {
   );
   // Which detected E-codes actually explain a mushbooh/haram verdict —
   // shown as the "why" next to the certifier card so a flagged status
-  // isn't just a bare badge with no visible reason.
+  // isn't just a bare badge with no visible reason. Includes "depends"
+  // codes too (E_CODES has no data with status "mushbooh" at all — every
+  // yellow/cautionary code in the real table is "depends"), not just the
+  // earlier haram-only version.
   const flaggedIngredients = useMemo(
     () =>
       detectedECodes
-        .filter((e) => e.status === 'haram' || e.status === 'mushbooh')
+        .filter((e) => e.status === 'haram' || e.status === 'mushbooh' || e.status === 'depends')
         .map((e) => `${e.code} (${e.name})`),
     [detectedECodes]
   );
+  // A halal-status product can still contain a source-dependent
+  // ("yellow") E-code — E471, E322, gelatin E441, etc. — that isn't
+  // itself grounds for a haram/mushbooh verdict but is worth a heads-up.
+  // Only shown when the product ISN'T already haram/mushbooh (that case
+  // gets the fuller "why this status" card above via flaggedIngredients)
+  // and there's no haram code mixed in (a real haram code always takes
+  // the reason-card path, not this softer caution note).
+  const cautionIngredients = useMemo(
+    () =>
+      detectedECodes
+        .filter((e) => e.status === 'mushbooh' || e.status === 'depends')
+        .map((e) => `${e.code} (${e.name})`),
+    [detectedECodes]
+  );
+  const hasHaramIngredient = useMemo(() => detectedECodes.some((e) => e.status === 'haram'), [detectedECodes]);
 
   const hasECode = (code: string) =>
     manualIngredients
@@ -552,6 +570,21 @@ export default function ProductDetailScreen() {
             </View>
           </View>
         )}
+
+        {product.status !== 'haram' &&
+          product.status !== 'mushbooh' &&
+          !hasHaramIngredient &&
+          cautionIngredients.length > 0 && (
+            <View style={styles.reasonCard}>
+              <Ionicons name="warning" size={18} color={colors.warning} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.reasonTitle}>{t('productCautionTitle')}</Text>
+                <Text style={styles.reasonText}>
+                  {t('productCautionBody')} ({cautionIngredients.join(', ')})
+                </Text>
+              </View>
+            </View>
+          )}
 
         {product.notes && (
           <View style={styles.noteCard}>
