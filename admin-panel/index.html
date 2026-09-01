@@ -4871,6 +4871,7 @@
         '<button class="place-delete-btn" data-action="toggle-ban">' +
           (row.banned ? "Blokdan çıxar" : "Blokla") +
         '</button>' +
+        '<button class="btn" data-action="send-notification">🔔 Bildiriş göndər</button>' +
       '</div>';
 
     card.querySelector('[data-action="toggle-plan"]').addEventListener("click", function (e) {
@@ -4882,7 +4883,42 @@
     card.querySelector('[data-action="toggle-detail"]').addEventListener("click", function (e) {
       loadUserDetail(row, card, e.target);
     });
+    card.querySelector('[data-action="send-notification"]').addEventListener("click", function (e) {
+      sendUserNotification(row, e.target);
+    });
     return card;
+  }
+
+  function sendUserNotification(row, btn) {
+    var title = window.prompt('"' + (row.name || row.email || "İstifadəçi") + '" üçün bildiriş başlığı:', "");
+    if (title === null || !title.trim()) return;
+    var body = window.prompt("Bildiriş mətni:", "");
+    if (body === null || !body.trim()) return;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Göndərilir…";
+    fetch("/api/send-user-notification", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-app-key": SUPABASE_ANON_KEY },
+      body: JSON.stringify({ userId: row.id, title: title.trim(), body: body.trim() }),
+    })
+      .then(function (res) { return res.json().then(function (json) { return { ok: res.ok, json: json }; }); })
+      .then(function (r) {
+        if (!r.ok) throw new Error(r.json.error || "unknown_error");
+        if (r.json.sent > 0) {
+          toast("Bildiriş göndərildi (" + r.json.sent + " cihaz)");
+          logAudit("send_user_notification", "users", row.id, { title: title.trim() });
+        } else {
+          toast("Bu istifadəçinin qeydiyyatlı cihazı tapılmadı");
+        }
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
   }
 
   function loadUserDetail(row, card, btn) {
