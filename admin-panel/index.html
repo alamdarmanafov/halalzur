@@ -546,6 +546,49 @@
       <button type="button" class="nav-item" id="productsTabCategoriesBtn" style="width: auto;">Kateqoriyalar</button>
     </div>
 
+    <div id="productBulkToolbar" style="margin-bottom: 16px;">
+      <button type="button" class="btn" id="productSelectToggleBtn">Seç</button>
+
+      <div
+        class="place-form"
+        id="productBulkBar"
+        hidden
+        style="margin-top: 12px; display: flex; flex-direction: column; gap: 12px;"
+      >
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+          <span id="productBulkCount">0 məhsul seçilib</span>
+          <button type="button" class="btn btn-approve" id="productBulkSelectAllBtn">Bu səhifəni seç</button>
+          <button type="button" class="btn" id="productBulkSelectFilteredBtn">Filterə uyğun hamısını seç</button>
+          <button type="button" class="place-delete-btn" id="productBulkDeleteBtn" disabled>Seçilənləri sil</button>
+          <button type="button" class="btn" id="productBulkCancelBtn">Ləğv et</button>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <select id="productBulkStatusInput" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px;">
+            <option value="halal">Halal</option>
+            <option value="mushbooh">Şübhəli</option>
+            <option value="haram">Tövsiyə edilmir</option>
+            <option value="unknown">Naməlum</option>
+          </select>
+          <button type="button" class="btn" id="productBulkSetStatusBtn" disabled>Seçilənlərin statusunu dəyiş</button>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <input type="text" id="productBulkCategoryInput" placeholder="Məs. Süd məhsulları" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; width: 180px;" />
+          <button type="button" class="btn" id="productBulkSetCategoryBtn" disabled>Seçilənlərin kateqoriyasını dəyiş</button>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <input type="text" id="productBulkEcodeInput" placeholder="Məs. E471" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; width: 120px;" />
+          <button type="button" class="btn" id="productBulkAddEcodeBtn" disabled>Seçilənlərə E-kod əlavə et</button>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <input type="text" id="productBulkImageInput" placeholder="Şəkil linki (boş = şəkli sil)" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; flex: 1; min-width: 200px;" />
+          <button type="button" class="btn" id="productBulkSetImageBtn" disabled>Seçilənlərin şəklini dəyiş</button>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <button type="button" class="btn" id="productBulkRenewDateBtn" disabled>Seçilənlərin yoxlama tarixini bu günə yenilə</button>
+        </div>
+      </div>
+    </div>
+
     <div id="productsTabBrowse">
 
     <div class="place-form" style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
@@ -575,46 +618,6 @@
         <input type="checkbox" id="productMissingImageFilter" style="width: 16px; height: 16px;" />
         Şəkli yoxdur
       </label>
-      <button type="button" class="btn" id="productSelectToggleBtn">Seç</button>
-    </div>
-
-    <div
-      class="place-form"
-      id="productBulkBar"
-      hidden
-      style="margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px;"
-    >
-      <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-        <span id="productBulkCount">0 məhsul seçilib</span>
-        <button type="button" class="btn btn-approve" id="productBulkSelectAllBtn">Bu səhifəni seç</button>
-        <button type="button" class="btn" id="productBulkSelectFilteredBtn">Filterə uyğun hamısını seç</button>
-        <button type="button" class="place-delete-btn" id="productBulkDeleteBtn" disabled>Seçilənləri sil</button>
-        <button type="button" class="btn" id="productBulkCancelBtn">Ləğv et</button>
-      </div>
-      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <select id="productBulkStatusInput" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px;">
-          <option value="halal">Halal</option>
-          <option value="mushbooh">Şübhəli</option>
-          <option value="haram">Tövsiyə edilmir</option>
-          <option value="unknown">Naməlum</option>
-        </select>
-        <button type="button" class="btn" id="productBulkSetStatusBtn" disabled>Seçilənlərin statusunu dəyiş</button>
-      </div>
-      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <input type="text" id="productBulkCategoryInput" placeholder="Məs. Süd məhsulları" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; width: 180px;" />
-        <button type="button" class="btn" id="productBulkSetCategoryBtn" disabled>Seçilənlərin kateqoriyasını dəyiş</button>
-      </div>
-      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <input type="text" id="productBulkEcodeInput" placeholder="Məs. E471" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; width: 120px;" />
-        <button type="button" class="btn" id="productBulkAddEcodeBtn" disabled>Seçilənlərə E-kod əlavə et</button>
-      </div>
-      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <input type="text" id="productBulkImageInput" placeholder="Şəkil linki (boş = şəkli sil)" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; flex: 1; min-width: 200px;" />
-        <button type="button" class="btn" id="productBulkSetImageBtn" disabled>Seçilənlərin şəklini dəyiş</button>
-      </div>
-      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-        <button type="button" class="btn" id="productBulkRenewDateBtn" disabled>Seçilənlərin yoxlama tarixini bu günə yenilə</button>
-      </div>
     </div>
 
     <div class="place-form" id="duplicatesWrap" style="margin-bottom: 16px;">
@@ -1274,6 +1277,19 @@
     document.getElementById("productsTabAdd").hidden = which !== "add";
     document.getElementById("productsTabEdit").hidden = which !== "edit";
     document.getElementById("productsTabCategories").hidden = which !== "categories";
+    // Bulk select/save (Seç + productBulkBar) works on both "Məhsullar"
+    // (browse) and "Məhsul redaktə" (edit) — hidden for "add"/"categories".
+    // Selection state doesn't carry across a tab switch: the two tabs show
+    // different (possibly overlapping) row sets, so a stale selection could
+    // silently apply a bulk action to rows the admin isn't even looking at.
+    document.getElementById("productBulkToolbar").hidden = which !== "browse" && which !== "edit";
+    if (activeProductsTab !== which) {
+      productSelectionMode = false;
+      selectedProductIds = {};
+      document.getElementById("productBulkBar").hidden = true;
+      document.getElementById("productSelectToggleBtn").textContent = "Seç";
+    }
+    activeProductsTab = which;
     if (which === "edit") loadEditProducts();
     if (which === "categories") loadCategories();
   }
@@ -3054,6 +3070,9 @@
   var lastProductsFiltered = false;
   var productSelectionMode = false;
   var selectedProductIds = {};
+  // Which Məhsullar sub-tab ("browse" or "edit") the shared bulk-select
+  // toolbar (productBulkToolbar) currently acts on — see setProductsTab.
+  var activeProductsTab = "browse";
   var PRODUCT_PAGE_SIZE = 50;
   var currentProductPage = 0;
   var currentProductTotal = 0;
@@ -3640,6 +3659,32 @@
       });
   });
 
+  // The shared bulk toolbar (productBulkToolbar) is used from both the
+  // "Məhsullar" (browse) and "Məhsul redaktə" (edit) sub-tabs, which keep
+  // separate row lists/reload functions — these three helpers pick the
+  // right one based on activeProductsTab so every bulk handler below can
+  // stay tab-agnostic.
+  function currentProductRowsForBulk() {
+    return activeProductsTab === "edit" ? currentEditProductRows : currentProductRows;
+  }
+
+  function reloadActiveProductsList() {
+    if (activeProductsTab === "edit") loadEditProducts();
+    else loadProducts();
+  }
+
+  function rerenderActiveProductsList() {
+    if (activeProductsTab === "edit") {
+      var container = document.getElementById("editProductCards");
+      container.innerHTML = "";
+      currentEditProductRows.forEach(function (row) {
+        container.appendChild(buildProductCard(row));
+      });
+    } else {
+      renderProductCards(currentProductRows, lastProductsFiltered);
+    }
+  }
+
   function updateProductBulkBar() {
     var count = Object.keys(selectedProductIds).length;
     document.getElementById("productBulkCount").textContent = count + " məhsul seçilib";
@@ -3669,7 +3714,7 @@
       .then(function () {
         toast(ids.length + " məhsulun statusu dəyişdi");
         logAudit("bulk_status_change", "certified_entries", null, ids.length + " məhsul → " + status);
-        loadProducts();
+        reloadActiveProductsList();
       })
       .catch(function (err) {
         toast("Xəta: " + err.message);
@@ -3703,7 +3748,7 @@
         toast(ids.length + " məhsulun kateqoriyası dəyişdi");
         logAudit("bulk_category_change", "certified_entries", null, ids.length + " məhsul → " + category);
         document.getElementById("productBulkCategoryInput").value = "";
-        loadProducts();
+        reloadActiveProductsList();
       })
       .catch(function (err) {
         toast("Xəta: " + err.message);
@@ -3715,16 +3760,19 @@
   });
 
   document.getElementById("productBulkSelectFilteredBtn").addEventListener("click", function () {
-    var f = productFilterParams();
+    // productFilterParams() returns {params}, editProductFilterParams()
+    // returns the raw string directly — normalize to a bare string either way.
+    var filterParams =
+      activeProductsTab === "edit" ? editProductFilterParams() : productFilterParams().params;
     var btn = this;
     btn.disabled = true;
     var original = btn.textContent;
     btn.textContent = "Yüklənir…";
-    fetchAllProductIds(f.params)
+    fetchAllProductIds(filterParams)
       .then(function (ids) {
         ids.forEach(function (id) { selectedProductIds[id] = true; });
         updateProductBulkBar();
-        renderProductCards(currentProductRows, lastProductsFiltered);
+        rerenderActiveProductsList();
         toast(ids.length + " məhsul seçildi");
       })
       .catch(function (err) {
@@ -3772,7 +3820,7 @@
       .then(function () {
         toast(code + " seçilən məhsullara əlavə edildi");
         document.getElementById("productBulkEcodeInput").value = "";
-        loadProducts();
+        reloadActiveProductsList();
       })
       .catch(function (err) {
         toast("Xəta: " + err.message);
@@ -3801,7 +3849,7 @@
       .then(function () {
         toast("Şəkil yeniləndi: " + ids.length + " məhsul");
         document.getElementById("productBulkImageInput").value = "";
-        loadProducts();
+        reloadActiveProductsList();
       })
       .catch(function (err) {
         toast("Xəta: " + err.message);
@@ -3829,7 +3877,7 @@
       .then(function () {
         toast("Yoxlama tarixi yeniləndi: " + ids.length + " məhsul");
         logAudit("bulk_renew_cert_date", "certified_entries", null, ids.length + " məhsul");
-        loadProducts();
+        reloadActiveProductsList();
       })
       .catch(function (err) {
         toast("Xəta: " + err.message);
@@ -3846,7 +3894,7 @@
     document.getElementById("productBulkBar").hidden = !productSelectionMode;
     document.getElementById("productSelectToggleBtn").textContent = productSelectionMode ? "Seçimi bağla" : "Seç";
     updateProductBulkBar();
-    renderProductCards(currentProductRows, lastProductsFiltered);
+    rerenderActiveProductsList();
   });
 
   document.getElementById("productBulkCancelBtn").addEventListener("click", function () {
@@ -3854,15 +3902,15 @@
     selectedProductIds = {};
     document.getElementById("productBulkBar").hidden = true;
     document.getElementById("productSelectToggleBtn").textContent = "Seç";
-    renderProductCards(currentProductRows, lastProductsFiltered);
+    rerenderActiveProductsList();
   });
 
   document.getElementById("productBulkSelectAllBtn").addEventListener("click", function () {
-    currentProductRows.forEach(function (row) {
+    currentProductRowsForBulk().forEach(function (row) {
       selectedProductIds[row.id] = true;
     });
     updateProductBulkBar();
-    renderProductCards(currentProductRows, lastProductsFiltered);
+    rerenderActiveProductsList();
   });
 
   document.getElementById("productBulkDeleteBtn").addEventListener("click", function () {
@@ -3883,7 +3931,7 @@
         logAudit("bulk_soft_delete", "certified_entries", null, ids.length + " məhsul");
         selectedProductIds = {};
         updateProductBulkBar();
-        loadProducts();
+        reloadActiveProductsList();
       })
       .catch(function (err) {
         toast("Xəta: " + err.message);
