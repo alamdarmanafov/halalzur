@@ -6,7 +6,7 @@
 <title>Halalzur — Dəvət</title>
 <meta name="description" content="Halalzur-a dəvət olundunuz — barkoddan halal statusunu yoxlayan tətbiq." />
 <meta name="robots" content="noindex" />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='lg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%230A4D2E'/%3E%3Cstop offset='55%25' stop-color='%23119E4B'/%3E%3Cstop offset='100%25' stop-color='%237CFC00'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='22' fill='url(%23lg)'/%3E%3Cpath d='M22 30 v-6 a4 4 0 0 1 4 -4 h6' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M68 20 h6 a4 4 0 0 1 4 4 v6' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M78 70 v6 a4 4 0 0 1 -4 4 h-6' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Cpath d='M32 80 h-6 a4 4 0 0 1 -4 -4 v-6' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3Crect x='35' y='26' width='11' height='48' fill='%23fff'/%3E%3Cpath d='M46 26 h8 v18 h4 v-18 h4 v22 h-16 z' fill='%23fff'/%3E%3Cpath d='M50 52 l11 13 l20 -26' stroke='%23fff' stroke-width='10' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E" />
+<link rel="icon" href="favicon.png" type="image/png" />
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -66,7 +66,7 @@
   }
   .logo {
     width: 56px; height: 56px; border-radius: 14px; margin: 0 auto 18px;
-    background: linear-gradient(135deg, var(--brand-dark), var(--brand) 55%, var(--brand-accent));
+    display: block; object-fit: cover;
   }
   .eyebrow {
     display: inline-block; font-size: 12.5px; font-weight: 700; letter-spacing: 0.04em;
@@ -105,7 +105,7 @@
 </head>
 <body>
   <div class="card">
-    <div class="logo"></div>
+    <img class="logo" src="logo.png" alt="Halalzur" />
     <div class="eyebrow">DƏVƏT</div>
     <h1 id="heading">Sizi Halalzur-a dəvət etdilər!</h1>
     <p class="lede">Məhsulun barkodunu skan et, halal statusunu GIMDES, JAKIM və AZSTANDART Halal kimi tanınan sertifikat orqanlarının məlumatlarına əsasən dərhal öyrən.</p>
