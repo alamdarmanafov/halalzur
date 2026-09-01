@@ -918,12 +918,22 @@
         göndərilir (GitHub Actions).
       </p>
       <div class="field">
+        <label for="notificationTemplateSelect">Şablondan doldur (istəyə bağlı)</label>
+        <select id="notificationTemplateSelect">
+          <option value="">— Şablon seç —</option>
+        </select>
+      </div>
+      <div class="field">
         <label for="broadcastTitle">Başlıq</label>
         <input type="text" id="broadcastTitle" placeholder="Məs. Yeni versiya çıxdı!" />
       </div>
       <div class="field">
         <label for="broadcastBody">Mətn</label>
         <textarea id="broadcastBody" rows="2" placeholder="Məs. Halalzur-a Məkanlar bölməsi əlavə olundu."></textarea>
+      </div>
+      <div style="margin-bottom: 14px;">
+        <button type="button" class="btn" id="saveNotificationTemplateBtn">Bunu şablon kimi saxla</button>
+        <button type="button" class="place-delete-btn" id="deleteNotificationTemplateBtn" hidden>Seçili şablonu sil</button>
       </div>
       <div style="display: flex; gap: 14px; flex-wrap: wrap;">
         <div class="field" style="min-width: 160px; margin-bottom: 0;">
@@ -1251,6 +1261,7 @@
     announcements: function () {
       loadAnnouncements();
       loadScheduledBroadcasts();
+      loadNotificationTemplates();
     },
     users: function () {
       loadUsers();
@@ -4741,6 +4752,86 @@
       .finally(function () {
         btn.disabled = false;
         btn.textContent = original;
+      });
+  });
+
+  // ---- notification templates ----
+  // Reusable title/body pairs for the push form above — a small
+  // convenience for the same handful of announcements ("yeni versiya",
+  // "kampaniya bitir sabah" etc.) that otherwise get retyped each time.
+  var notificationTemplatesById = {};
+
+  function loadNotificationTemplates() {
+    sb("notification_templates?select=*&order=created_at.desc")
+      .then(function (rows) {
+        notificationTemplatesById = {};
+        var select = document.getElementById("notificationTemplateSelect");
+        select.innerHTML = '<option value="">— Şablon seç —</option>';
+        (rows || []).forEach(function (row) {
+          notificationTemplatesById[row.id] = row;
+          var opt = document.createElement("option");
+          opt.value = row.id;
+          opt.textContent = row.title;
+          select.appendChild(opt);
+        });
+      })
+      .catch(function () {
+        // Non-critical — the broadcast form still works without templates.
+      });
+  }
+
+  document.getElementById("notificationTemplateSelect").addEventListener("change", function () {
+    var row = notificationTemplatesById[this.value];
+    document.getElementById("deleteNotificationTemplateBtn").hidden = !row;
+    if (!row) return;
+    document.getElementById("broadcastTitle").value = row.title;
+    document.getElementById("broadcastBody").value = row.body;
+  });
+
+  document.getElementById("saveNotificationTemplateBtn").addEventListener("click", function () {
+    var title = document.getElementById("broadcastTitle").value.trim();
+    var body = document.getElementById("broadcastBody").value.trim();
+    if (!title || !body) {
+      toast("Şablon üçün başlıq və mətn lazımdır");
+      return;
+    }
+    var btn = this;
+    btn.disabled = true;
+    sb("notification_templates", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: { title: title, body: body },
+    })
+      .then(function () {
+        toast("Şablon saxlanıldı");
+        loadNotificationTemplates();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+      });
+  });
+
+  document.getElementById("deleteNotificationTemplateBtn").addEventListener("click", function () {
+    var select = document.getElementById("notificationTemplateSelect");
+    var row = notificationTemplatesById[select.value];
+    if (!row) return;
+    if (!window.confirm('"' + row.title + '" şablonu silinsin?')) return;
+    var btn = this;
+    btn.disabled = true;
+    sb("notification_templates?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+      .then(function () {
+        toast("Şablon silindi");
+        btn.hidden = true;
+        loadNotificationTemplates();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
       });
   });
 
