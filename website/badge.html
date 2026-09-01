@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Halalzur nişanı</title>
+<meta name="robots" content="noindex" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Source+Sans+3:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #10241A;
+    --ink-muted: #52685C;
+    --brand-dark: #0A4D2E;
+    --brand: #119E4B;
+    --border: #DDEFE2;
+    --card: #FFFFFF;
+    --halal: #119E4B;
+    --mushbooh: #B7791F;
+    --haram: #C0362C;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: transparent;
+    font-family: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  a.badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: fit-content;
+    max-width: 260px;
+    padding: 10px 14px;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    text-decoration: none;
+    color: var(--ink);
+    box-shadow: 0 2px 10px rgba(10, 77, 46, 0.06);
+  }
+  a.badge:hover { border-color: var(--brand); }
+  .logo { width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0; display: block; }
+  .text { min-width: 0; }
+  .line1 { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 12.5px; color: var(--brand-dark); white-space: nowrap; }
+  .line2 { font-size: 11.5px; color: var(--ink-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 999px; margin-right: 4px; }
+</style>
+</head>
+<body>
+  <a class="badge" id="badgeLink" href="https://halalzur.com/" target="_blank" rel="noopener">
+    <img class="logo" src="https://halalzur.com/logo.png" alt="Halalzur" />
+    <div class="text">
+      <div class="line1" id="badgeLine1">Halalzur ilə yoxla</div>
+      <div class="line2" id="badgeLine2">Halal sertifikatı skan et</div>
+    </div>
+  </a>
+
+  <script>
+    var SUPABASE_URL = "https://szizepjcospoygnjmxwz.supabase.co";
+    var SUPABASE_ANON_KEY = "sb_publishable_YSxBg5SQveiZrRU6H65mVg_Ea4gp2Pl";
+    var STATUS_LABEL = {
+      halal: { emoji: "🟢", text: "Halal statusu — Halalzur-da yoxlanılıb", color: "var(--halal)" },
+      mushbooh: { emoji: "🟡", text: "Şübhəli status — Halalzur-da yoxlanılıb", color: "var(--mushbooh)" },
+      haram: { emoji: "🔴", text: "Tövsiyə edilmir — Halalzur-da yoxlanılıb", color: "var(--haram)" },
+      unknown: { emoji: "🟡", text: "Naməlum status — Halalzur-da yoxlanılıb", color: "var(--mushbooh)" },
+    };
+
+    var params = new URLSearchParams(window.location.search);
+    var barcode = (params.get("barcode") || "").trim();
+    if (barcode) {
+      document.getElementById("badgeLink").href = "https://halalzur.com/product.html?barcode=" + encodeURIComponent(barcode);
+      fetch(
+        SUPABASE_URL + "/rest/v1/certified_entries?select=product_name,brand,status&barcode=eq." +
+          encodeURIComponent(barcode) + "&entry_type=eq.product&deleted_at=is.null&limit=1",
+        { headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY } }
+      )
+        .then(function (res) { return res.ok ? res.json() : []; })
+        .then(function (rows) {
+          var row = rows && rows[0];
+          if (!row) return;
+          var status = STATUS_LABEL[row.status] || STATUS_LABEL.unknown;
+          document.getElementById("badgeLine1").textContent = row.product_name || row.brand;
+          document.getElementById("badgeLine2").innerHTML =
+            status.emoji + ' <span style="color:' + status.color + '; font-weight:600;">' + status.text.split(" — ")[0] + '</span>';
+        })
+        .catch(function () {});
+    }
+  </script>
+</body>
+</html>
