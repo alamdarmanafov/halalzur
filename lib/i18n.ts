@@ -344,6 +344,10 @@ export const translations: Record<Language, Dict> = {
     productStatusDecidedByTeam: 'Halallıq statusunu özünüz seçmirsiniz — komandamız yoxlayıb qərar verəcək.',
     productSuggest: 'Təklif et',
     productSuggestSending: 'Göndərilir…',
+    productRecommend: 'Tövsiyə et',
+    productRecommended: 'Tövsiyə edildi',
+    productRecommendSignInTitle: 'Giriş lazımdır',
+    productRecommendSignInBody: 'Məhsulu tövsiyə etmək üçün hesaba daxil olun.',
     productDeepIngredientCheckTitle: 'Deep Ingredient Check',
     productDeepIngredientCheckIntro:
       'Bunlar AI qərarı deyil — halal sertifikat orqanlarının öz dərc etdiyi E-kod təsnifatından götürülüb.',
@@ -697,6 +701,10 @@ export const translations: Record<Language, Dict> = {
     productStatusDecidedByTeam: "You don't set the halal status yourself — our team reviews it and decides.",
     productSuggest: 'Suggest',
     productSuggestSending: 'Sending…',
+    productRecommend: 'Recommend',
+    productRecommended: 'Recommended',
+    productRecommendSignInTitle: 'Sign in required',
+    productRecommendSignInBody: 'Sign in to recommend this product.',
     productDeepIngredientCheckTitle: 'Deep Ingredient Check',
     productDeepIngredientCheckIntro:
       "This isn't an AI judgment — it's pulled from the E-code classification halal certification bodies publish themselves.",

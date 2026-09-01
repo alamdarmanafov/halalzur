@@ -382,6 +382,15 @@
     <div id="topConfirmedList"></div>
 
     <div class="panel-head" style="margin-top: 32px;">
+      <h2>Ən çox tövsiyə olunan məhsullar</h2>
+      <button type="button" class="btn" id="topRecommendedRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+        Yenilə
+      </button>
+    </div>
+    <p class="hint">İstifadəçilərin app-də "Tövsiyə et" düyməsinə basdığı məhsullar.</p>
+    <div id="topRecommendedList"></div>
+
+    <div class="panel-head" style="margin-top: 32px;">
       <h2>Xal lideri</h2>
     </div>
     <div id="leaderboardList"></div>
@@ -1126,6 +1135,7 @@
       loadScanTrendChart();
       loadDataHealth();
       loadTopConfirmed();
+      loadTopRecommended();
       loadLeaderboard();
       loadSyncLog();
       loadVersions();
@@ -1457,6 +1467,42 @@
       });
   }
   document.getElementById("topConfirmedRefreshBtn").addEventListener("click", loadTopConfirmed);
+
+  // ---- most-recommended products ----
+  function loadTopRecommended() {
+    var wrap = document.getElementById("topRecommendedList");
+    wrap.textContent = "Yüklənir…";
+    sb("product_recommend_counts?order=recommend_count.desc&limit=15")
+      .then(function (rows) {
+        wrap.innerHTML = "";
+        if (!rows || !rows.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Hələ heç bir məhsul tövsiyə edilməyib.";
+          wrap.appendChild(empty);
+          return;
+        }
+        rows.forEach(function (row) {
+          var item = document.createElement("div");
+          item.className = "place-card";
+          item.style.marginBottom = "8px";
+          item.innerHTML =
+            '<div>' +
+              '<div class="pc-title">' + esc(row.product_name || row.brand) + '</div>' +
+              '<div class="pc-sub">' + (STATUS_LABEL[row.status] || row.status) + ' · 👍 ' + row.recommend_count + ' tövsiyə</div>' +
+            '</div>';
+          wrap.appendChild(item);
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Yüklənmədi: " + err.message;
+        wrap.appendChild(errEl);
+      });
+  }
+  document.getElementById("topRecommendedRefreshBtn").addEventListener("click", loadTopRecommended);
 
   // ---- points leaderboard ----
   function loadLeaderboard() {
@@ -1941,6 +1987,7 @@
     loadScanTrendChart();
     loadDataHealth();
     loadTopConfirmed();
+    loadTopRecommended();
     loadLeaderboard();
     loadSyncLog();
     loadVersions();
@@ -3542,7 +3589,7 @@
             ? '<img src="' + esc(row.image_url) + '" alt="" style="width:64px; height:64px; object-fit:cover; border-radius:8px; flex-shrink:0;" onerror="this.style.display=\'none\'" />'
             : '') +
           '<div style="flex:1; min-width:0;">' +
-            '<div class="pc-title">' + esc(row.name) + '</div>' +
+            '<div class="pc-title">' + (row.featured ? '⭐ ' : '') + esc(row.name) + '</div>' +
             '<div class="pc-sub">' + (STATUS_LABEL[row.status] || row.status) + ' · ' +
               (PLACE_CATEGORY_LABEL[row.category] || row.category) + '</div>' +
             '<div class="pc-sub">' + esc(row.address) + '</div>' +
@@ -3595,6 +3642,9 @@
       '<div style="display:flex; gap:8px; margin-top:12px;">' +
         (pending ? '<button class="place-delete-btn" data-action="approve-place" style="background:var(--ok-bg); color:var(--ok);">Təsdiqlə</button>' : '') +
         '<button class="btn btn-approve" data-action="save-place">Yadda saxla</button>' +
+        '<button class="place-delete-btn" data-action="toggle-place-featured" style="background:var(--ok-bg); color:var(--ok);">' +
+          (row.featured ? '⭐ Tövsiyədən çıxar' : '☆ Tövsiyə et') +
+        '</button>' +
         '<button class="place-delete-btn" data-action="delete-place">Sil</button>' +
       '</div>';
 
@@ -3611,6 +3661,9 @@
     });
     card.querySelector('[data-action="delete-place"]').addEventListener("click", function (e) {
       deletePlace(row, card, e.target);
+    });
+    card.querySelector('[data-action="toggle-place-featured"]').addEventListener("click", function (e) {
+      toggleFeaturedPlace(row, card, e.target);
     });
     var approveBtn = card.querySelector('[data-action="approve-place"]');
     if (approveBtn) {
@@ -3692,6 +3745,30 @@
         toast("Xəta: " + err.message);
         btn.disabled = false;
         btn.textContent = "Təsdiqlə";
+      });
+  }
+
+  function toggleFeaturedPlace(row, card, btn) {
+    btn.disabled = true;
+    var newVal = !row.featured;
+    sb("places?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=representation" },
+      body: { featured: newVal, updated_at: new Date().toISOString() },
+    })
+      .then(function (updatedRows) {
+        if (!updatedRows || !updatedRows.length) {
+          toast("Yenilənmədi: icazə yoxdur (places update policy Supabase-də işə salınmayıb)");
+          btn.disabled = false;
+          return;
+        }
+        row.featured = newVal;
+        toast(newVal ? "Tövsiyə olunanlara əlavə edildi" : "Tövsiyədən çıxarıldı");
+        loadPlaces();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
       });
   }
 

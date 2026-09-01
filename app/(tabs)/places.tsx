@@ -240,9 +240,12 @@ export default function PlacesScreen() {
               </View>
             )}
             <View style={{ flex: 1 }}>
-              <Text style={styles.placeName} numberOfLines={1}>
-                {item.name}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.placeName} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                {item.featured && <Ionicons name="star" size={14} color={colors.warning} />}
+              </View>
               <Text style={styles.address} numberOfLines={1}>
                 {categoryLabel(item.category)} · {item.address}
                 {userLocation && item.latitude != null && item.longitude != null

@@ -29,6 +29,7 @@ import { useAuth } from '../../lib/auth-context';
 import { useLanguage } from '../../lib/i18n-context';
 import { translateIngredientTerm } from '../../lib/ingredientGlossary';
 import { submitProduct, hasSubmittedProduct } from '../../lib/submissions';
+import { getRecommendCount, hasRecommended, toggleRecommend } from '../../lib/recommendations';
 import { sendPushNotification } from '../../lib/pushNotify';
 import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -68,6 +69,9 @@ export default function ProductDetailScreen() {
   const [fieldPicker, setFieldPicker] = useState<'brand' | 'category' | null>(null);
   const [fieldPickerQuery, setFieldPickerQuery] = useState('');
   const [brandOptions, setBrandOptions] = useState<string[]>([]);
+  const [recommended, setRecommended] = useState(false);
+  const [recommendCount, setRecommendCount] = useState(0);
+  const [recommending, setRecommending] = useState(false);
 
   useEffect(() => {
     getDistinctBrands()
@@ -122,6 +126,43 @@ export default function ProductDetailScreen() {
       cancelled = true;
     };
   }, [user, id]);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    getRecommendCount(id).then((n) => {
+      if (!cancelled) setRecommendCount(n);
+    });
+    if (user) {
+      hasRecommended(user.id, id).then((yes) => {
+        if (!cancelled) setRecommended(yes);
+      });
+    } else {
+      setRecommended(false);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [id, user]);
+
+  const onToggleRecommend = async () => {
+    if (!product) return;
+    if (!user) {
+      Alert.alert(t('productRecommendSignInTitle'), t('productRecommendSignInBody'));
+      return;
+    }
+    setRecommending(true);
+    const next = !recommended;
+    try {
+      await toggleRecommend(user.id, product.barcode, recommended);
+      setRecommended(next);
+      setRecommendCount((n) => n + (next ? 1 : -1));
+    } catch (err: any) {
+      Alert.alert(t('productSubmitFailedTitle'), err.message ?? t('productSubmitFailedBody'));
+    } finally {
+      setRecommending(false);
+    }
+  };
 
   useEffect(() => {
     if (!product || product.status === 'halal' || !isPremium) {
@@ -330,6 +371,21 @@ export default function ProductDetailScreen() {
             <StatusBadge status={product.status} />
           </View>
           <Text style={styles.statusDesc}>{t(STATUS_DESC_KEY[product.status])}</Text>
+          <Pressable
+            onPress={onToggleRecommend}
+            disabled={recommending}
+            style={[styles.recommendPill, recommended && styles.recommendPillActive]}
+          >
+            <Ionicons
+              name={recommended ? 'thumbs-up' : 'thumbs-up-outline'}
+              size={16}
+              color={recommended ? colors.white : colors.primaryDark}
+            />
+            <Text style={[styles.recommendPillText, recommended && styles.recommendPillTextActive]}>
+              {recommended ? t('productRecommended') : t('productRecommend')}
+              {recommendCount > 0 ? ` · ${recommendCount}` : ''}
+            </Text>
+          </Pressable>
         </View>
 
         <View style={[styles.certifierCard, { borderColor: tint }]}>
@@ -682,6 +738,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     lineHeight: 18,
   },
+  recommendPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+  },
+  recommendPillActive: { backgroundColor: colors.primary },
+  recommendPillText: { ...typography.small, color: colors.primaryDark, fontWeight: '700' },
+  recommendPillTextActive: { color: colors.white },
   certifierCard: {
     flexDirection: 'row',
     gap: spacing.md,
