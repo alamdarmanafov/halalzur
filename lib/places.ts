@@ -143,6 +143,7 @@ export async function getAllPlaces(): Promise<Place[]> {
       .from('places')
       .select('id, name, category, status, address, latitude, longitude, certifier_name, note, image_url')
       .eq('approved', true)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
     if (!error) return (data ?? []).map(mapRowToPlace);

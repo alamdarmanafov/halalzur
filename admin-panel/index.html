@@ -272,6 +272,19 @@
           <small>Admin panel</small>
         </div>
       </div>
+      <div style="flex: 1; max-width: 360px; margin: 0 24px; position: relative;">
+        <input
+          type="text"
+          id="globalSearchInput"
+          placeholder="Hər yerdə axtar (məhsul, məkan, istifadəçi, rəy)…"
+          style="width: 100%; padding: 9px 14px; border-radius: 999px; border: 1.5px solid var(--border); background: var(--surface-2); color: var(--ink); font-size: 13.5px; outline: none;"
+        />
+        <div
+          id="globalSearchResults"
+          hidden
+          style="position: absolute; top: 100%; left: 0; right: 0; margin-top: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 20px 48px -20px rgba(var(--shadow-color), 0.4); max-height: 420px; overflow-y: auto; z-index: 50;"
+        ></div>
+      </div>
       <button class="logout-btn" id="logoutBtn">Çıxış</button>
     </div>
   </header>
@@ -309,6 +322,18 @@
           <span>Xəta/Rəy</span>
           <span class="badge" id="navBadgeFeedback" hidden>0</span>
         </button>
+        <button class="nav-item" type="button" data-section="certifiers">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 8.5 8 11 4.6-2.5 8-6 8-11V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>
+          <span>Sertifikatorlar</span>
+        </button>
+        <button class="nav-item" type="button" data-section="trash">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M6 7v13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>
+          <span>Zibil qutusu</span>
+        </button>
+        <button class="nav-item" type="button" data-section="audit">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6l3 3v17H6V5z"/><path d="M9 9h6"/><path d="M9 13h6"/><path d="M9 17h4"/></svg>
+          <span>Fəaliyyət qeydi</span>
+        </button>
       </nav>
     </aside>
 
@@ -322,6 +347,53 @@
       <div class="stat-card"><div class="num" id="dashScanWeek">–</div><div class="label">Bu həftə</div></div>
       <div class="stat-card"><div class="num" id="dashScanMonth">–</div><div class="label">Bu ay</div></div>
       <div class="stat-card"><div class="num" id="dashScanYear">–</div><div class="label">Bu il</div></div>
+    </div>
+
+    <div class="panel-head" style="margin-top: 24px;">
+      <h3 style="margin: 0; font-size: 15px;">Son 14 gün</h3>
+    </div>
+    <div id="scanTrendChart" style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px;"></div>
+
+    <div class="panel-head" style="margin-top: 32px;">
+      <h2>Data sağlamlığı</h2>
+    </div>
+    <div class="stats-row stats-row-4">
+      <div class="stat-card"><div class="num" id="healthMissingImage">–</div><div class="label">Şəkli yoxdur</div></div>
+      <div class="stat-card"><div class="num" id="healthMissingCategory">–</div><div class="label">Kateqoriyası yoxdur</div></div>
+      <div class="stat-card"><div class="num" id="healthMissingIngredients">–</div><div class="label">Tərkibi yoxdur</div></div>
+      <div class="stat-card"><div class="num" id="healthUnknownStatus">–</div><div class="label">Naməlum status</div></div>
+    </div>
+
+    <div class="panel-head" style="margin-top: 32px;">
+      <h2>Ən çox rast gəlinən E-kodlar</h2>
+      <button type="button" class="btn" id="ecodeReportRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+        Hesabla
+      </button>
+    </div>
+    <p class="hint">Bütün məhsulların tərkibini tarayır — bazanın ölçüsündən asılı olaraq bir neçə saniyə çəkə bilər.</p>
+    <div id="ecodeReportList"></div>
+
+    <div class="panel-head" style="margin-top: 32px;">
+      <h2>Ən çox skan edilən təsdiqli məhsullar</h2>
+      <button type="button" class="btn" id="topConfirmedRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+        Yenilə
+      </button>
+    </div>
+    <div id="topConfirmedList"></div>
+
+    <div class="panel-head" style="margin-top: 32px;">
+      <h2>Xal lideri</h2>
+    </div>
+    <div id="leaderboardList"></div>
+
+    <div class="panel-head" style="margin-top: 32px;">
+      <h2>CSV eksport</h2>
+    </div>
+    <p class="hint">Cədvəlləri Excel-də açıla bilən CSV faylı kimi yüklə.</p>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <button type="button" class="btn" data-csv-export="products">Məhsullar (CSV)</button>
+      <button type="button" class="btn" data-csv-export="places">Məkanlar (CSV)</button>
+      <button type="button" class="btn" data-csv-export="users">İstifadəçilər (CSV)</button>
     </div>
 
     <div class="panel-head" style="margin-top: 32px;">
@@ -391,6 +463,13 @@
       <span id="productsCountLabel"></span>
     </div>
 
+    <div class="nav" style="flex-direction: row; gap: 6px; margin-bottom: 20px;">
+      <button type="button" class="nav-item active" id="productsTabBrowseBtn" style="width: auto;">Məhsullar</button>
+      <button type="button" class="nav-item" id="productsTabAddBtn" style="width: auto;">Məhsul əlavə et</button>
+    </div>
+
+    <div id="productsTabBrowse">
+
     <div class="place-form" style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
       <div class="field" style="flex: 1; min-width: 200px; margin-bottom: 0;">
         <label for="productSearch">Axtar (ad, marka, barkod)</label>
@@ -414,6 +493,10 @@
         <input type="checkbox" id="productFeaturedFilter" style="width: 16px; height: 16px;" />
         Yalnız tövsiyə olunanlar
       </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--ink-muted); padding-bottom: 10px;">
+        <input type="checkbox" id="productMissingImageFilter" style="width: 16px; height: 16px;" />
+        Şəkli yoxdur
+      </label>
       <button type="button" class="btn" id="productSelectToggleBtn">Seç</button>
     </div>
 
@@ -429,6 +512,19 @@
         <button type="button" class="btn" id="productBulkSelectFilteredBtn">Filterə uyğun hamısını seç</button>
         <button type="button" class="place-delete-btn" id="productBulkDeleteBtn" disabled>Seçilənləri sil</button>
         <button type="button" class="btn" id="productBulkCancelBtn">Ləğv et</button>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <select id="productBulkStatusInput" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px;">
+          <option value="halal">Halal</option>
+          <option value="mushbooh">Şübhəli</option>
+          <option value="haram">Tövsiyə edilmir</option>
+          <option value="unknown">Naməlum</option>
+        </select>
+        <button type="button" class="btn" id="productBulkSetStatusBtn" disabled>Seçilənlərin statusunu dəyiş</button>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <input type="text" id="productBulkCategoryInput" placeholder="Məs. Süd məhsulları" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; width: 180px;" />
+        <button type="button" class="btn" id="productBulkSetCategoryBtn" disabled>Seçilənlərin kateqoriyasını dəyiş</button>
       </div>
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
         <input type="text" id="productBulkEcodeInput" placeholder="Məs. E471" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; width: 120px;" />
@@ -467,6 +563,10 @@
       </p>
       <div id="unclassifiedList"></div>
     </div>
+
+    </div>
+
+    <div id="productsTabAdd" hidden>
 
     <form class="place-form" id="productForm">
       <div class="field-grid">
@@ -527,6 +627,10 @@
         <code>unknown</code> (naməlum). Kateqoriya və tərkib istəyə bağlıdır, status boş qalsa "naməlum" qəbul olunur.
       </p>
       <div class="field">
+        <label for="bulkCsvFile">və ya CSV/Excel faylından yüklə (sütun sırası: barkod,ad,marka,kateqoriya,status,tərkib — CSV kimi export edin)</label>
+        <input type="file" id="bulkCsvFile" accept=".csv,text/csv" />
+      </div>
+      <div class="field">
         <textarea
           id="bulkAddInput"
           rows="8"
@@ -540,12 +644,16 @@
       <div class="gate-error" id="bulkAddError"></div>
     </div>
 
+    </div>
+
+    <div id="productsTabBrowseList">
     <div class="cards" id="productCards" style="margin-top: 20px;"></div>
     <div class="empty-state" id="productsEmptyState" hidden>Hələ heç bir məhsul əlavə edilməyib.</div>
     <div style="display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px;">
       <button type="button" class="btn" id="productPrevPageBtn">← Əvvəlki</button>
       <span id="productPageLabel"></span>
       <button type="button" class="btn" id="productNextPageBtn">Növbəti →</button>
+    </div>
     </div>
     </section>
 
@@ -697,9 +805,12 @@
           </select>
         </div>
       </div>
-      <div style="display: flex; gap: 10px; margin-top: 12px;">
-        <button type="submit" class="btn btn-approve">Bildirişi dərc et</button>
+      <div style="display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; align-items: center;">
+        <button type="submit" class="btn btn-approve">İndi dərc et</button>
         <button type="button" class="btn" id="annPreviewToggleBtn">Önizlə</button>
+        <span style="color: var(--ink-muted); font-size: 13px;">və ya</span>
+        <input type="datetime-local" id="annScheduleAt" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px;" />
+        <button type="button" class="btn" id="annScheduleBtn">Planla</button>
       </div>
       <div class="gate-error" id="announcementFormError"></div>
     </form>
@@ -814,6 +925,67 @@
     <div class="empty-state" id="feedbackEmptyState" hidden>Hələ heç bir mesaj yoxdur.</div>
     </section>
 
+    <section class="section" id="section-certifiers" hidden>
+    <div class="panel-head">
+      <h2>Sertifikatorlar</h2>
+      <span id="certifiersCountLabel"></span>
+    </div>
+    <form class="place-form" id="certifierForm">
+      <div class="field-grid">
+        <div class="field">
+          <label for="certifierId">ID (kiçik hərflər, boşluqsuz)</label>
+          <input type="text" id="certifierId" placeholder="Məs. hak" required />
+        </div>
+        <div class="field">
+          <label for="certifierShortName">Qısa ad</label>
+          <input type="text" id="certifierShortName" placeholder="Məs. HAK" required />
+        </div>
+        <div class="field field-wide">
+          <label for="certifierName">Tam ad</label>
+          <input type="text" id="certifierName" placeholder="Məs. Helal Akreditasyon Kurumu" required />
+        </div>
+        <div class="field">
+          <label for="certifierCountry">Ölkə</label>
+          <input type="text" id="certifierCountry" placeholder="Məs. Türkiyə" required />
+        </div>
+        <div class="field">
+          <label for="certifierSourceUrl">Sayt (istəyə bağlı)</label>
+          <input type="text" id="certifierSourceUrl" placeholder="https://..." />
+        </div>
+      </div>
+      <button type="submit" class="btn btn-approve" style="margin-top: 12px;">Sertifikatoru əlavə et</button>
+      <div class="gate-error" id="certifierFormError"></div>
+    </form>
+    <div class="cards" id="certifierCards" style="margin-top: 20px;"></div>
+    </section>
+
+    <section class="section" id="section-trash" hidden>
+    <div class="panel-head">
+      <h2>Zibil qutusu</h2>
+      <span id="trashCountLabel"></span>
+    </div>
+    <p class="hint">
+      Silinən məhsul və məkanlar birbaşa yox olmur, buraya düşür — istəsəniz geri qaytara, istəsəniz həmişəlik silə
+      bilərsiniz.
+    </p>
+    <div class="cards" id="trashCards"></div>
+    <div class="empty-state" id="trashEmptyState" hidden>Zibil qutusu boşdur.</div>
+    </section>
+
+    <section class="section" id="section-audit" hidden>
+    <div class="panel-head">
+      <h2>Fəaliyyət qeydi</h2>
+      <button type="button" class="btn" id="auditRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+        Yenilə
+      </button>
+    </div>
+    <p class="hint">
+      Admin paneldəki əsas əməliyyatların (status dəyişmə, silmə, blok, toplu əməliyyatlar) qeydi. Bu tətbiqin hələ
+      real çoxadminli girişi yoxdur, ona görə "kim" sahəsi ümumi "admin" göstərir.
+    </p>
+    <div id="auditLogList"></div>
+    </section>
+
     <p class="caveat">
       Qeyd: giriş e-poçtu/şifrəsi artıq server tərəfində (Vercel funksiyası, environment variable) yoxlanılır — bu
       faylda açıq görünmür. Amma aşağıdakı təsdiq/rədd əməliyyatları hələ də Supabase-in anon açarı ilə birbaşa
@@ -839,6 +1011,31 @@
   var SESSION_KEY = "halalzur_admin_session";
 
   var STATUS_LABEL = { halal: "🟢 Halal", mushbooh: "🟡 Şübhəli", unknown: "🟡 Naməlum", haram: "🔴 Tövsiyə edilmir" };
+
+  // Best-effort — an audit-log write failing must never block the actual
+  // action it's recording.
+  function logAudit(action, entityTable, entityId, details) {
+    sb("audit_log", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: { action: action, entity_table: entityTable, entity_id: entityId ? String(entityId) : null, details: details || null },
+    }).catch(function () {});
+  }
+
+  document.getElementById("productsTabBrowseBtn").addEventListener("click", function () {
+    document.getElementById("productsTabBrowseBtn").classList.add("active");
+    document.getElementById("productsTabAddBtn").classList.remove("active");
+    document.getElementById("productsTabBrowse").hidden = false;
+    document.getElementById("productsTabBrowseList").hidden = false;
+    document.getElementById("productsTabAdd").hidden = true;
+  });
+  document.getElementById("productsTabAddBtn").addEventListener("click", function () {
+    document.getElementById("productsTabAddBtn").classList.add("active");
+    document.getElementById("productsTabBrowseBtn").classList.remove("active");
+    document.getElementById("productsTabAdd").hidden = false;
+    document.getElementById("productsTabBrowse").hidden = true;
+    document.getElementById("productsTabBrowseList").hidden = true;
+  });
 
   function toast(msg) {
     var el = document.getElementById("toast");
@@ -910,6 +1107,9 @@
     announcements: document.getElementById("section-announcements"),
     users: document.getElementById("section-users"),
     feedback: document.getElementById("section-feedback"),
+    certifiers: document.getElementById("section-certifiers"),
+    trash: document.getElementById("section-trash"),
+    audit: document.getElementById("section-audit"),
   };
   // Each nav click re-fetches that section's data — without this, a
   // section only ever showed whatever was loaded once at login, and
@@ -917,6 +1117,10 @@
   var sectionLoaders = {
     dashboard: function () {
       loadDashboard();
+      loadScanTrendChart();
+      loadDataHealth();
+      loadTopConfirmed();
+      loadLeaderboard();
       loadSyncLog();
       loadVersions();
     },
@@ -938,6 +1142,9 @@
       loadReferralReport();
     },
     feedback: loadFeedback,
+    certifiers: loadCertifiers,
+    trash: loadTrash,
+    audit: loadAuditLog,
   };
 
   navItems.forEach(function (btn) {
@@ -955,6 +1162,97 @@
     });
   });
 
+  function goToSection(key) {
+    var btn = document.querySelector('.nav-item[data-section="' + key + '"]');
+    if (btn) btn.click();
+  }
+
+  // ---- global search ----
+  var globalSearchDebounce;
+  var globalSearchInputEl = document.getElementById("globalSearchInput");
+  var globalSearchResultsEl = document.getElementById("globalSearchResults");
+
+  globalSearchInputEl.addEventListener("input", function () {
+    var q = globalSearchInputEl.value.trim();
+    clearTimeout(globalSearchDebounce);
+    if (!q) {
+      globalSearchResultsEl.hidden = true;
+      return;
+    }
+    globalSearchDebounce = setTimeout(function () { runGlobalSearch(q); }, 350);
+  });
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest("#globalSearchInput") && !e.target.closest("#globalSearchResults")) {
+      globalSearchResultsEl.hidden = true;
+    }
+  });
+
+  function runGlobalSearch(q) {
+    var safe = q.replace(/[,()%]/g, "");
+    globalSearchResultsEl.innerHTML = '<div style="padding:14px; font-size:13px; color:var(--ink-muted);">Axtarılır…</div>';
+    globalSearchResultsEl.hidden = false;
+
+    Promise.all([
+      sb(
+        "certified_entries?select=id,product_name,brand,barcode&deleted_at=is.null&or=(product_name.ilike.%" +
+          safe + "%,brand.ilike.%" + safe + "%,barcode.ilike.%" + safe + "%)&limit=5"
+      ).catch(function () { return []; }),
+      sb("places?select=id,name&deleted_at=is.null&name=ilike.%" + safe + "%&limit=5").catch(function () { return []; }),
+      sb("users?select=id,name,email&or=(name.ilike.%" + safe + "%,email.ilike.%" + safe + "%)&limit=5").catch(function () { return []; }),
+      sb("feedback_reports?select=id,user_name,message&message=ilike.%" + safe + "%&limit=5").catch(function () { return []; }),
+    ]).then(function (results) {
+      var products = results[0] || [];
+      var places = results[1] || [];
+      var users = results[2] || [];
+      var feedback = results[3] || [];
+
+      function group(title, items, key, onClick) {
+        if (!items.length) return "";
+        return (
+          '<div style="padding:10px 14px 4px; font-size:11.5px; font-weight:700; color:var(--ink-muted); text-transform:uppercase; letter-spacing:0.03em;">' +
+            title +
+          '</div>' +
+          items
+            .map(function (item, i) {
+              return (
+                '<div data-group="' + key + '" data-index="' + i + '" ' +
+                'style="padding:10px 14px; cursor:pointer; font-size:13.5px;" ' +
+                'onmouseover="this.style.background=\'var(--surface-2)\'" onmouseout="this.style.background=\'\'">' +
+                esc(onClick(item)) +
+                '</div>'
+              );
+            })
+            .join("")
+        );
+      }
+
+      var html =
+        group("Məhsullar", products, "products", function (p) { return (p.product_name || p.brand) + " — " + (p.barcode || "barkodsuz"); }) +
+        group("Məkanlar", places, "places", function (p) { return p.name; }) +
+        group("İstifadəçilər", users, "users", function (u) { return (u.name || "Adsız") + " — " + (u.email || "—"); }) +
+        group("Xəta/Rəy", feedback, "feedback", function (f) { return (f.user_name || "Naməlum") + ": " + f.message.slice(0, 60); });
+
+      globalSearchResultsEl.innerHTML =
+        html || '<div style="padding:14px; font-size:13px; color:var(--ink-muted);">Nəticə tapılmadı.</div>';
+
+      globalSearchResultsEl.querySelectorAll("[data-group]").forEach(function (el) {
+        el.addEventListener("click", function () {
+          var groupKey = el.getAttribute("data-group");
+          globalSearchResultsEl.hidden = true;
+          globalSearchInputEl.value = "";
+          goToSection(groupKey);
+          if (groupKey === "products") {
+            setTimeout(function () {
+              document.getElementById("productSearch").value = q;
+              currentProductPage = 0;
+              loadProducts();
+            }, 50);
+          }
+        });
+      });
+    });
+  }
+
   // ---- dashboard ----
   function loadDashboard() {
     var periods = ["day", "week", "month", "year"];
@@ -971,6 +1269,291 @@
         .catch(function () { document.getElementById(prodIds[p]).textContent = "—"; });
     });
   }
+
+  // ---- scan trend chart ----
+  function loadScanTrendChart() {
+    var days = [];
+    for (var i = 13; i >= 0; i--) {
+      var d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      days.push(d);
+    }
+    var now = new Date();
+    Promise.all(
+      days.map(function (d, idx) {
+        var start = d.toISOString();
+        var end = idx < days.length - 1 ? days[idx + 1].toISOString() : now.toISOString();
+        return sbCount("scan_events?select=id&created_at=gte." + start + "&created_at=lt." + end);
+      })
+    )
+      .then(function (counts) {
+        renderScanTrendChart(days, counts);
+      })
+      .catch(function () {
+        document.getElementById("scanTrendChart").textContent = "Yüklənmədi";
+      });
+  }
+
+  function renderScanTrendChart(days, counts) {
+    var max = Math.max.apply(null, counts.concat([1]));
+    var w = 700, h = 140;
+    var barGap = 4;
+    var barW = w / days.length - barGap;
+    var bars = days
+      .map(function (d, i) {
+        var val = counts[i];
+        var barH = Math.round((val / max) * (h - 26));
+        var x = i * (barW + barGap);
+        var y = h - barH - 20;
+        return (
+          '<rect x="' + x + '" y="' + y + '" width="' + Math.max(barW, 1) + '" height="' + Math.max(barH, 1) +
+          '" rx="3" fill="#119E4B"><title>' + d.toLocaleDateString("az-AZ") + ": " + val + '</title></rect>' +
+          '<text x="' + (x + barW / 2) + '" y="' + (h - 6) + '" font-size="9" text-anchor="middle" fill="#8FA79A">' +
+          d.getDate() + '</text>'
+        );
+      })
+      .join("");
+    document.getElementById("scanTrendChart").innerHTML =
+      '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%; height:140px;">' + bars + '</svg>';
+  }
+
+  // ---- data health ----
+  function loadDataHealth() {
+    var base = "certified_entries?select=id&entry_type=eq.product&deleted_at=is.null";
+    Promise.all([
+      sbCount(base + "&image_url=is.null"),
+      sbCount(base + "&category=is.null"),
+      sbCount(base + "&ingredients=eq.%7B%7D"),
+      sbCount(base + "&status=eq.unknown"),
+    ])
+      .then(function (counts) {
+        document.getElementById("healthMissingImage").textContent = counts[0];
+        document.getElementById("healthMissingCategory").textContent = counts[1];
+        document.getElementById("healthMissingIngredients").textContent = counts[2];
+        document.getElementById("healthUnknownStatus").textContent = counts[3];
+      })
+      .catch(function () {});
+  }
+
+  // ---- most-common E-codes report ----
+  function fetchAllIngredientsForReport() {
+    var CHUNK = 1000;
+    var all = [];
+    function next(offset) {
+      return fetch(
+        SUPABASE_URL + "/rest/v1/certified_entries?select=ingredients&entry_type=eq.product&deleted_at=is.null",
+        {
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: "Bearer " + SUPABASE_ANON_KEY,
+            Range: offset + "-" + (offset + CHUNK - 1),
+          },
+        }
+      )
+        .then(function (res) {
+          if (!res.ok) return res.text().then(function (t) { throw new Error(t || res.statusText); });
+          return res.json();
+        })
+        .then(function (rows) {
+          all = all.concat(rows);
+          if (rows.length === CHUNK) return next(offset + CHUNK);
+          return all;
+        });
+    }
+    return next(0);
+  }
+
+  document.getElementById("ecodeReportRefreshBtn").addEventListener("click", function () {
+    var btn = this;
+    var wrap = document.getElementById("ecodeReportList");
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Hesablanır…";
+    wrap.textContent = "Yüklənir…";
+    fetchAllIngredientsForReport()
+      .then(function (rows) {
+        var counts = {};
+        rows.forEach(function (row) {
+          (row.ingredients || []).forEach(function (ing) {
+            var code = ing.trim().toUpperCase().replace(/\s+/g, "");
+            if (ECODE_PATTERN.test(code)) counts[code] = (counts[code] || 0) + 1;
+          });
+        });
+        var sorted = Object.keys(counts)
+          .map(function (c) { return { code: c, count: counts[c] }; })
+          .sort(function (a, b) { return b.count - a.count; })
+          .slice(0, 25);
+        wrap.innerHTML = "";
+        if (!sorted.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Tərkibdə E-kod tapılmadı.";
+          wrap.appendChild(empty);
+          return;
+        }
+        sorted.forEach(function (item) {
+          var status = ECODE_STATUS_MAP[item.code];
+          var style = status && ECODE_CHIP_STYLE[status] ? ECODE_CHIP_STYLE[status] : "background:#f0f0f0; color:#444;";
+          var row = document.createElement("div");
+          row.className = "place-card";
+          row.style.marginBottom = "6px";
+          row.innerHTML =
+            '<div style="display:flex; align-items:center; gap:10px;">' +
+              '<span style="' + style + ' padding:4px 10px; border-radius:10px; font-weight:700;">' + esc(item.code) + '</span>' +
+              '<span class="pc-sub">' + item.count + ' məhsulda</span>' +
+            '</div>';
+          wrap.appendChild(row);
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
+
+  // ---- most-scanned confirmed products ----
+  function loadTopConfirmed() {
+    var wrap = document.getElementById("topConfirmedList");
+    wrap.textContent = "Yüklənir…";
+    sb("confirmed_scan_counts?order=scan_count.desc&limit=15")
+      .then(function (rows) {
+        wrap.innerHTML = "";
+        if (!rows || !rows.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Hələ heç bir təsdiqli məhsul skan edilməyib.";
+          wrap.appendChild(empty);
+          return;
+        }
+        rows.forEach(function (row) {
+          var item = document.createElement("div");
+          item.className = "place-card";
+          item.style.marginBottom = "8px";
+          item.innerHTML =
+            '<div>' +
+              '<div class="pc-title">' + esc(row.product_name || row.brand) + '</div>' +
+              '<div class="pc-sub">' + (STATUS_LABEL[row.status] || row.status) + ' · ' + row.scan_count + ' dəfə skan edilib</div>' +
+            '</div>';
+          wrap.appendChild(item);
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Yüklənmədi: " + err.message;
+        wrap.appendChild(errEl);
+      });
+  }
+  document.getElementById("topConfirmedRefreshBtn").addEventListener("click", loadTopConfirmed);
+
+  // ---- points leaderboard ----
+  function loadLeaderboard() {
+    var wrap = document.getElementById("leaderboardList");
+    wrap.textContent = "Yüklənir…";
+    sb("user_points?order=points.desc&limit=20&select=*")
+      .then(function (rows) {
+        wrap.innerHTML = "";
+        if (!rows || !rows.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Hələ heç kimin xalı yoxdur.";
+          wrap.appendChild(empty);
+          return;
+        }
+        rows.forEach(function (row, i) {
+          var item = document.createElement("div");
+          item.className = "place-card";
+          item.style.marginBottom = "6px";
+          item.innerHTML =
+            '<div style="display:flex; align-items:center; gap:14px;">' +
+              '<span style="font-weight:800; color:var(--ink-muted); width:20px;">' + (i + 1) + '</span>' +
+              '<div class="pc-title" style="margin:0;">' + esc(row.user_name || row.user_id) + '</div>' +
+            '</div>' +
+            '<span style="font-weight:800; color:var(--brand);">🏆 ' + row.points + '</span>';
+          wrap.appendChild(item);
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Yüklənmədi: " + err.message;
+        wrap.appendChild(errEl);
+      });
+  }
+
+  // ---- CSV export ----
+  function toCsv(rows) {
+    if (!rows.length) return "";
+    var headers = Object.keys(rows[0]);
+    function csvEsc(val) {
+      if (val == null) return "";
+      var s = Array.isArray(val) ? val.join("; ") : String(val);
+      if (/[",\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    }
+    var lines = [headers.join(",")];
+    rows.forEach(function (row) {
+      lines.push(headers.map(function (h) { return csvEsc(row[h]); }).join(","));
+    });
+    return lines.join("\n");
+  }
+
+  function downloadCsv(filename, csv) {
+    var blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  var CSV_EXPORT_TABLES = {
+    products: {
+      path: "certified_entries?select=barcode,product_name,brand,category,status,certificate_number,image_url,featured&entry_type=eq.product&deleted_at=is.null&limit=100000",
+      name: "halalzur-mehsullar.csv",
+    },
+    places: {
+      path: "places?select=name,category,status,address,latitude,longitude,certifier_name&deleted_at=is.null&limit=100000",
+      name: "halalzur-mekanlar.csv",
+    },
+    users: {
+      path: "users?select=id,name,email,plan,language,banned,created_at&limit=100000",
+      name: "halalzur-istifadeciler.csv",
+    },
+  };
+
+  document.querySelectorAll("[data-csv-export]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var key = btn.getAttribute("data-csv-export");
+      var cfg = CSV_EXPORT_TABLES[key];
+      if (!cfg) return;
+      btn.disabled = true;
+      var original = btn.textContent;
+      btn.textContent = "Hazırlanır…";
+      sb(cfg.path)
+        .then(function (rows) {
+          downloadCsv(cfg.name, toCsv(rows || []));
+          toast("CSV hazırdır");
+        })
+        .catch(function (err) {
+          toast("Xəta: " + err.message);
+        })
+        .finally(function () {
+          btn.disabled = false;
+          btn.textContent = original;
+        });
+    });
+  });
 
   // ---- sync history ----
   function loadSyncLog() {
@@ -1135,6 +1718,210 @@
       });
   });
 
+  // ---- certifiers ----
+  function loadCertifiers() {
+    sb("certifiers?order=name.asc&select=*")
+      .then(function (rows) {
+        renderCertifierCards(rows || []);
+      })
+      .catch(function (err) {
+        toast("Sertifikatorlar yüklənmədi: " + err.message);
+      });
+  }
+
+  function renderCertifierCards(list) {
+    var container = document.getElementById("certifierCards");
+    document.getElementById("certifiersCountLabel").textContent = list.length + " sertifikator";
+    container.innerHTML = "";
+    list.forEach(function (row) {
+      var card = document.createElement("div");
+      card.className = "place-card";
+      card.innerHTML =
+        '<div>' +
+          '<div class="pc-title">' + esc(row.short_name) + ' <span class="pc-sub" style="font-weight:400;">(' + esc(row.id) + ')</span></div>' +
+          '<div class="pc-sub">' + esc(row.name) + '</div>' +
+          '<div class="pc-sub">' + esc(row.country) +
+            (row.source_url ? ' · <a href="' + esc(row.source_url) + '" target="_blank" rel="noopener">' + esc(row.source_url) + '</a>' : '') +
+          '</div>' +
+          (row.last_synced_at ? '<div class="pc-sub">Son sync: ' + new Date(row.last_synced_at).toLocaleString("az-AZ") + '</div>' : '') +
+        '</div>' +
+        '<button type="button" class="place-delete-btn" data-action="delete-certifier">Sil</button>';
+      card.querySelector('[data-action="delete-certifier"]').addEventListener("click", function (e) {
+        deleteCertifier(row, card, e.target);
+      });
+      container.appendChild(card);
+    });
+  }
+
+  function deleteCertifier(row, card, btn) {
+    if (!window.confirm('"' + row.short_name + '" silinsin? Bu sertifikatora bağlı məhsullar varsa xəta verəcək.')) return;
+    btn.disabled = true;
+    sb("certifiers?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+      .then(function () {
+        toast("Silindi: " + row.short_name);
+        logAudit("delete", "certifiers", row.id, row.short_name);
+        card.remove();
+        loadCertifiers();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+      });
+  }
+
+  document.getElementById("certifierForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var errorEl = document.getElementById("certifierFormError");
+    errorEl.textContent = "";
+    var id = document.getElementById("certifierId").value.trim().toLowerCase();
+    var shortName = document.getElementById("certifierShortName").value.trim();
+    var name = document.getElementById("certifierName").value.trim();
+    var country = document.getElementById("certifierCountry").value.trim();
+    var sourceUrl = document.getElementById("certifierSourceUrl").value.trim();
+    if (!id || !shortName || !name || !country) {
+      errorEl.textContent = "ID, qısa ad, tam ad və ölkə tələb olunur.";
+      return;
+    }
+    var submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    sb("certifiers", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: { id: id, short_name: shortName, name: name, country: country, source_url: sourceUrl || null },
+    })
+      .then(function () {
+        toast("Sertifikator əlavə edildi: " + shortName);
+        logAudit("create", "certifiers", id, shortName);
+        e.target.reset();
+        loadCertifiers();
+      })
+      .catch(function (err) {
+        errorEl.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        submitBtn.disabled = false;
+      });
+  });
+
+  // ---- trash ----
+  function loadTrash() {
+    var wrap = document.getElementById("trashCards");
+    var empty = document.getElementById("trashEmptyState");
+    wrap.textContent = "Yüklənir…";
+    Promise.all([
+      sb("certified_entries?deleted_at=not.is.null&order=deleted_at.desc&limit=200&select=id,product_name,brand,deleted_at"),
+      sb("places?deleted_at=not.is.null&order=deleted_at.desc&limit=200&select=id,name,deleted_at"),
+    ])
+      .then(function (results) {
+        var products = (results[0] || []).map(function (r) { return { kind: "product", row: r }; });
+        var places = (results[1] || []).map(function (r) { return { kind: "place", row: r }; });
+        var all = products.concat(places).sort(function (a, b) {
+          return new Date(b.row.deleted_at) - new Date(a.row.deleted_at);
+        });
+        document.getElementById("trashCountLabel").textContent = all.length + " element";
+        wrap.innerHTML = "";
+        if (!all.length) {
+          empty.hidden = false;
+          return;
+        }
+        empty.hidden = true;
+        all.forEach(function (item) {
+          wrap.appendChild(buildTrashCard(item));
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        toast("Zibil qutusu yüklənmədi: " + err.message);
+      });
+  }
+
+  function buildTrashCard(item) {
+    var row = item.row;
+    var table = item.kind === "product" ? "certified_entries" : "places";
+    var label = item.kind === "product" ? (row.product_name || row.brand) : row.name;
+    var card = document.createElement("div");
+    card.className = "place-card";
+    card.innerHTML =
+      '<div>' +
+        '<div class="pc-title">' + esc(label) + '</div>' +
+        '<div class="pc-sub">' + (item.kind === "product" ? "Məhsul" : "Məkan") + ' · silinib: ' +
+          new Date(row.deleted_at).toLocaleString("az-AZ") + '</div>' +
+      '</div>' +
+      '<div style="display:flex; flex-direction:column; gap:6px;">' +
+        '<button type="button" class="place-delete-btn" data-action="restore" style="background:var(--ok-bg); color:var(--ok);">Geri qaytar</button>' +
+        '<button type="button" class="place-delete-btn" data-action="purge">Həmişəlik sil</button>' +
+      '</div>';
+    card.querySelector('[data-action="restore"]').addEventListener("click", function (e) {
+      e.target.disabled = true;
+      sb(table + "?id=eq." + row.id, {
+        method: "PATCH",
+        headers: { "Prefer": "return=minimal" },
+        body: { deleted_at: null },
+      })
+        .then(function () {
+          toast("Geri qaytarıldı: " + label);
+          logAudit("restore", table, row.id, label);
+          card.remove();
+        })
+        .catch(function (err) {
+          toast("Xəta: " + err.message);
+          e.target.disabled = false;
+        });
+    });
+    card.querySelector('[data-action="purge"]').addEventListener("click", function (e) {
+      if (!window.confirm('"' + label + '" həmişəlik silinsin? Bu geri qaytarıla BİLMƏZ.')) return;
+      e.target.disabled = true;
+      sb(table + "?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+        .then(function () {
+          toast("Həmişəlik silindi: " + label);
+          logAudit("purge", table, row.id, label);
+          card.remove();
+        })
+        .catch(function (err) {
+          toast("Xəta: " + err.message);
+          e.target.disabled = false;
+        });
+    });
+    return card;
+  }
+
+  // ---- audit log ----
+  function loadAuditLog() {
+    var wrap = document.getElementById("auditLogList");
+    wrap.textContent = "Yüklənir…";
+    sb("audit_log?order=created_at.desc&limit=200&select=*")
+      .then(function (rows) {
+        wrap.innerHTML = "";
+        if (!rows || !rows.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Hələ heç bir qeyd yoxdur.";
+          wrap.appendChild(empty);
+          return;
+        }
+        rows.forEach(function (row) {
+          var item = document.createElement("div");
+          item.className = "place-card";
+          item.style.marginBottom = "8px";
+          item.innerHTML =
+            '<div>' +
+              '<div class="pc-title">' + esc(row.action) + ' — ' + esc(row.entity_table) + '</div>' +
+              '<div class="pc-sub">' + (row.details ? esc(row.details) + ' · ' : '') +
+                new Date(row.created_at).toLocaleString("az-AZ") + '</div>' +
+            '</div>';
+          wrap.appendChild(item);
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Yüklənmədi: " + err.message;
+        wrap.appendChild(errEl);
+      });
+  }
+  document.getElementById("auditRefreshBtn").addEventListener("click", loadAuditLog);
+
   // ---- gate ----
   var gateEl = document.getElementById("gate");
   var appEl = document.getElementById("app");
@@ -1145,6 +1932,10 @@
     gateEl.hidden = true;
     appEl.hidden = false;
     loadDashboard();
+    loadScanTrendChart();
+    loadDataHealth();
+    loadTopConfirmed();
+    loadLeaderboard();
     loadSyncLog();
     loadVersions();
     loadAll();
@@ -1409,7 +2200,8 @@
     var search = document.getElementById("productSearch").value.trim();
     var ecode = document.getElementById("productEcodeFilter").value.trim().toUpperCase().replace(/\s+/g, "");
     var featuredOnly = document.getElementById("productFeaturedFilter").checked;
-    var params = "";
+    var missingImageOnly = document.getElementById("productMissingImageFilter").checked;
+    var params = "&deleted_at=is.null";
     if (status) params += "&status=eq." + encodeURIComponent(status);
     if (search) {
       var safe = search.replace(/[,()%]/g, "");
@@ -1428,7 +2220,8 @@
     // holds this exact E-code (e.g. "E471"), not a substring match.
     if (ecode) params += "&ingredients=cs.%7B" + encodeURIComponent(ecode) + "%7D";
     if (featuredOnly) params += "&featured=eq.true";
-    return { params: params, filtered: !!status || !!search || !!ecode || featuredOnly };
+    if (missingImageOnly) params += "&image_url=is.null";
+    return { params: params, filtered: !!status || !!search || !!ecode || featuredOnly || missingImageOnly };
   }
 
   // Fetches every id matching the current filter, across all pages — used
@@ -1503,7 +2296,7 @@
     var all = [];
     function next(offset) {
       return fetch(
-        SUPABASE_URL + "/rest/v1/certified_entries?select=id,barcode,product_name,brand,status&entry_type=eq.product",
+        SUPABASE_URL + "/rest/v1/certified_entries?select=id,barcode,product_name,brand,status&entry_type=eq.product&deleted_at=is.null",
         {
           headers: {
             apikey: SUPABASE_ANON_KEY,
@@ -1698,7 +2491,72 @@
     document.getElementById("productBulkDeleteBtn").disabled = count === 0;
     document.getElementById("productBulkAddEcodeBtn").disabled = count === 0;
     document.getElementById("productBulkSetImageBtn").disabled = count === 0;
+    document.getElementById("productBulkSetStatusBtn").disabled = count === 0;
+    document.getElementById("productBulkSetCategoryBtn").disabled = count === 0;
   }
+
+  document.getElementById("productBulkSetStatusBtn").addEventListener("click", function () {
+    var ids = Object.keys(selectedProductIds);
+    if (!ids.length) return;
+    var status = document.getElementById("productBulkStatusInput").value;
+    if (!window.confirm(ids.length + " məhsulun statusu \"" + status + "\" edilsin?")) return;
+
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Yenilənir…";
+    sb("certified_entries?id=in.(" + ids.join(",") + ")", {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { status: status, updated_at: new Date().toISOString() },
+    })
+      .then(function () {
+        toast(ids.length + " məhsulun statusu dəyişdi");
+        logAudit("bulk_status_change", "certified_entries", null, ids.length + " məhsul → " + status);
+        loadProducts();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
+
+  document.getElementById("productBulkSetCategoryBtn").addEventListener("click", function () {
+    var ids = Object.keys(selectedProductIds);
+    if (!ids.length) return;
+    var category = document.getElementById("productBulkCategoryInput").value.trim();
+    if (!category) {
+      toast("Kateqoriya boş ola bilməz");
+      return;
+    }
+    if (!window.confirm(ids.length + " məhsulun kateqoriyası \"" + category + "\" edilsin?")) return;
+
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Yenilənir…";
+    sb("certified_entries?id=in.(" + ids.join(",") + ")", {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { category: category, updated_at: new Date().toISOString() },
+    })
+      .then(function () {
+        toast(ids.length + " məhsulun kateqoriyası dəyişdi");
+        logAudit("bulk_category_change", "certified_entries", null, ids.length + " məhsul → " + category);
+        document.getElementById("productBulkCategoryInput").value = "";
+        loadProducts();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
 
   document.getElementById("productBulkSelectFilteredBtn").addEventListener("click", function () {
     var f = productFilterParams();
@@ -1826,17 +2684,19 @@
   document.getElementById("productBulkDeleteBtn").addEventListener("click", function () {
     var ids = Object.keys(selectedProductIds);
     if (!ids.length) return;
-    if (!window.confirm(ids.length + " məhsul silinsin? Bu əməliyyat geri qaytarıla bilməz.")) return;
+    if (!window.confirm(ids.length + " məhsul zibil qutusuna köçürülsün?")) return;
 
     var btn = document.getElementById("productBulkDeleteBtn");
     btn.disabled = true;
     btn.textContent = "Silinir…";
     sb("certified_entries?id=in.(" + ids.join(",") + ")", {
-      method: "DELETE",
+      method: "PATCH",
       headers: { "Prefer": "return=minimal" },
+      body: { deleted_at: new Date().toISOString() },
     })
       .then(function () {
-        toast(ids.length + " məhsul silindi");
+        toast(ids.length + " məhsul zibil qutusuna köçürüldü");
+        logAudit("bulk_soft_delete", "certified_entries", null, ids.length + " məhsul");
         selectedProductIds = {};
         updateProductBulkBar();
         loadProducts();
@@ -1872,6 +2732,10 @@
     loadProducts();
   });
   document.getElementById("productFeaturedFilter").addEventListener("change", function () {
+    currentProductPage = 0;
+    loadProducts();
+  });
+  document.getElementById("productMissingImageFilter").addEventListener("change", function () {
     currentProductPage = 0;
     loadProducts();
   });
@@ -1938,6 +2802,7 @@
   }
 
   function copyUnclassifiedToForm(row) {
+    document.getElementById("productsTabAddBtn").click();
     var barcodeInput = document.getElementById("productBarcode");
     barcodeInput.value = row.barcode;
     barcodeInput.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -2153,6 +3018,10 @@
             '</div>' +
             '<div data-role="ecode-dropdown" hidden style="position:absolute; top:100%; left:0; right:0; margin-top:4px; background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.12); max-height:240px; overflow-y:auto; z-index:30;"></div>' +
           '</div>' +
+          '<div class="field field-wide" style="margin:0;">' +
+            '<label>Daxili qeyd (yalnız admin görür)</label>' +
+            '<textarea data-role="edit-admin-note" rows="2" placeholder="Məs. GIMDES-lə yoxlanmalıdır"></textarea>' +
+          '</div>' +
         '</div>' +
         '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
           '<button class="btn btn-approve" data-action="save-product">Yadda saxla</button>' +
@@ -2166,6 +3035,7 @@
     card.querySelector('[data-role="edit-status"]').value = row.status || "unknown";
     card.querySelector('[data-role="edit-category"]').value = row.category || "";
     card.querySelector('[data-role="edit-image"]').value = row.image_url || "";
+    card.querySelector('[data-role="edit-admin-note"]').value = row.admin_note || "";
 
     if (productSelectionMode) {
       var checkbox = card.querySelector('[data-role="select-checkbox"]');
@@ -2184,7 +3054,8 @@
       var newStatus = card.querySelector('[data-role="edit-status"]').value;
       var newCategory = card.querySelector('[data-role="edit-category"]').value.trim();
       var newImageUrl = card.querySelector('[data-role="edit-image"]').value.trim();
-      updateProduct(row, card, e.target, newStatus, newCategory, newImageUrl);
+      var newAdminNote = card.querySelector('[data-role="edit-admin-note"]').value.trim();
+      updateProduct(row, card, e.target, newStatus, newCategory, newImageUrl, newAdminNote);
     });
     card.querySelector('[data-action="delete-product"]').addEventListener("click", function (e) {
       deleteProduct(row, card, e.target);
@@ -2235,7 +3106,7 @@
     toast(removed + " silindi");
   }
 
-  function updateProduct(row, card, btn, status, category, imageUrl) {
+  function updateProduct(row, card, btn, status, category, imageUrl, adminNote) {
     btn.disabled = true;
     var originalText = btn.textContent;
     btn.textContent = "Yadda saxlanır…";
@@ -2246,6 +3117,7 @@
         status: status,
         category: category || null,
         image_url: imageUrl || null,
+        admin_note: adminNote || null,
         updated_at: new Date().toISOString(),
       },
     })
@@ -2257,9 +3129,13 @@
           return;
         }
         toast("Yeniləndi: " + (row.product_name || row.brand));
+        if (row.status !== status) {
+          logAudit("status_change", "certified_entries", row.id, (row.product_name || row.brand) + " → " + status);
+        }
         row.status = status;
         row.category = category || null;
         row.image_url = imageUrl || null;
+        row.admin_note = adminNote || null;
         loadProducts();
       })
       .catch(function (err) {
@@ -2294,12 +3170,17 @@
   }
 
   function deleteProduct(row, card, btn) {
-    if (!window.confirm('"' + (row.product_name || row.brand) + '" silinsin?')) return;
+    if (!window.confirm('"' + (row.product_name || row.brand) + '" zibil qutusuna köçürülsün?')) return;
     btn.disabled = true;
     btn.textContent = "Silinir…";
-    sb("certified_entries?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+    sb("certified_entries?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { deleted_at: new Date().toISOString() },
+    })
       .then(function () {
-        toast("Silindi: " + (row.product_name || row.brand));
+        toast("Zibil qutusuna köçürüldü: " + (row.product_name || row.brand));
+        logAudit("soft_delete", "certified_entries", row.id, row.product_name || row.brand);
         card.remove();
         loadProducts();
       })
@@ -2355,6 +3236,7 @@
       .then(function () {
         toast("Məhsul əlavə edildi: " + name);
         e.target.reset();
+        document.getElementById("productsTabBrowseBtn").click();
         loadProducts();
         loadUnclassified();
       })
@@ -2365,6 +3247,64 @@
         submitBtn.disabled = false;
         submitBtn.textContent = "Məhsulu əlavə et";
       });
+  });
+
+  // Minimal RFC4180-ish CSV row parser — handles quoted fields with commas
+  // and escaped ("") quotes, which a plain split(",") would break on.
+  function parseCsv(text) {
+    var rows = [];
+    var row = [];
+    var field = "";
+    var inQuotes = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text[i];
+      if (inQuotes) {
+        if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+        else if (c === '"') { inQuotes = false; }
+        else { field += c; }
+      } else if (c === '"') {
+        inQuotes = true;
+      } else if (c === ",") {
+        row.push(field); field = "";
+      } else if (c === "\n" || c === "\r") {
+        if (c === "\r" && text[i + 1] === "\n") i++;
+        row.push(field); field = "";
+        if (row.some(function (f) { return f !== ""; })) rows.push(row);
+        row = [];
+      } else {
+        field += c;
+      }
+    }
+    if (field !== "" || row.length) { row.push(field); rows.push(row); }
+    return rows;
+  }
+
+  document.getElementById("bulkCsvFile").addEventListener("change", function () {
+    var file = this.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var rows = parseCsv(String(reader.result));
+      if (!rows.length) return;
+      // A header row's first cell won't look like a real barcode (digits) —
+      // skip it if so, rather than requiring the user to remove it by hand.
+      if (rows[0][0] && !/^\d+$/.test(rows[0][0].trim())) rows.shift();
+      var lines = rows
+        .filter(function (r) { return r[0] && r[0].trim(); })
+        .map(function (r) {
+          return [
+            (r[0] || "").trim(),
+            (r[1] || "").trim(),
+            (r[2] || "").trim(),
+            (r[3] || "").trim(),
+            (r[4] || "").trim(),
+            (r[5] || "").trim(),
+          ].join("|");
+        });
+      document.getElementById("bulkAddInput").value = lines.join("\n");
+      toast(lines.length + " sətir CSV-dən oxundu — aşağıda yoxlayıb \"Hamısını əlavə et\" düyməsinə basın");
+    };
+    reader.readAsText(file);
   });
 
   document.getElementById("bulkToggleBtn").addEventListener("click", function () {
@@ -2438,6 +3378,7 @@
         );
         document.getElementById("bulkAddInput").value = "";
         document.getElementById("bulkAddWrap").hidden = true;
+        document.getElementById("productsTabBrowseBtn").click();
         loadProducts();
         loadUnclassified();
       })
@@ -2457,7 +3398,7 @@
   var placesMapMarkers = [];
 
   function loadPlaces() {
-    sb("places?order=approved.asc,created_at.desc&select=*")
+    sb("places?deleted_at=is.null&order=approved.asc,created_at.desc&select=*")
       .then(function (rows) {
         renderPlaceCards(rows || []);
         renderPlacesMap(rows || []);
@@ -2745,12 +3686,17 @@
   }
 
   function deletePlace(row, card, btn) {
-    if (!window.confirm('"' + row.name + '" silinsin?')) return;
+    if (!window.confirm('"' + row.name + '" zibil qutusuna köçürülsün?')) return;
     btn.disabled = true;
     btn.textContent = "Silinir…";
-    sb("places?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+    sb("places?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { deleted_at: new Date().toISOString() },
+    })
       .then(function () {
-        toast("Silindi: " + row.name);
+        toast("Zibil qutusuna köçürüldü: " + row.name);
+        logAudit("soft_delete", "places", row.id, row.name);
         card.remove();
         loadPlaces();
       })
@@ -2974,7 +3920,9 @@
   function buildAnnouncementCard(row) {
     var card = document.createElement("div");
     card.className = "place-card";
-    var statusText = row.active ? "🟢 Aktiv (göstərilir)" : "⚪️ Deaktiv";
+    var statusText = row.active
+      ? "🟢 Aktiv (göstərilir)"
+      : (row.publish_at && new Date(row.publish_at) > new Date() ? "⏳ Planlanıb: " + new Date(row.publish_at).toLocaleString("az-AZ") : "⚪️ Deaktiv");
     var ctaText = row.cta_label
       ? esc(row.cta_label) + " → " + (CTA_ROUTE_LABEL[row.cta_route] || row.cta_route || "—")
       : "Düymə yoxdur";
@@ -3269,7 +4217,61 @@
       })
       .finally(function () {
         submitBtn.disabled = false;
-        submitBtn.textContent = "Bildirişi dərc et";
+        submitBtn.textContent = "İndi dərc et";
+      });
+  });
+
+  document.getElementById("annScheduleBtn").addEventListener("click", function () {
+    var errorEl = document.getElementById("announcementFormError");
+    errorEl.textContent = "";
+    var title = document.getElementById("annTitle").value.trim();
+    var body = document.getElementById("annBody").value.trim();
+    var ctaLabel = document.getElementById("annCtaLabel").value.trim();
+    var ctaRoute = document.getElementById("annCtaRoute").value;
+    var sendAtLocal = document.getElementById("annScheduleAt").value;
+
+    if (!title || !body) {
+      errorEl.textContent = "Başlıq və mətn tələb olunur.";
+      return;
+    }
+    if (!sendAtLocal) {
+      errorEl.textContent = "Dərc vaxtını seçin.";
+      return;
+    }
+    var sendAt = new Date(sendAtLocal);
+    if (isNaN(sendAt.getTime()) || sendAt.getTime() <= Date.now()) {
+      errorEl.textContent = "Dərc vaxtı gələcəkdə olmalıdır.";
+      return;
+    }
+
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Planlanır…";
+    sb("announcements", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: {
+        title: title,
+        body: body,
+        cta_label: ctaLabel || null,
+        cta_route: ctaLabel ? ctaRoute || null : null,
+        active: false,
+        publish_at: sendAt.toISOString(),
+      },
+    })
+      .then(function () {
+        toast("Bildiriş planlandı: " + sendAt.toLocaleString("az-AZ"));
+        document.getElementById("announcementForm").reset();
+        document.getElementById("annScheduleAt").value = "";
+        loadAnnouncements();
+      })
+      .catch(function (err) {
+        errorEl.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
       });
   });
 
@@ -3315,8 +4317,10 @@
         '<div class="pc-sub">' + esc(row.email || "—") + '</div>' +
         '<div class="pc-sub" style="margin-top:6px;">' + planPill + banPill + '</div>' +
         (row.banned && row.ban_reason ? '<div class="pc-note">Səbəb: ' + esc(row.ban_reason) + '</div>' : '') +
+        '<div data-role="user-detail" style="margin-top:8px;"></div>' +
       '</div>' +
       '<div style="display:flex; flex-direction:column; gap:6px;">' +
+        '<button class="btn" data-action="toggle-detail">Ətraflı</button>' +
         '<button class="place-delete-btn" data-action="toggle-plan" style="background:var(--ok-bg); color:var(--ok);">' +
           (row.plan === "premium" ? "Free et" : "Premium et") +
         '</button>' +
@@ -3331,7 +4335,47 @@
     card.querySelector('[data-action="toggle-ban"]').addEventListener("click", function (e) {
       toggleUserBan(row, e.target);
     });
+    card.querySelector('[data-action="toggle-detail"]').addEventListener("click", function (e) {
+      loadUserDetail(row, card, e.target);
+    });
     return card;
+  }
+
+  function loadUserDetail(row, card, btn) {
+    var wrap = card.querySelector('[data-role="user-detail"]');
+    if (wrap.dataset.loaded === "1") {
+      wrap.hidden = !wrap.hidden;
+      return;
+    }
+    wrap.textContent = "Yüklənir…";
+    wrap.hidden = false;
+    btn.disabled = true;
+    Promise.all([
+      sb("user_points?user_id=eq." + encodeURIComponent(row.id) + "&select=points"),
+      sb("referrals?referrer_id=eq." + encodeURIComponent(row.id) + "&select=id"),
+      sb("favorites?user_id=eq." + encodeURIComponent(row.id) + "&select=id"),
+      sb("product_submissions?submitted_by=eq." + encodeURIComponent(row.id) + "&select=id"),
+    ])
+      .then(function (results) {
+        var points = (results[0] && results[0][0] && results[0][0].points) || 0;
+        var referrals = (results[1] || []).length;
+        var favorites = (results[2] || []).length;
+        var submissions = (results[3] || []).length;
+        wrap.innerHTML =
+          '<div style="display:flex; gap:16px; flex-wrap:wrap; font-size:13px; color:var(--ink-muted);">' +
+            '<span>🏆 ' + points + ' xal</span>' +
+            '<span>👥 ' + referrals + ' dəvət</span>' +
+            '<span>♡ ' + favorites + ' favorit</span>' +
+            '<span>📝 ' + submissions + ' təklif</span>' +
+          '</div>';
+        wrap.dataset.loaded = "1";
+      })
+      .catch(function (err) {
+        wrap.textContent = "Yüklənmədi: " + err.message;
+      })
+      .finally(function () {
+        btn.disabled = false;
+      });
   }
 
   function toggleUserBan(row, btn) {
@@ -3349,6 +4393,7 @@
     })
       .then(function () {
         toast(newBanned ? "İstifadəçi bloklandı" : "Blok götürüldü");
+        logAudit(newBanned ? "user_ban" : "user_unban", "users", row.id, row.name || row.email);
         loadUsers();
       })
       .catch(function (err) {

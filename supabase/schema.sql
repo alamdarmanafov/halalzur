@@ -608,3 +608,80 @@ create policy "Public insert" on scheduled_broadcasts
 
 create policy "Public update" on scheduled_broadcasts
   for update using (true) with check (true);
+
+-- Private admin note on a product — distinct from `notes`, which is
+-- shown to end users (e.g. "E330 — bitki mənşəlidir..."); admin_note is
+-- an admin-only reminder like "GIMDES-lə yoxlanmalıdır", never surfaced
+-- in the app.
+alter table certified_entries add column admin_note text;
+
+-- Soft-delete: the admin panel's delete buttons now set this instead of
+-- issuing a hard DELETE, so a bulk-delete mistake is recoverable from the
+-- "Zibil qutusu" (trash) view. Every app-facing query in
+-- lib/certification.ts and lib/places.ts filters deleted_at is null —
+-- a soft-deleted row must never appear to a regular user.
+alter table certified_entries add column deleted_at timestamptz;
+alter table places add column deleted_at timestamptz;
+
+-- Lightweight audit trail — logs the admin panel's more consequential
+-- actions (status changes, deletes, bans, bulk operations). Not
+-- exhaustive (this app has no real per-admin identity yet — see
+-- lib/admin.ts's client-side-only gating caveat — so `actor` is
+-- best-effort, generally just "admin"), but enough to answer "what
+-- changed and roughly when" once a second admin exists.
+create table audit_log (
+  id uuid primary key default gen_random_uuid(),
+  actor text not null default 'admin',
+  action text not null,
+  entity_table text not null,
+  entity_id text,
+  details text,
+  created_at timestamptz not null default now()
+);
+
+alter table audit_log enable row level security;
+
+create policy "Public read" on audit_log
+  for select using (true);
+
+create policy "Public insert" on audit_log
+  for insert with check (true);
+
+-- Scheduled in-app announcements: if set, the announcement starts
+-- inactive and a cron job (process-scheduled-broadcasts.js, the same
+-- one that already sends scheduled push notifications) flips it active
+-- once publish_at is due, deactivating whichever one was active before —
+-- same one-active-at-a-time rule the admin panel's manual publish already
+-- enforces.
+alter table announcements add column publish_at timestamptz;
+
+-- The admin panel can now manage certifiers directly (add GIMDES-style
+-- entries for new certification bodies) instead of needing raw SQL.
+create policy "Public insert" on certifiers
+  for insert with check (true);
+
+create policy "Public update" on certifiers
+  for update using (true) with check (true);
+
+create policy "Public delete" on certifiers
+  for delete using (true);
+
+-- Mirrors unclassified_scan_counts but for barcodes that DO have a
+-- certified_entries match — powers the Dashboard's "Ən çox skan edilən
+-- təsdiqli məhsullar" report.
+create view confirmed_scan_counts
+with (security_invoker = true) as
+select
+  se.barcode,
+  count(*) as scan_count,
+  max(se.created_at) as last_scanned_at,
+  ce.product_name,
+  ce.brand,
+  ce.status
+from scan_events se
+join certified_entries ce on ce.barcode = se.barcode and ce.deleted_at is null
+where se.barcode is not null
+group by se.barcode, ce.product_name, ce.brand, ce.status
+order by count(*) desc;
+
+grant select on confirmed_scan_counts to anon;

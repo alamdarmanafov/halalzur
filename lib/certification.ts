@@ -154,6 +154,7 @@ export async function lookupBarcode(barcode: string): Promise<CertificationResul
       )
       .eq('barcode', barcode)
       .eq('entry_type', 'product')
+      .is('deleted_at', null)
       .limit(1)
       .maybeSingle<CertifiedEntryRow>();
 
@@ -179,6 +180,7 @@ export async function searchProducts(query: string): Promise<CertificationResult
         'barcode, product_name, brand, category, status, certificate_number, verified_at, ingredients, notes, image_url, certifiers(id, name, short_name, country)'
       )
       .eq('entry_type', 'product')
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(30);
 
@@ -234,6 +236,7 @@ export async function getHalalAlternatives(
     )
     .eq('entry_type', 'product')
     .eq('status', 'halal')
+    .is('deleted_at', null)
     .ilike('category', `%${safeCategory}%`)
     .neq('barcode', excludeBarcode)
     .limit(3)
@@ -259,6 +262,7 @@ export async function getDistinctBrands(): Promise<string[]> {
     .from('certified_entries')
     .select('brand')
     .not('brand', 'is', null)
+    .is('deleted_at', null)
     .limit(1000);
   if (error || !data) return [];
   return Array.from(new Set(data.map((r) => r.brand).filter(Boolean))).sort();
@@ -280,6 +284,7 @@ export async function getManyByBarcode(barcodes: string[]): Promise<Record<strin
       'barcode, product_name, brand, category, status, certificate_number, verified_at, ingredients, notes, image_url, certifiers(id, name, short_name, country)'
     )
     .eq('entry_type', 'product')
+    .is('deleted_at', null)
     .in('barcode', barcodes)
     .returns<CertifiedEntryRow[]>();
 

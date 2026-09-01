@@ -1,10 +1,16 @@
-// Vercel serverless function — sends every scheduled_broadcasts row that
-// is due (status='pending', send_at <= now()). Nothing inside this repo
-// calls this on its own; .github/workflows/send-scheduled-broadcasts.yml
-// fires it every ~10 minutes via a scheduled GitHub Actions run. Scheduled
-// pushes are created directly from the admin panel (a plain insert into
-// scheduled_broadcasts via the anon key — no Vercel function needed for
-// that half), so this is the only piece that ever actually sends one.
+// Vercel serverless function — handles two kinds of scheduled item:
+//   1. scheduled_broadcasts rows that are due (status='pending',
+//      send_at <= now()) — sends the push.
+//   2. announcements rows whose publish_at is due (active=false,
+//      publish_at set and <= now()) — activates the in-app popup, the
+//      same one-active-at-a-time rule the admin panel's manual publish
+//      already enforces.
+// Nothing inside this repo calls this on its own;
+// .github/workflows/send-scheduled-broadcasts.yml fires it every ~10
+// minutes via a scheduled GitHub Actions run. Both kinds of scheduled
+// item are created directly from the admin panel (a plain insert via the
+// anon key — no Vercel function needed for that half), so this is the
+// only piece that ever actually acts on either one.
 //
 // Auth: gated by NOTIFY_SECRET (same secret send-notification.js and
 // github-issue.js's create action already use) — the GitHub Actions
@@ -42,17 +48,39 @@ export default async function handler(req, res) {
   }
 
   const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const nowIso = new Date().toISOString();
+
+  let announcementsActivated = 0;
+  try {
+    const { data: dueAnnouncements, error: annError } = await supabase
+      .from('announcements')
+      .select('id')
+      .eq('active', false)
+      .not('publish_at', 'is', null)
+      .lte('publish_at', nowIso);
+    if (annError) throw annError;
+
+    for (const ann of dueAnnouncements || []) {
+      // Same one-active-at-a-time rule the admin panel's manual publish
+      // already enforces.
+      await supabase.from('announcements').update({ active: false }).eq('active', true);
+      await supabase.from('announcements').update({ active: true, publish_at: null }).eq('id', ann.id);
+      announcementsActivated++;
+    }
+  } catch (err) {
+    console.error('process-scheduled-broadcasts: announcement activation failed', err);
+  }
 
   try {
     const { data: due, error } = await supabase
       .from('scheduled_broadcasts')
       .select('*')
       .eq('status', 'pending')
-      .lte('send_at', new Date().toISOString());
+      .lte('send_at', nowIso);
     if (error) throw error;
 
     if (!due || !due.length) {
-      res.status(200).json({ processed: 0 });
+      res.status(200).json({ processed: 0, announcementsActivated });
       return;
     }
 
@@ -84,7 +112,7 @@ export default async function handler(req, res) {
       }
     }
 
-    res.status(200).json({ processed: results.length, results });
+    res.status(200).json({ processed: results.length, results, announcementsActivated });
   } catch (err) {
     console.error('process-scheduled-broadcasts: unexpected error', err);
     res.status(500).json({ error: err.message });
