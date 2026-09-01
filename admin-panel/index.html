@@ -7085,6 +7085,124 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       });
   });
 
+  // ---- virtual scrolling ----
+  // Products/edit-products already page server-side (PRODUCT_PAGE_SIZE),
+  // but the Users list has no cap at all — it only grows, and rendering
+  // one DOM card (with its own event listeners) per row gets slow once
+  // there are a few thousand of them. This windows the DOM to only the
+  // rows near the viewport, absolutely positioned inside a container
+  // whose height is set so the scrollbar still reflects the full list.
+  // Row heights are re-measured after render (and again on demand via
+  // remeasure(), e.g. after a card's "Ətraflı" detail panel expands) so
+  // variable-height cards don't overlap — only the estimate is uniform,
+  // not the actual layout.
+  function createVirtualList(container, options) {
+    var renderRow = options.renderRow; // (item, index) -> HTMLElement
+    var estimatedHeight = options.estimatedHeight || 110;
+    var gap = options.gap != null ? options.gap : 14;
+    var bufferPx = options.bufferPx || 600;
+    var items = [];
+    var heights = [];
+    var offsets = [];
+    var rendered = {};
+    var rafScheduled = false;
+
+    container.style.position = "relative";
+    container.style.display = "block";
+
+    function recomputeOffsets(fromIndex) {
+      var start = fromIndex || 0;
+      var top = start === 0 ? 0 : offsets[start - 1] + heights[start - 1] + gap;
+      for (var i = start; i < items.length; i++) {
+        offsets[i] = top;
+        top += heights[i] + gap;
+      }
+      container.style.height = Math.max(0, top - gap) + "px";
+    }
+
+    function findIndexAtOffset(target) {
+      var lo = 0, hi = items.length - 1;
+      while (lo < hi) {
+        var mid = (lo + hi) >> 1;
+        if (offsets[mid] + heights[mid] < target) lo = mid + 1; else hi = mid;
+      }
+      return lo;
+    }
+
+    function measureAndFix(index, el) {
+      var h = el.offsetHeight;
+      if (h > 0 && Math.abs(h - heights[index]) > 1) {
+        heights[index] = h;
+        recomputeOffsets(index);
+        Object.keys(rendered).forEach(function (k) {
+          var i = parseInt(k, 10);
+          rendered[i].style.top = offsets[i] + "px";
+        });
+      }
+    }
+
+    function update() {
+      // offsetParent is null while the container (or an ancestor, e.g.
+      // the section it's in) is display:none — skips wasted work on
+      // every scroll tick while the admin is looking at another section.
+      if (!items.length || container.offsetParent === null) return;
+      var rect = container.getBoundingClientRect();
+      var viewTop = -rect.top - bufferPx;
+      var viewBottom = viewTop + window.innerHeight + bufferPx * 2;
+      var startIdx = findIndexAtOffset(Math.max(0, viewTop));
+      var endIdx = findIndexAtOffset(Math.max(0, viewBottom));
+
+      Object.keys(rendered).forEach(function (key) {
+        var idx = parseInt(key, 10);
+        if (idx < startIdx || idx > endIdx) {
+          rendered[idx].remove();
+          delete rendered[idx];
+        }
+      });
+      for (var i = startIdx; i <= endIdx; i++) {
+        if (!rendered[i]) {
+          var el = renderRow(items[i], i);
+          el.style.position = "absolute";
+          el.style.left = "0";
+          el.style.right = "0";
+          el.style.top = offsets[i] + "px";
+          container.appendChild(el);
+          rendered[i] = el;
+          measureAndFix(i, el);
+        }
+      }
+    }
+
+    function scheduleUpdate() {
+      if (rafScheduled) return;
+      rafScheduled = true;
+      requestAnimationFrame(function () {
+        rafScheduled = false;
+        update();
+      });
+    }
+
+    function setItems(newItems) {
+      Object.keys(rendered).forEach(function (k) { rendered[k].remove(); });
+      rendered = {};
+      items = newItems;
+      heights = items.map(function () { return estimatedHeight; });
+      offsets = [];
+      recomputeOffsets(0);
+      update();
+    }
+
+    function remeasure(index) {
+      var el = rendered[index];
+      if (el) measureAndFix(index, el);
+    }
+
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+
+    return { setItems: setItems, remeasure: remeasure };
+  }
+
   // ---- users ----
   function loadUsers() {
     sb("users?order=updated_at.desc&select=*")
@@ -7096,6 +7214,9 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       });
   }
 
+  var userVirtualList = null;
+  var userCardsByRowId = {};
+
   function renderUserCards(list) {
     var container = document.getElementById("userCards");
     var empty = document.getElementById("usersEmptyState");
@@ -7103,15 +7224,32 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     document.getElementById("usersCountLabel").textContent = list.length + " istifadəçi";
     document.getElementById("statUsersTotal").textContent = list.length;
     document.getElementById("statUsersPremium").textContent = premiumCount;
-    container.innerHTML = "";
     if (!list.length) {
       empty.hidden = false;
+      container.innerHTML = "";
       return;
     }
     empty.hidden = true;
-    list.forEach(function (row) {
-      container.appendChild(buildUserCard(row));
-    });
+    userCardsByRowId = {};
+    if (!userVirtualList) {
+      userVirtualList = createVirtualList(container, {
+        estimatedHeight: 130,
+        renderRow: function (row, index) {
+          var card = buildUserCard(row);
+          userCardsByRowId[row.id] = { card: card, index: index };
+          return card;
+        },
+      });
+    }
+    userVirtualList.setItems(list);
+  }
+
+  // Called after something inside a user card changes its own height
+  // (the "Ətraflı" detail panel expanding/collapsing) so the virtual
+  // list's row offsets stay accurate instead of overlapping the next row.
+  function remeasureUserCard(userId) {
+    var entry = userCardsByRowId[userId];
+    if (entry && userVirtualList) userVirtualList.remeasure(entry.index);
   }
 
   function buildUserCard(row) {
@@ -7231,6 +7369,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     var wrap = card.querySelector('[data-role="user-detail"]');
     if (wrap.dataset.loaded === "1") {
       wrap.hidden = !wrap.hidden;
+      remeasureUserCard(row.id);
       return;
     }
     wrap.textContent = "Yüklənir…";
@@ -7255,9 +7394,11 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
             '<span>📝 ' + submissions + ' təklif</span>' +
           '</div>';
         wrap.dataset.loaded = "1";
+        remeasureUserCard(row.id);
       })
       .catch(function (err) {
         wrap.textContent = "Yüklənmədi: " + err.message;
+        remeasureUserCard(row.id);
       })
       .finally(function () {
         btn.disabled = false;
