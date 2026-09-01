@@ -11,6 +11,7 @@ import { useAuth } from '../lib/auth-context';
 import { useLanguage } from '../lib/i18n-context';
 import { TranslationKey } from '../lib/i18n';
 import { sendPushNotification } from '../lib/pushNotify';
+import { logPurchaseEvent } from '../lib/purchaseTracking';
 import { maybeRequestReview } from '../lib/reviewPrompt';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
@@ -41,12 +42,14 @@ const PLANS = {
     id: 'com.halalzur.app.premium.monthly',
     labelKey: 'subPlanMonthly',
     price: '$2.99',
+    usdAmount: 2.99,
     periodKey: 'subPeriodMonth',
   },
   sixMonth: {
     id: 'com.halalzur.app.premium.sixmonth',
     labelKey: 'subPlanSixMonth',
     price: '$9.99',
+    usdAmount: 9.99,
     periodKey: 'subPeriodSixMonths',
     badgeKey: 'subBadgeSixMonthSavings',
   },
@@ -54,12 +57,20 @@ const PLANS = {
     id: 'com.halalzur.app.premium.yearly',
     labelKey: 'subPlanYearly',
     price: '$19.99',
+    usdAmount: 19.99,
     periodKey: 'subPeriodYear',
     badgeKey: 'subBadgeYearlyBest',
   },
 } as const satisfies Record<
   string,
-  { id: string; labelKey: TranslationKey; price: string; periodKey: TranslationKey; badgeKey?: TranslationKey }
+  {
+    id: string;
+    labelKey: TranslationKey;
+    price: string;
+    usdAmount: number;
+    periodKey: TranslationKey;
+    badgeKey?: TranslationKey;
+  }
 >;
 
 const PLAN_SKUS = Object.values(PLANS).map((p) => p.id);
@@ -101,6 +112,7 @@ export default function SubscriptionScreen() {
         await setPlan('premium');
         setShowSuccess(true);
         if (user) {
+          logPurchaseEvent(user.id, PLANS[selected].id, PLANS[selected].usdAmount);
           sendPushNotification(
             user.id,
             t('subPremiumActivatedPushTitle'),

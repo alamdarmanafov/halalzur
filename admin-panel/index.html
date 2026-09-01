@@ -408,6 +408,26 @@
     <div id="expiringCertsList"></div>
 
     <div class="panel-head" style="margin-top: 32px;">
+      <h2>Premium gəlir (təxmini)</h2>
+      <button type="button" class="btn" id="premiumRevenueRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+        Yenilə
+      </button>
+    </div>
+    <p class="hint">
+      Diqqət: bu, Apple-ın server tərəfdən qeydiyyat/qəbz yoxlaması olmadan, alış anında tətbiqdən yazılan
+      TƏXMİNİ rəqəmdir — Apple-ın komissiyası (15–30%) çıxılmayıb, yalnız İLK alışlar sayılır (avtomatik
+      yenilənmələr, geri qaytarmalar bura daxil deyil). Real gəlir üçün Apple-ın App Store Server API/Server
+      Notifications inteqrasiyası lazımdır.
+    </p>
+    <div class="stats-row stats-row-4" id="premiumRevenueSummary">
+      <div class="stat-card"><div class="num" id="revenueTotalCount">–</div><div class="label">Cəmi alış</div></div>
+      <div class="stat-card"><div class="num" id="revenueTotalUsd">–</div><div class="label">Cəmi (təxmini)</div></div>
+      <div class="stat-card"><div class="num" id="revenueMonthCount">–</div><div class="label">Bu ay alış</div></div>
+      <div class="stat-card"><div class="num" id="revenueMonthUsd">–</div><div class="label">Bu ay (təxmini)</div></div>
+    </div>
+    <div id="premiumRevenueByPlan"></div>
+
+    <div class="panel-head" style="margin-top: 32px;">
       <h2>Xal lideri</h2>
     </div>
     <div id="leaderboardList"></div>
@@ -1245,6 +1265,7 @@
       loadTopRecommended();
       loadTopRecommendedPlaces();
       loadExpiringCerts();
+      loadPremiumRevenue();
       loadLeaderboard();
       loadSyncLog();
       loadVersions();
@@ -1707,6 +1728,78 @@
       });
   }
   document.getElementById("expiringCertsRefreshBtn").addEventListener("click", loadExpiringCerts);
+
+  // ---- premium revenue (estimate) ----
+  // Reads purchase_events, written client-side from
+  // app/subscription.tsx's onPurchaseSuccess. See that table's comment in
+  // supabase/schema.sql for exactly what this is/isn't — a rough gross
+  // estimate from the app's own reporting, not verified Apple payout data.
+  var PURCHASE_PLAN_LABEL = {
+    "com.halalzur.app.premium.monthly": "Aylıq",
+    "com.halalzur.app.premium.sixmonth": "6 aylıq",
+    "com.halalzur.app.premium.yearly": "İllik",
+  };
+
+  function loadPremiumRevenue() {
+    sb("purchase_events?select=product_id,estimated_usd_amount,purchased_at")
+      .then(function (rows) {
+        rows = rows || [];
+        var monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+
+        var totalCount = rows.length;
+        var totalUsd = 0;
+        var monthCount = 0;
+        var monthUsd = 0;
+        var byPlan = {};
+
+        rows.forEach(function (r) {
+          var amount = Number(r.estimated_usd_amount) || 0;
+          totalUsd += amount;
+          if (new Date(r.purchased_at) >= monthStart) {
+            monthCount++;
+            monthUsd += amount;
+          }
+          if (!byPlan[r.product_id]) byPlan[r.product_id] = { count: 0, usd: 0 };
+          byPlan[r.product_id].count++;
+          byPlan[r.product_id].usd += amount;
+        });
+
+        document.getElementById("revenueTotalCount").textContent = totalCount;
+        document.getElementById("revenueTotalUsd").textContent = "$" + totalUsd.toFixed(2);
+        document.getElementById("revenueMonthCount").textContent = monthCount;
+        document.getElementById("revenueMonthUsd").textContent = "$" + monthUsd.toFixed(2);
+
+        var byPlanWrap = document.getElementById("premiumRevenueByPlan");
+        byPlanWrap.innerHTML = "";
+        if (!totalCount) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Hələ heç bir Premium alış qeydə alınmayıb.";
+          byPlanWrap.appendChild(empty);
+          return;
+        }
+        Object.keys(byPlan)
+          .sort(function (a, b) { return byPlan[b].usd - byPlan[a].usd; })
+          .forEach(function (productId) {
+            var stats = byPlan[productId];
+            var row = document.createElement("div");
+            row.className = "place-card";
+            row.style.marginBottom = "8px";
+            row.innerHTML =
+              '<div>' +
+                '<div class="pc-title">' + esc(PURCHASE_PLAN_LABEL[productId] || productId) + '</div>' +
+                '<div class="pc-sub">' + stats.count + ' alış · təxmini $' + stats.usd.toFixed(2) + '</div>' +
+              '</div>';
+            byPlanWrap.appendChild(row);
+          });
+      })
+      .catch(function (err) {
+        toast("Gəlir məlumatı yüklənmədi: " + err.message);
+      });
+  }
+  document.getElementById("premiumRevenueRefreshBtn").addEventListener("click", loadPremiumRevenue);
 
   // ---- points leaderboard ----
   function loadLeaderboard() {

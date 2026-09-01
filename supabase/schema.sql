@@ -863,3 +863,27 @@ select v.label, v.sort_order from (values
   ('Ədviyyat', 14), ('Kosmetika', 15)
 ) as v(label, sort_order)
 where not exists (select 1 from product_categories pc where pc.label = v.label);
+
+-- Best-effort Premium purchase log, written client-side from
+-- app/subscription.tsx's onPurchaseSuccess (the same moment the app
+-- unlocks Premium locally). This is NOT verified server-side receipt
+-- data and NOT what Apple actually paid out (App Store takes a 15-30%
+-- cut, and this never sees renewals/refunds/cancellations — StoreKit
+-- only calls onPurchaseSuccess for the initial purchase and manual
+-- restores). It exists to give a rough "how many people bought which
+-- plan, roughly how much gross" signal in the admin panel without
+-- building real App Store Server API / Server Notifications V2
+-- integration, which would be needed for verified, renewal-aware revenue.
+create table if not exists purchase_events (
+  id uuid primary key default gen_random_uuid(),
+  user_id text not null,
+  product_id text not null,
+  estimated_usd_amount numeric not null,
+  purchased_at timestamptz not null default now()
+);
+create index if not exists idx_purchase_events_purchased_at on purchase_events (purchased_at);
+alter table purchase_events enable row level security;
+drop policy if exists "Public insert" on purchase_events;
+create policy "Public insert" on purchase_events for insert with check (true);
+drop policy if exists "Public read" on purchase_events;
+create policy "Public read" on purchase_events for select using (true);
