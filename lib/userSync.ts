@@ -99,7 +99,7 @@ export function touchLastSeen(userId: string): void {
  * language change takes effect immediately rather than waiting for the
  * next sign-in/plan sync.
  */
-export function syncUserLanguage(userId: string, language: 'az' | 'en'): void {
+export function syncUserLanguage(userId: string, language: 'az' | 'en' | 'ru' | 'tr'): void {
   if (!isSupabaseConfigured || !supabase) return;
   if (!isSyncableUserId(userId)) return;
   supabase

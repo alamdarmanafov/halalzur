@@ -577,7 +577,7 @@ create policy "Public delete" on app_versions
 -- the admin panel's broadcast push can target by language — nothing
 -- server-side knew a user's language before this, it only ever lived in
 -- local AsyncStorage.
-alter table users add column language text not null default 'az' check (language in ('az', 'en'));
+alter table users add column language text not null default 'az' check (language in ('az', 'en', 'ru', 'tr'));
 
 -- A broadcast push queued for a future send time. The admin panel inserts
 -- these directly (same anon-key + RLS-gated pattern as everything else
@@ -589,7 +589,7 @@ create table scheduled_broadcasts (
   title text not null,
   body text not null,
   audience_plan text not null default 'all' check (audience_plan in ('all', 'free', 'premium')),
-  audience_language text not null default 'all' check (audience_language in ('all', 'az', 'en')),
+  audience_language text not null default 'all' check (audience_language in ('all', 'az', 'en', 'ru', 'tr')),
   send_at timestamptz not null,
   status text not null default 'pending' check (status in ('pending', 'sent', 'failed', 'canceled')),
   sent_count integer,

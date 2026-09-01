@@ -15,8 +15,16 @@ import { getPoints, fetchPendingSubmissions } from '../../lib/submissions';
 import { POINTS_PER_PREMIUM_DAY, MIN_REDEEMABLE_DAYS } from '../../lib/points';
 import { computeBadges, BADGE_ICON, BADGE_LABEL_KEY } from '../../lib/badges';
 import { useLiteMode } from '../../lib/liteMode-context';
+import type { Language, TranslationKey } from '../../lib/i18n';
 import { deleteAccount } from '../../lib/deleteAccount';
 import { colors, radius, spacing, typography } from '../../constants/theme';
+
+const LANGUAGE_LABEL_KEY: Record<Language, TranslationKey> = {
+  az: 'profileLanguageAz',
+  en: 'profileLanguageEn',
+  ru: 'profileLanguageRu',
+  tr: 'profileLanguageTr',
+};
 
 type MenuItem = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -25,8 +33,10 @@ type MenuItem = {
   danger?: boolean;
 };
 
-function formatExpiryDate(iso: string, language: 'az' | 'en'): string {
-  return new Date(iso).toLocaleDateString(language === 'en' ? 'en-US' : 'az-AZ', {
+const DATE_LOCALE: Record<Language, string> = { az: 'az-AZ', en: 'en-US', ru: 'ru-RU', tr: 'tr-TR' };
+
+function formatExpiryDate(iso: string, language: Language): string {
+  return new Date(iso).toLocaleDateString(DATE_LOCALE[language], {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -150,24 +160,19 @@ export default function ProfileScreen() {
     },
     {
       icon: 'globe-outline',
-      label: `${t('profileLanguage')}: ${language === 'az' ? t('profileLanguageAz') : t('profileLanguageEn')}`,
+      label: `${t('profileLanguage')}: ${t(LANGUAGE_LABEL_KEY[language])}`,
       onPress: () =>
-        Alert.alert(t('profileLanguageTitle'), undefined, [
-          {
-            text: t('profileLanguageAz'),
+        Alert.alert(
+          t('profileLanguageTitle'),
+          undefined,
+          (['az', 'en', 'ru', 'tr'] as const).map((lang) => ({
+            text: t(LANGUAGE_LABEL_KEY[lang]),
             onPress: () => {
-              setLanguage('az');
-              if (user) syncUserLanguage(user.id, 'az');
+              setLanguage(lang);
+              if (user) syncUserLanguage(user.id, lang);
             },
-          },
-          {
-            text: t('profileLanguageEn'),
-            onPress: () => {
-              setLanguage('en');
-              if (user) syncUserLanguage(user.id, 'en');
-            },
-          },
-        ]),
+          }))
+        ),
     },
     {
       icon: 'shield-checkmark-outline',

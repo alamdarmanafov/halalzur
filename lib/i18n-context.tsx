@@ -17,7 +17,7 @@ export function LanguageProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((saved) => {
-      if (saved === 'az' || saved === 'en') setLanguageState(saved);
+      if (saved === 'az' || saved === 'en' || saved === 'ru' || saved === 'tr') setLanguageState(saved);
     });
   }, []);
 

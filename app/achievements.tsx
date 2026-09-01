@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../lib/auth-context';
 import { useLanguage } from '../lib/i18n-context';
 import { getApprovedCount } from '../lib/submissions';
-import { ACHIEVEMENT_TIERS, highestUnclaimedTier } from '../lib/achievements';
+import { ACHIEVEMENT_TIERS, highestUnclaimedTier, tierLabel } from '../lib/achievements';
 import { sendPushNotification } from '../lib/pushNotify';
 import { maybeRequestReview } from '../lib/reviewPrompt';
 import { BrandModal } from '../components/BrandModal';
@@ -27,7 +27,7 @@ export default function AchievementsScreen() {
       const tier = highestUnclaimedTier(count, user.claimedAchievements);
       if (tier) {
         await grantAchievementPremium(tier);
-        const label = language === 'en' ? tier.labelEn : tier.label;
+        const label = tierLabel(tier, language);
         setUnlocked({ label });
         sendPushNotification(user.id, t('achievementsPushTitle'), `${label} ${t('achievementsCongratsBody')}`, {
           route: '/achievements',
@@ -97,7 +97,7 @@ export default function AchievementsScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.tierTitle}>
-                  {tier.threshold} {t('achievementsTierTitle')} {language === 'en' ? tier.labelEn : tier.label}
+                  {tier.threshold} {t('achievementsTierTitle')} {tierLabel(tier, language)}
                 </Text>
                 <View style={styles.progressTrack}>
                   <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />

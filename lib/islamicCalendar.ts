@@ -1,3 +1,5 @@
+import { Language } from './i18n';
+
 export type IslamicHoliday = {
   id: string;
   nameAz: string;
@@ -8,7 +10,16 @@ export type IslamicHoliday = {
   end: string;
   messageAz: string;
   messageEn: string;
+  messageRu: string;
+  messageTr: string;
 };
+
+export function holidayMessage(holiday: IslamicHoliday, language: Language): string {
+  if (language === 'en') return holiday.messageEn;
+  if (language === 'ru') return holiday.messageRu;
+  if (language === 'tr') return holiday.messageTr;
+  return holiday.messageAz;
+}
 
 /**
  * Gregorian dates for Hijri calendar events are estimates — the Hijri
@@ -28,6 +39,8 @@ export const ISLAMIC_HOLIDAYS: IslamicHoliday[] = [
     end: '2026-03-19',
     messageAz: 'Ramazan Mübarəkdir! Sahur və iftar üçün halal məhsulları yoxlayın.',
     messageEn: 'Ramadan Mubarak! Check products are halal before suhoor and iftar.',
+    messageRu: 'Рамадан Мубарак! Проверяйте халяльность продуктов перед сухуром и ифтаром.',
+    messageTr: 'Ramazan Mübarek! Sahur ve iftar öncesi ürünlerin helal olduğunu kontrol edin.',
   },
   {
     id: 'eid-fitr-2026',
@@ -38,6 +51,8 @@ export const ISLAMIC_HOLIDAYS: IslamicHoliday[] = [
     end: '2026-03-22',
     messageAz: 'Ramazan bayramınız mübarək olsun!',
     messageEn: 'Happy Eid al-Fitr!',
+    messageRu: 'С праздником Ураза-байрам!',
+    messageTr: 'Ramazan Bayramınız kutlu olsun!',
   },
   {
     id: 'eid-adha-2026',
@@ -48,6 +63,8 @@ export const ISLAMIC_HOLIDAYS: IslamicHoliday[] = [
     end: '2026-05-30',
     messageAz: 'Qurban bayramınız mübarək olsun!',
     messageEn: 'Happy Eid al-Adha!',
+    messageRu: 'С праздником Курбан-байрам!',
+    messageTr: 'Kurban Bayramınız kutlu olsun!',
   },
   {
     id: 'ramadan-2027',
@@ -58,6 +75,8 @@ export const ISLAMIC_HOLIDAYS: IslamicHoliday[] = [
     end: '2027-03-09',
     messageAz: 'Ramazan Mübarəkdir! Sahur və iftar üçün halal məhsulları yoxlayın.',
     messageEn: 'Ramadan Mubarak! Check products are halal before suhoor and iftar.',
+    messageRu: 'Рамадан Мубарак! Проверяйте халяльность продуктов перед сухуром и ифтаром.',
+    messageTr: 'Ramazan Mübarek! Sahur ve iftar öncesi ürünlerin helal olduğunu kontrol edin.',
   },
   {
     id: 'eid-fitr-2027',
@@ -68,6 +87,8 @@ export const ISLAMIC_HOLIDAYS: IslamicHoliday[] = [
     end: '2027-03-12',
     messageAz: 'Ramazan bayramınız mübarək olsun!',
     messageEn: 'Happy Eid al-Fitr!',
+    messageRu: 'С праздником Ураза-байрам!',
+    messageTr: 'Ramazan Bayramınız kutlu olsun!',
   },
   {
     id: 'eid-adha-2027',
@@ -78,6 +99,8 @@ export const ISLAMIC_HOLIDAYS: IslamicHoliday[] = [
     end: '2027-05-19',
     messageAz: 'Qurban bayramınız mübarək olsun!',
     messageEn: 'Happy Eid al-Adha!',
+    messageRu: 'С праздником Курбан-байрам!',
+    messageTr: 'Kurban Bayramınız kutlu olsun!',
   },
 ];
 

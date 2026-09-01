@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getActiveHoliday } from '../lib/islamicCalendar';
+import { getActiveHoliday, holidayMessage } from '../lib/islamicCalendar';
 import { useLanguage } from '../lib/i18n-context';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
@@ -35,7 +35,7 @@ export function HolidayBanner() {
     <LinearGradient colors={[colors.primary, colors.primaryDark]} style={styles.banner}>
       <Text style={styles.emoji}>{holiday.emoji}</Text>
       <Text style={styles.text} numberOfLines={2}>
-        {language === 'en' ? holiday.messageEn : holiday.messageAz}
+        {holidayMessage(holiday, language)}
       </Text>
       <Pressable onPress={onDismiss} hitSlop={8}>
         <Ionicons name="close" size={16} color={colors.white} />
