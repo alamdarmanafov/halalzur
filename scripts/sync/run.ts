@@ -34,7 +34,11 @@ async function checkBarcodeUniqueConstraint(): Promise<void> {
   if (error) {
     throw new Error(
       `[openfoodfacts] preflight check failed: ${error.message}\n` +
-        'This usually means the unique index on certified_entries.barcode is missing. Run this in Supabase SQL Editor first:\n\n' +
+        'This usually means certified_entries.barcode either has no unique index, or has a PARTIAL\n' +
+        '(`where barcode is not null`) one — Postgres will not use a partial unique index as an\n' +
+        'ON CONFLICT target unless the same WHERE clause is repeated in the conflict clause, which\n' +
+        'Supabase\'s upsert({ onConflict: \'barcode\' }) has no way to do. Run this in Supabase SQL\n' +
+        'Editor first:\n\n' +
         'delete from certified_entries\n' +
         'where id in (\n' +
         '  select id from (\n' +
@@ -44,9 +48,10 @@ async function checkBarcodeUniqueConstraint(): Promise<void> {
         '  ) t\n' +
         '  where t.rn > 1\n' +
         ');\n\n' +
-        'drop index if exists idx_certified_entries_barcode;\n\n' +
-        'create unique index if not exists idx_certified_entries_barcode_unique\n' +
-        '  on certified_entries (barcode) where barcode is not null;\n'
+        'drop index if exists idx_certified_entries_barcode;\n' +
+        'drop index if exists idx_certified_entries_barcode_unique;\n\n' +
+        'create unique index idx_certified_entries_barcode_unique\n' +
+        '  on certified_entries (barcode);\n'
     );
   }
 }

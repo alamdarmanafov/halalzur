@@ -43,7 +43,17 @@ create table certified_entries (
 -- scripts/sync/run.ts's Open Food Facts import relies on this via
 -- upsert(..., { onConflict: 'barcode' }); without it, a large batch could
 -- silently write duplicate rows for the same barcode.
-create unique index idx_certified_entries_barcode_unique on certified_entries (barcode) where barcode is not null;
+--
+-- Deliberately NOT partial (no `where barcode is not null`): Postgres
+-- will only use a partial unique index as an ON CONFLICT target if the
+-- INSERT's own ON CONFLICT clause repeats that same WHERE predicate —
+-- something Supabase's .upsert({ onConflict: 'barcode' }) has no way to
+-- express, so a partial version of this index always fails upsert with
+-- "there is no unique or exclusion constraint matching the ON CONFLICT
+-- specification", even though the index exists. A plain unique index
+-- still allows any number of NULL barcodes (company-level entries) since
+-- Postgres never treats NULL as equal to NULL for uniqueness.
+create unique index idx_certified_entries_barcode_unique on certified_entries (barcode);
 create index idx_certified_entries_brand_trgm on certified_entries using gin (brand gin_trgm_ops);
 create index idx_certified_entries_product_trgm on certified_entries using gin (coalesce(product_name, '') gin_trgm_ops);
 
