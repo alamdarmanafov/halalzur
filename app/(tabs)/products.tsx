@@ -181,6 +181,7 @@ export default function ProductsScreen() {
     ]);
   };
 
+  const [searchFocused, setSearchFocused] = useState(false);
   const [refreshingBarcode, setRefreshingBarcode] = useState<string | null>(null);
   // A single history row's on-demand refresh — the [history]-effect above
   // already re-checks every history barcode on mount, but this lets a user
@@ -199,15 +200,44 @@ export default function ProductsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Text style={styles.title}>{t('productsTitle')}</Text>
-      <View style={styles.searchWrap}>
-        <Ionicons name="search" size={18} color={colors.gray} />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder={t('productsSearchPlaceholder')}
-          placeholderTextColor={colors.gray}
-          style={styles.searchInput}
-        />
+      <View style={{ position: 'relative', zIndex: 10 }}>
+        <View style={styles.searchWrap}>
+          <Ionicons name="search" size={18} color={colors.gray} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+            placeholder={t('productsSearchPlaceholder')}
+            placeholderTextColor={colors.gray}
+            style={styles.searchInput}
+          />
+        </View>
+        {searchFocused && query.trim().length > 0 && results.length > 0 && (
+          <View style={styles.suggestDropdown}>
+            {results.slice(0, 5).map((item, index) => (
+              <Pressable
+                key={`${item.barcode}-${index}`}
+                style={[styles.suggestRow, index === Math.min(results.length, 5) - 1 && { borderBottomWidth: 0 }]}
+                onPress={() => {
+                  setSearchFocused(false);
+                  router.push({ pathname: '/product/[id]', params: { id: item.barcode } });
+                }}
+              >
+                <Text style={styles.emoji}>{item.imageEmoji}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.suggestName} numberOfLines={1}>
+                    {item.productName}
+                  </Text>
+                  <Text style={styles.brand} numberOfLines={1}>
+                    {item.brand}
+                  </Text>
+                </View>
+                <StatusBadge status={item.status} size="sm" />
+              </Pressable>
+            ))}
+          </View>
+        )}
       </View>
 
       <Pressable
@@ -368,6 +398,31 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   searchInput: { flex: 1, fontSize: typography.body.fontSize, color: colors.black },
+  suggestDropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: 4,
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    shadowColor: colors.black,
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+    overflow: 'hidden',
+  },
+  suggestRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surface,
+  },
+  suggestName: { ...typography.small, color: colors.black, fontWeight: '700' },
   recommendedToggle: {
     flexDirection: 'row',
     alignItems: 'center',
