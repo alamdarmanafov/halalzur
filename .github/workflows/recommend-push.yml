@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Trigger recommendation push
         run: |
-          curl -sf -X POST "${ADMIN_API_URL}/api/recommend-push" \
+          curl -sf -X POST "${ADMIN_API_URL}/api/cron-jobs?job=recommend" \
             -H "x-notify-secret: ${NOTIFY_SECRET}"
         env:
           ADMIN_API_URL: ${{ secrets.ADMIN_API_URL }}

@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Trigger weekly digest
         run: |
-          curl -sf -X POST "${ADMIN_API_URL}/api/weekly-digest" \
+          curl -sf -X POST "${ADMIN_API_URL}/api/cron-jobs?job=weekly-digest" \
             -H "x-notify-secret: ${NOTIFY_SECRET}"
         env:
           ADMIN_API_URL: ${{ secrets.ADMIN_API_URL }}

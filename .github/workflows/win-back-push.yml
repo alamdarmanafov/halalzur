@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Trigger win-back push
         run: |
-          curl -sf -X POST "${ADMIN_API_URL}/api/win-back-push" \
+          curl -sf -X POST "${ADMIN_API_URL}/api/cron-jobs?job=win-back" \
             -H "x-notify-secret: ${NOTIFY_SECRET}"
         env:
           ADMIN_API_URL: ${{ secrets.ADMIN_API_URL }}
