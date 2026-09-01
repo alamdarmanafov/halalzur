@@ -16,20 +16,9 @@
 // no new setup if send-notification.js/send-broadcast.js are configured):
 //   NOTIFY_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 //   FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { createClient } from '@supabase/supabase-js';
 import { sendBroadcast } from '../lib/broadcast.js';
-
-function firebaseApp() {
-  if (getApps().length) return getApps()[0];
-  return initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-    }),
-  });
-}
+import { getFirebaseApp } from '../lib/firebaseAdmin.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -67,7 +56,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    const app = firebaseApp();
+    const app = getFirebaseApp();
     const results = [];
     for (const row of due) {
       try {

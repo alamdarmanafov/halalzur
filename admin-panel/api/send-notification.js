@@ -20,20 +20,9 @@
 //   FIREBASE_CLIENT_EMAIL         |  Settings → Service Accounts →
 //   FIREBASE_PRIVATE_KEY          |  "Generate new private key" (downloads
 //                                     a JSON file with these 3 fields)
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getMessaging } from 'firebase-admin/messaging';
 import { createClient } from '@supabase/supabase-js';
-
-function firebaseApp() {
-  if (getApps().length) return getApps()[0];
-  return initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-    }),
-  });
-}
+import { getFirebaseApp } from '../lib/firebaseAdmin.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -88,7 +77,7 @@ export default async function handler(req, res) {
       return;
     }
 
-    const messaging = getMessaging(firebaseApp());
+    const messaging = getMessaging(getFirebaseApp());
     let sent = 0;
     for (const { fcm_token } of tokens) {
       try {

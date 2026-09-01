@@ -20,19 +20,8 @@
 //   FIREBASE_PROJECT_ID           |  From Firebase Console → Project
 //   FIREBASE_CLIENT_EMAIL         |  Settings → Service Accounts →
 //   FIREBASE_PRIVATE_KEY          |  "Generate new private key"
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { sendBroadcast } from '../lib/broadcast.js';
-
-function firebaseApp() {
-  if (getApps().length) return getApps()[0];
-  return initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n'),
-    }),
-  });
-}
+import { getFirebaseApp } from '../lib/firebaseAdmin.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -71,7 +60,7 @@ export default async function handler(req, res) {
 
   try {
     const result = await sendBroadcast({
-      firebaseApp: firebaseApp(),
+      firebaseApp: getFirebaseApp(),
       supabaseUrl: process.env.SUPABASE_URL,
       serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
       title,
