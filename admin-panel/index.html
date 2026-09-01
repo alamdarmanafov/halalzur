@@ -658,10 +658,20 @@
     <div id="productsTabBrowseList">
     <div class="cards" id="productCards" style="margin-top: 20px;"></div>
     <div class="empty-state" id="productsEmptyState" hidden>Hələ heç bir məhsul əlavə edilməyib.</div>
-    <div style="display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px;">
+    <div style="display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px; flex-wrap: wrap;">
       <button type="button" class="btn" id="productPrevPageBtn">← Əvvəlki</button>
       <span id="productPageLabel"></span>
       <button type="button" class="btn" id="productNextPageBtn">Növbəti →</button>
+      <form id="productGoToPageForm" style="display: flex; gap: 6px; align-items: center;">
+        <input
+          type="number"
+          min="1"
+          id="productGoToPageInput"
+          placeholder="Səhifə №"
+          style="width: 90px; padding: 8px 10px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px;"
+        />
+        <button type="submit" class="btn">Get</button>
+      </form>
     </div>
     </div>
     </section>
@@ -2535,6 +2545,18 @@
 
   document.getElementById("productNextPageBtn").addEventListener("click", function () {
     currentProductPage += 1;
+    loadProducts();
+  });
+
+  document.getElementById("productGoToPageForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var input = document.getElementById("productGoToPageInput");
+    var totalPages = Math.max(1, Math.ceil(currentProductTotal / PRODUCT_PAGE_SIZE));
+    var page = parseInt(input.value, 10);
+    if (!page || page < 1) return;
+    if (page > totalPages) page = totalPages;
+    currentProductPage = page - 1;
+    input.value = "";
     loadProducts();
   });
 
