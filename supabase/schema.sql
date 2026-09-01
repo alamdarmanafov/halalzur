@@ -966,3 +966,9 @@ create table if not exists product_ratings (
 alter table product_ratings enable row level security;
 drop policy if exists "Public read/insert/update" on product_ratings;
 create policy "Public read/insert/update" on product_ratings for all using (true) with check (true);
+
+-- De-dup markers for the two cron-fired per-user pushes (admin-panel/api/
+-- win-back-push.js, recommend-push.js) — each only re-notifies a given
+-- user after its own cooldown has passed.
+alter table users add column if not exists last_winback_sent_at timestamptz;
+alter table users add column if not exists last_recommend_sent_at timestamptz;

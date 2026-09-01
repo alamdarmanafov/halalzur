@@ -1,0 +1,18 @@
+name: Send win-back push to inactive users
+
+on:
+  schedule:
+    - cron: "0 10 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger win-back push
+        run: |
+          curl -sf -X POST "${ADMIN_API_URL}/api/win-back-push" \
+            -H "x-notify-secret: ${NOTIFY_SECRET}"
+        env:
+          ADMIN_API_URL: ${{ secrets.ADMIN_API_URL }}
+          NOTIFY_SECRET: ${{ secrets.NOTIFY_SECRET }}
