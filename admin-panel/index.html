@@ -693,7 +693,7 @@
         Hər sətirdə bir məhsul, sahələri <code>|</code> işarəsi ilə ayırın:<br />
         <code>barkod|ad|marka|kateqoriya|status|tərkib1,tərkib2,...</code><br />
         Status: <code>halal</code>, <code>mushbooh</code> (şübhəli), <code>haram</code> (tövsiyə edilmir),
-        <code>unknown</code> (naməlum). Kateqoriya və tərkib istəyə bağlıdır, status boş qalsa "naməlum" qəbul olunur.
+        <code>unknown</code> (naməlum) — <b>zəruridir</b>, boş qalarsa o sətir əlavə edilmir. Kateqoriya və tərkib istəyə bağlıdır.
       </p>
       <div class="field">
         <label for="bulkCsvFile">və ya CSV/Excel faylından yüklə (sütun sırası: barkod,ad,marka,kateqoriya,status,tərkib — CSV kimi export edin)</label>
@@ -4174,14 +4174,13 @@
     lines.forEach(function (line, i) {
       var parts = line.split("|").map(function (p) { return p.trim(); });
       var barcode = parts[0], name = parts[1], brand = parts[2], category = parts[3];
-      var status = (parts[4] || "unknown").toLowerCase();
+      var status = (parts[4] || "").toLowerCase();
       var ingredientsRaw = parts[5];
 
-      if (!barcode || !name || !brand) {
+      if (!barcode || !name || !brand || validStatuses.indexOf(status) === -1) {
         skipped.push(i + 1);
         return;
       }
-      if (validStatuses.indexOf(status) === -1) status = "unknown";
 
       rows.push({
         entry_type: "product",
