@@ -27,7 +27,7 @@ import { colors, radius, spacing, typography } from '../constants/theme';
  */
 export default function ShoppingScanScreen() {
   const { incrementScanCount } = useAuth();
-  const { addScan } = useHistory();
+  const { addScan, history } = useHistory();
   const { t } = useLanguage();
   const [permission, requestPermission] = useCameraPermissions();
   const [items, setItems] = useState<CertificationResult[]>([]);
@@ -43,7 +43,15 @@ export default function ShoppingScanScreen() {
       setIsBusy(true);
       try {
         const online = await hasInternetConnection();
-        if (!online) return;
+        if (!online) {
+          const cached = history.find((h) => h.barcode === barcode);
+          if (!cached) return;
+          hapticForStatus(cached.status);
+          setItems((prev) => [...prev, cached]);
+          await addScan(cached);
+          incrementScanCount();
+          return;
+        }
         const result = await lookupBarcode(barcode);
         hapticForStatus(result.status);
         setItems((prev) => [...prev, result]);
@@ -57,7 +65,7 @@ export default function ShoppingScanScreen() {
         }, 900);
       }
     },
-    [isBusy, items, addScan, incrementScanCount]
+    [isBusy, items, addScan, incrementScanCount, history]
   );
 
   const onScanned = useCallback(

@@ -21,7 +21,7 @@ const DEMO_BARCODES = ['8690504048068', '8690506042027', '4006381333931', '54490
 
 export default function ScanScreen() {
   const { user, incrementScanCount } = useAuth();
-  const { addScan } = useHistory();
+  const { addScan, history } = useHistory();
   const { t } = useLanguage();
   const [permission, requestPermission] = useCameraPermissions();
   const [isBusy, setIsBusy] = useState(false);
@@ -46,7 +46,19 @@ export default function ScanScreen() {
       try {
         const online = await hasInternetConnection();
         if (!online) {
-          Alert.alert(t('scanOfflineTitle'), t('scanOfflineBody'));
+          // Last-100-scans cache: a product already looked up once (even
+          // on a previous, connected session) doesn't need network to
+          // show again — history already carries the full result, not
+          // just the barcode, so this is a real cache hit, not a stub.
+          const cached = history.find((h) => h.barcode === barcode);
+          if (!cached) {
+            Alert.alert(t('scanOfflineTitle'), t('scanOfflineBody'));
+            return;
+          }
+          hapticForStatus(cached.status);
+          await addScan(cached);
+          if (!isPremium) await incrementScanCount();
+          router.push({ pathname: '/product/[id]', params: { id: cached.barcode } });
           return;
         }
         const result = await lookupBarcode(barcode);
@@ -62,7 +74,7 @@ export default function ScanScreen() {
         }, 1200);
       }
     },
-    [isBusy, limitReached, addScan, incrementScanCount, isPremium]
+    [isBusy, limitReached, addScan, incrementScanCount, isPremium, history]
   );
 
   const onScanned = useCallback(
