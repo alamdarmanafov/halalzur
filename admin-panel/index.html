@@ -1161,6 +1161,41 @@
       Qeyd: Apple, Google və email/şifrə ilə giriş edən bütün istifadəçilər burada görünür (email/şifrə real Supabase
       Auth ilə işləyir). Premium statusu cihazdan öz-özünə bildirilir, heç bir metodda server tərəfində yoxlanılmır.
     </p>
+
+    <div class="place-form" style="margin-bottom: 24px;">
+      <div class="panel-head" style="margin-bottom: 8px;">
+        <h3 style="margin: 0; font-size: 15px;">🔗 Dublikat hesabları birləşdir</h3>
+      </div>
+      <p class="hint">
+        Eyni şəxsin iki fərqli hesabı olduğunu görsəniz (məs. Apple ilə bir dəfə, Google ilə bir dəfə giriş edib),
+        burada birləşdirin. Xallar, favoritlər, reytinqlər, referral, cihaz və s. bütün məlumat "Əsas hesab"a köçürülür,
+        "Dublikat hesab" isə <b>həmişəlik silinir</b>. Geri qaytarıla bilməz.
+      </p>
+      <div class="field-grid">
+        <div class="field" style="position: relative;">
+          <label for="mergePrimaryUserSearch">Əsas hesab (qalacaq)</label>
+          <input type="text" id="mergePrimaryUserSearch" placeholder="Ad və ya email axtarın…" autocomplete="off" />
+          <div
+            id="mergePrimaryUserResults"
+            hidden
+            style="position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 20px 48px -20px rgba(var(--shadow-color), 0.4); max-height: 260px; overflow-y: auto; z-index: 20;"
+          ></div>
+        </div>
+        <div class="field" style="position: relative;">
+          <label for="mergeDuplicateUserSearch">Dublikat hesab (silinəcək)</label>
+          <input type="text" id="mergeDuplicateUserSearch" placeholder="Ad və ya email axtarın…" autocomplete="off" />
+          <div
+            id="mergeDuplicateUserResults"
+            hidden
+            style="position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 20px 48px -20px rgba(var(--shadow-color), 0.4); max-height: 260px; overflow-y: auto; z-index: 20;"
+          ></div>
+        </div>
+      </div>
+      <div id="mergeUsersPreview" style="margin-top: 4px; font-size: 13px; color: var(--ink-muted); line-height: 1.6;"></div>
+      <button type="button" class="btn btn-approve" id="mergeUsersBtn" style="margin-top: 12px;" disabled>Birləşdir</button>
+      <div class="gate-error" id="mergeUsersError"></div>
+    </div>
+
     <div class="cards" id="userCards"></div>
     <div class="empty-state" id="usersEmptyState" hidden>Hələ heç bir istifadəçi sinxronlaşmayıb.</div>
 
@@ -7611,6 +7646,141 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         btn.disabled = false;
       });
   }
+
+  // ---- merge duplicate user accounts ----
+  // The whole merge happens inside one Postgres function (merge_users,
+  // see supabase/migration_2026_09_01_merge_users.sql) rather than a
+  // sequence of REST calls from here — a merge touches ~10 tables (some
+  // with unique(user_id, X) constraints that need conflict handling,
+  // like favorites/ratings/brand_follows), and doing that as separate
+  // fetches risks leaving things half-merged if one request fails partway
+  // through. The function itself re-checks is_admin() before touching
+  // anything, same as every other admin-only write path.
+  var mergePrimaryUser = null;
+  var mergeDuplicateUser = null;
+
+  function userPickerLabel(u) {
+    return (u.name || "Adsız") + " — " + (u.email || "e-poçt yoxdur") + (u.plan === "premium" ? " · 💎" : "");
+  }
+
+  function wireUserPicker(inputId, resultsId, onPick) {
+    var input = document.getElementById(inputId);
+    var results = document.getElementById(resultsId);
+    var debounce;
+    input.addEventListener("input", function () {
+      clearTimeout(debounce);
+      var q = input.value.trim();
+      if (!q) {
+        results.hidden = true;
+        return;
+      }
+      debounce = setTimeout(function () {
+        var safe = q.replace(/[,()%]/g, "");
+        sb("users?select=id,name,email,plan&or=(name.ilike.%" + safe + "%,email.ilike.%" + safe + "%)&limit=8&order=updated_at.desc")
+          .then(function (rows) {
+            rows = rows || [];
+            if (!rows.length) {
+              results.innerHTML = '<div style="padding:12px 14px; font-size:13px; color:var(--ink-muted);">Nəticə yoxdur</div>';
+              results.hidden = false;
+              return;
+            }
+            results.innerHTML = "";
+            rows.forEach(function (u) {
+              var item = document.createElement("div");
+              item.textContent = userPickerLabel(u);
+              item.style.cssText = "padding:10px 14px; font-size:13.5px; cursor:pointer; border-bottom:1px solid var(--border);";
+              item.addEventListener("mouseenter", function () { item.style.background = "var(--surface-2)"; });
+              item.addEventListener("mouseleave", function () { item.style.background = ""; });
+              item.addEventListener("click", function () {
+                input.value = userPickerLabel(u);
+                results.hidden = true;
+                onPick(u);
+              });
+              results.appendChild(item);
+            });
+            results.hidden = false;
+          })
+          .catch(function () { results.hidden = true; });
+      }, 300);
+    });
+    document.addEventListener("click", function (e) {
+      if (!e.target.closest("#" + inputId) && !e.target.closest("#" + resultsId)) results.hidden = true;
+    });
+  }
+
+  function updateMergeUsersPanel() {
+    var preview = document.getElementById("mergeUsersPreview");
+    var btn = document.getElementById("mergeUsersBtn");
+    if (!mergePrimaryUser || !mergeDuplicateUser) {
+      preview.innerHTML = "";
+      btn.disabled = true;
+      return;
+    }
+    if (mergePrimaryUser.id === mergeDuplicateUser.id) {
+      preview.innerHTML = '<span style="color:var(--bad);">Eyni hesabı seçmisiniz — fərqli iki hesab seçin.</span>';
+      btn.disabled = true;
+      return;
+    }
+    preview.innerHTML =
+      '<b>' + esc(userPickerLabel(mergePrimaryUser)) + '</b> hesabında qalacaq, ' +
+      '<b>' + esc(userPickerLabel(mergeDuplicateUser)) + '</b> hesabı silinəcək (bütün datası köçürüləcək).';
+    btn.disabled = false;
+  }
+
+  wireUserPicker("mergePrimaryUserSearch", "mergePrimaryUserResults", function (u) {
+    mergePrimaryUser = u;
+    updateMergeUsersPanel();
+  });
+  wireUserPicker("mergeDuplicateUserSearch", "mergeDuplicateUserResults", function (u) {
+    mergeDuplicateUser = u;
+    updateMergeUsersPanel();
+  });
+
+  document.getElementById("mergeUsersBtn").addEventListener("click", function () {
+    if (!mergePrimaryUser || !mergeDuplicateUser) return;
+    var errorEl = document.getElementById("mergeUsersError");
+    errorEl.textContent = "";
+    if (
+      !window.confirm(
+        '"' + userPickerLabel(mergeDuplicateUser) + '" hesabındakı bütün data "' +
+          userPickerLabel(mergePrimaryUser) + '" hesabına köçürüləcək, sonra "' +
+          userPickerLabel(mergeDuplicateUser) + '" HƏMİŞƏLİK silinəcək. Davam edilsin?'
+      )
+    ) {
+      return;
+    }
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Birləşdirilir…";
+    sb("rpc/merge_users", {
+      method: "POST",
+      body: { primary_id: mergePrimaryUser.id, duplicate_id: mergeDuplicateUser.id },
+    })
+      .then(function () {
+        toast("Hesablar birləşdirildi");
+        logAudit(
+          "merge_users",
+          "users",
+          mergePrimaryUser.id,
+          "primary: " + (mergePrimaryUser.email || mergePrimaryUser.id) +
+            " · silinən dublikat: " + (mergeDuplicateUser.email || mergeDuplicateUser.id)
+        );
+        mergePrimaryUser = null;
+        mergeDuplicateUser = null;
+        document.getElementById("mergePrimaryUserSearch").value = "";
+        document.getElementById("mergeDuplicateUserSearch").value = "";
+        updateMergeUsersPanel();
+        loadUsers();
+      })
+      .catch(function (err) {
+        errorEl.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
 
   function loadReferralReport() {
     var wrap = document.getElementById("referralReportList");
