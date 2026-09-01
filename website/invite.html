@@ -140,6 +140,24 @@
       document.getElementById("codeValue").textContent = code;
       document.getElementById("codeBox").hidden = false;
       document.getElementById("pointsText").hidden = false;
+
+      // Best-effort click tracking for the admin panel's referral report
+      // (clicks vs. actual sign-ups per code) — same public anon key
+      // already embedded in admin-panel/index.html, and referral_clicks
+      // has a public-insert RLS policy for exactly this. Never blocks or
+      // shows anything to the visitor either way.
+      var SUPABASE_URL = "https://szizepjcospoygnjmxwz.supabase.co";
+      var SUPABASE_ANON_KEY = "sb_publishable_YSxBg5SQveiZrRU6H65mVg_Ea4gp2Pl";
+      fetch(SUPABASE_URL + "/rest/v1/referral_clicks", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: "Bearer " + SUPABASE_ANON_KEY,
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({ code: code }),
+      }).catch(function () {});
     }
 
     document.getElementById("copyBtn").addEventListener("click", function () {

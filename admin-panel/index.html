@@ -5025,12 +5025,28 @@
   function loadReferralReport() {
     var wrap = document.getElementById("referralReportList");
     wrap.textContent = "Yüklənir…";
-    Promise.all([sb("referrals?select=referrer_id"), sb("users?select=id,name,email")])
+    Promise.all([
+      sb("referrals?select=referrer_id"),
+      sb("users?select=id,name,email,referral_code"),
+      sb("referral_clicks?select=code"),
+    ])
       .then(function (results) {
         var referrals = results[0] || [];
         var users = results[1] || [];
+        var clicks = results[2] || [];
         var userById = {};
         users.forEach(function (u) { userById[u.id] = u; });
+
+        // invite.html always uppercases the code before recording a
+        // click, but a referral_code set through the admin's own "Referral
+        // kodunu dəyiş" prompt isn't forced to any case — normalize both
+        // sides so a click still matches its owner's code.
+        var clicksByCode = {};
+        clicks.forEach(function (c) {
+          var key = (c.code || "").toUpperCase();
+          if (!key) return;
+          clicksByCode[key] = (clicksByCode[key] || 0) + 1;
+        });
 
         var counts = {};
         referrals.forEach(function (r) {
@@ -5059,10 +5075,18 @@
           item.className = "place-card";
           item.style.marginBottom = "8px";
           var suspicious = row.count >= SUSPICIOUS_THRESHOLD;
+          var code = user && user.referral_code ? user.referral_code.toUpperCase() : null;
+          var clickCount = code ? clicksByCode[code] || 0 : 0;
+          var clickLine = code
+            ? '<div class="pc-sub">' + clickCount + ' klik' +
+              (clickCount > 0 ? ' · ' + Math.round((row.count / clickCount) * 100) + '% qeydiyyata çevrilib' : '') +
+              '</div>'
+            : '';
           item.innerHTML =
             '<div>' +
               '<div class="pc-title">' + esc(user ? (user.name || user.email || row.id) : row.id) + '</div>' +
               '<div class="pc-sub">' + row.count + ' dəvət' + (suspicious ? ' · ⚠️ Şübhəli' : '') + '</div>' +
+              clickLine +
             '</div>';
           wrap.appendChild(item);
         });
