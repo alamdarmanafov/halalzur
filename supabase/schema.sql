@@ -887,3 +887,11 @@ drop policy if exists "Public insert" on purchase_events;
 create policy "Public insert" on purchase_events for insert with check (true);
 drop policy if exists "Public read" on purchase_events;
 create policy "Public read" on purchase_events for select using (true);
+
+-- Registration country, set once via a Vercel function (see
+-- admin-panel/api/register-country.js) that reads Vercel's own
+-- x-vercel-ip-country edge header — no third-party IP geolocation
+-- lookup needed, since Vercel already resolves it at the network edge.
+-- Best-effort: never blocks sign-up, stays null if the app has no
+-- EXPO_PUBLIC_ADMIN_API_URL configured or the request fails.
+alter table users add column if not exists country text;

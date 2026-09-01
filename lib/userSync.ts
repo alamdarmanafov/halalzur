@@ -2,6 +2,9 @@ import { User } from './types';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { getOrCreateReferralCode } from './referrals';
 
+const API_BASE = process.env.EXPO_PUBLIC_ADMIN_API_URL;
+const NOTIFY_SECRET = process.env.EXPO_PUBLIC_NOTIFY_SECRET;
+
 /**
  * A stable per-account id — Apple ('apple-...'), Google ('google-...'), or
  * real email/password via Supabase Auth ('email-...', prefixed with the
@@ -35,6 +38,24 @@ export async function syncUser(user: User): Promise<void> {
   );
 
   ensureReferralCode(user.id);
+  registerCountry(user.id);
+}
+
+/**
+ * Fire-and-forget — asks admin-panel/api/register-country.js to stamp
+ * users.country from Vercel's own edge geolocation header (no
+ * third-party IP lookup). Silently does nothing if
+ * EXPO_PUBLIC_ADMIN_API_URL isn't set, same as lib/pushNotify.ts.
+ */
+export function registerCountry(userId: string): void {
+  if (!API_BASE) return;
+  fetch(`${API_BASE.replace(/\/$/, '')}/api/register-country`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-notify-secret': NOTIFY_SECRET ?? '' },
+    body: JSON.stringify({ userId }),
+  }).catch(() => {
+    // best-effort
+  });
 }
 
 /**

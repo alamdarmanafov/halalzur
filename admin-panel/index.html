@@ -296,6 +296,10 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="12" width="4.5" height="9" rx="1"/><rect x="9.75" y="6" width="4.5" height="15" rx="1"/><rect x="16.5" y="3" width="4.5" height="18" rx="1"/></svg>
           <span>Dashboard</span>
         </button>
+        <button class="nav-item" type="button" data-section="reports">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>
+          <span>Hesabatlar</span>
+        </button>
         <button class="nav-item" type="button" data-section="submissions">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2 3h6l2-3h4"/><path d="M5 12 3 5a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1l-2 7"/><path d="M5 12v6a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-6"/></svg>
           <span>Təkliflər</span>
@@ -355,6 +359,38 @@
     <div id="scanTrendChart" style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px;"></div>
 
     <div class="panel-head" style="margin-top: 32px;">
+      <h2>Premium gəlir (təxmini)</h2>
+      <button type="button" class="btn" id="premiumRevenueRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+        Yenilə
+      </button>
+    </div>
+    <p class="hint">
+      Diqqət: bu, Apple-ın server tərəfdən qeydiyyat/qəbz yoxlaması olmadan, alış anında tətbiqdən yazılan
+      TƏXMİNİ rəqəmdir — Apple-ın komissiyası (15–30%) çıxılmayıb, yalnız İLK alışlar sayılır (avtomatik
+      yenilənmələr, geri qaytarmalar bura daxil deyil). Real gəlir üçün Apple-ın App Store Server API/Server
+      Notifications inteqrasiyası lazımdır.
+    </p>
+    <div class="stats-row stats-row-4" id="premiumRevenueSummary">
+      <div class="stat-card"><div class="num" id="revenueTotalCount">–</div><div class="label">Cəmi alış</div></div>
+      <div class="stat-card"><div class="num" id="revenueTotalUsd">–</div><div class="label">Cəmi (təxmini)</div></div>
+      <div class="stat-card"><div class="num" id="revenueMonthCount">–</div><div class="label">Bu ay alış</div></div>
+      <div class="stat-card"><div class="num" id="revenueMonthUsd">–</div><div class="label">Bu ay (təxmini)</div></div>
+    </div>
+    <div id="premiumRevenueByPlan"></div>
+
+    <div class="panel-head" style="margin-top: 32px;">
+      <h2>Qeydiyyat ölkələri</h2>
+      <button type="button" class="btn" id="registrationCountriesRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+        Yenilə
+      </button>
+    </div>
+    <p class="hint">
+      Vercel-in öz edge coğrafiya başlığından (qeydiyyat anındakı IP-yə əsasən) — üçüncü tərəf axtarışı yoxdur.
+      Yalnız bu dəyişiklikdən sonra qeydiyyatdan keçən/aktiv olan istifadəçilər üçün doldurulacaq.
+    </p>
+    <div id="registrationCountriesList"></div>
+
+    <div class="panel-head" style="margin-top: 32px;">
       <h2>Data sağlamlığı</h2>
     </div>
     <div class="stats-row stats-row-4">
@@ -365,6 +401,18 @@
     </div>
 
     <div class="panel-head" style="margin-top: 32px;">
+      <h2>CSV eksport</h2>
+    </div>
+    <p class="hint">Cədvəlləri Excel-də açıla bilən CSV faylı kimi yüklə.</p>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <button type="button" class="btn" data-csv-export="products">Məhsullar (CSV)</button>
+      <button type="button" class="btn" data-csv-export="places">Məkanlar (CSV)</button>
+      <button type="button" class="btn" data-csv-export="users">İstifadəçilər (CSV)</button>
+    </div>
+    </section>
+
+    <section class="section" id="section-reports" hidden>
+    <div class="panel-head">
       <h2>Ən çox rast gəlinən E-kodlar</h2>
       <button type="button" class="btn" id="ecodeReportRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
         Hesabla
@@ -408,39 +456,9 @@
     <div id="expiringCertsList"></div>
 
     <div class="panel-head" style="margin-top: 32px;">
-      <h2>Premium gəlir (təxmini)</h2>
-      <button type="button" class="btn" id="premiumRevenueRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
-        Yenilə
-      </button>
-    </div>
-    <p class="hint">
-      Diqqət: bu, Apple-ın server tərəfdən qeydiyyat/qəbz yoxlaması olmadan, alış anında tətbiqdən yazılan
-      TƏXMİNİ rəqəmdir — Apple-ın komissiyası (15–30%) çıxılmayıb, yalnız İLK alışlar sayılır (avtomatik
-      yenilənmələr, geri qaytarmalar bura daxil deyil). Real gəlir üçün Apple-ın App Store Server API/Server
-      Notifications inteqrasiyası lazımdır.
-    </p>
-    <div class="stats-row stats-row-4" id="premiumRevenueSummary">
-      <div class="stat-card"><div class="num" id="revenueTotalCount">–</div><div class="label">Cəmi alış</div></div>
-      <div class="stat-card"><div class="num" id="revenueTotalUsd">–</div><div class="label">Cəmi (təxmini)</div></div>
-      <div class="stat-card"><div class="num" id="revenueMonthCount">–</div><div class="label">Bu ay alış</div></div>
-      <div class="stat-card"><div class="num" id="revenueMonthUsd">–</div><div class="label">Bu ay (təxmini)</div></div>
-    </div>
-    <div id="premiumRevenueByPlan"></div>
-
-    <div class="panel-head" style="margin-top: 32px;">
       <h2>Xal lideri</h2>
     </div>
     <div id="leaderboardList"></div>
-
-    <div class="panel-head" style="margin-top: 32px;">
-      <h2>CSV eksport</h2>
-    </div>
-    <p class="hint">Cədvəlləri Excel-də açıla bilən CSV faylı kimi yüklə.</p>
-    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-      <button type="button" class="btn" data-csv-export="products">Məhsullar (CSV)</button>
-      <button type="button" class="btn" data-csv-export="places">Məkanlar (CSV)</button>
-      <button type="button" class="btn" data-csv-export="users">İstifadəçilər (CSV)</button>
-    </div>
 
     <div class="panel-head" style="margin-top: 32px;">
       <h2>Əlavə edilən məhsullar</h2>
@@ -1243,6 +1261,7 @@
   var navItems = document.querySelectorAll(".sidebar .nav-item");
   var sections = {
     dashboard: document.getElementById("section-dashboard"),
+    reports: document.getElementById("section-reports"),
     submissions: document.getElementById("section-submissions"),
     products: document.getElementById("section-products"),
     places: document.getElementById("section-places"),
@@ -1261,12 +1280,16 @@
       loadDashboard();
       loadScanTrendChart();
       loadDataHealth();
+      loadPremiumRevenue();
+      loadRegistrationCountries();
+    },
+    reports: function () {
       loadTopConfirmed();
       loadTopRecommended();
       loadTopRecommendedPlaces();
       loadExpiringCerts();
-      loadPremiumRevenue();
       loadLeaderboard();
+      loadDashboard();
       loadSyncLog();
       loadVersions();
     },
@@ -1801,6 +1824,60 @@
   }
   document.getElementById("premiumRevenueRefreshBtn").addEventListener("click", loadPremiumRevenue);
 
+  // ---- registration countries ----
+  // Reads users.country, stamped by admin-panel/api/register-country.js
+  // from Vercel's edge geolocation header — see that file's comment for
+  // exactly what this is (approximate, IP-based, best-effort).
+  function loadRegistrationCountries() {
+    var wrap = document.getElementById("registrationCountriesList");
+    sb("users?select=country")
+      .then(function (rows) {
+        rows = rows || [];
+        var counts = {};
+        var unknown = 0;
+        rows.forEach(function (r) {
+          if (!r.country) {
+            unknown++;
+            return;
+          }
+          counts[r.country] = (counts[r.country] || 0) + 1;
+        });
+
+        wrap.innerHTML = "";
+        var countries = Object.keys(counts).sort(function (a, b) { return counts[b] - counts[a]; });
+        if (!countries.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Hələ ölkə məlumatı yoxdur.";
+          wrap.appendChild(empty);
+          return;
+        }
+        countries.forEach(function (country) {
+          var row = document.createElement("div");
+          row.className = "place-card";
+          row.style.marginBottom = "8px";
+          row.innerHTML =
+            '<div class="pc-title">' + esc(country) + '</div>' +
+            '<div class="pc-sub">' + counts[country] + ' istifadəçi</div>';
+          wrap.appendChild(row);
+        });
+        if (unknown) {
+          var note = document.createElement("p");
+          note.className = "hint";
+          note.textContent = unknown + " istifadəçinin ölkəsi hələ müəyyən edilməyib.";
+          wrap.appendChild(note);
+        }
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Yüklənmədi: " + err.message;
+        wrap.appendChild(errEl);
+      });
+  }
+  document.getElementById("registrationCountriesRefreshBtn").addEventListener("click", loadRegistrationCountries);
+
   // ---- points leaderboard ----
   function loadLeaderboard() {
     var wrap = document.getElementById("leaderboardList");
@@ -2323,6 +2400,8 @@
     loadDashboard();
     loadScanTrendChart();
     loadDataHealth();
+    loadPremiumRevenue();
+    loadRegistrationCountries();
     loadTopConfirmed();
     loadTopRecommended();
     loadTopRecommendedPlaces();
@@ -2337,6 +2416,7 @@
     loadCategoryIcons();
     loadAnnouncements();
     loadScheduledBroadcasts();
+    loadNotificationTemplates();
     loadUsers();
     loadReferralReport();
     loadFeedback();
