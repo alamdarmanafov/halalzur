@@ -1115,8 +1115,18 @@
         <button type="button" class="btn btn-approve" id="broadcastSendBtn">İndi göndər</button>
         <span style="color: var(--ink-muted); font-size: 13px;">və ya</span>
         <input type="datetime-local" id="broadcastScheduleAt" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px;" />
+        <select id="broadcastScheduleRecurrence" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px;">
+          <option value="none">Bir dəfə</option>
+          <option value="daily">Hər gün təkrarlansın</option>
+          <option value="weekly">Hər həftə təkrarlansın</option>
+          <option value="monthly">Hər ay təkrarlansın</option>
+        </select>
         <button type="button" class="btn" id="broadcastScheduleBtn">Planla</button>
       </div>
+      <p class="hint" style="margin-top: 6px;">
+        Təkrarlanan bildiriş hər göndərmədən sonra avtomatik növbəti tarixə keçir — "Ləğv et" ilə dayandırana qədər
+        davam edir.
+      </p>
       <div class="gate-error" id="broadcastError"></div>
     </div>
 
@@ -6708,6 +6718,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     }
 
     var audience = broadcastAudience();
+    var recurrence = document.getElementById("broadcastScheduleRecurrence").value;
     var btn = this;
     btn.disabled = true;
     var original = btn.textContent;
@@ -6722,6 +6733,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
           audience_plan: audience.audiencePlan,
           audience_language: audience.audienceLanguage,
           send_at: sendAt.toISOString(),
+          recurrence: recurrence,
         },
         broadcastTranslationsToDbColumns(broadcastTranslations())
       ),
@@ -6730,6 +6742,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         toast("Bildiriş planlandı: " + sendAt.toLocaleString("az-AZ"));
         clearBroadcastFields();
         document.getElementById("broadcastScheduleAt").value = "";
+        document.getElementById("broadcastScheduleRecurrence").value = "none";
         loadScheduledBroadcasts();
       })
       .catch(function (err) {
@@ -6846,24 +6859,28 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         var AUDIENCE_PLAN_LABEL = { all: "Hamısı", free: "Free", premium: "Premium" };
         var AUDIENCE_LANG_LABEL = { all: "Hamısı", az: "AZ", en: "EN", ru: "RU", tr: "TR" };
         var STATUS_LABEL_SB = { pending: "⏳ Gözləyir", sent: "✓ Göndərildi", failed: "✗ Xəta", canceled: "Ləğv edilib" };
+        var RECURRENCE_LABEL_SB = { daily: "🔁 Hər gün", weekly: "🔁 Hər həftə", monthly: "🔁 Hər ay" };
         rows.forEach(function (row) {
           var item = document.createElement("div");
           item.className = "place-card";
           item.style.marginBottom = "8px";
           item.innerHTML =
             '<div>' +
-              '<div class="pc-title">' + esc(row.title) + '</div>' +
+              '<div class="pc-title">' + esc(row.title) + (RECURRENCE_LABEL_SB[row.recurrence] ? ' <span style="font-weight:600; color: var(--ink-muted); font-size: 12px;">' + RECURRENCE_LABEL_SB[row.recurrence] + '</span>' : '') + '</div>' +
               '<div class="pc-sub" style="margin-top:6px; white-space:pre-wrap;">' + esc(row.body) + '</div>' +
               '<div class="pc-sub" style="margin-top:6px;">' +
                 (STATUS_LABEL_SB[row.status] || row.status) + ' · ' +
                 (AUDIENCE_PLAN_LABEL[row.audience_plan] || row.audience_plan) + ' · ' +
                 (AUDIENCE_LANG_LABEL[row.audience_language] || row.audience_language) + ' · ' +
+                (row.recurrence && row.recurrence !== "none" && row.status === "pending" ? "növbəti: " : "") +
                 new Date(row.send_at).toLocaleString("az-AZ") +
               '</div>' +
-              (row.error ? '<div class="pc-note">Xəta: ' + esc(row.error) + '</div>' : '') +
+              (row.error ? '<div class="pc-note">Xəta (son cəhd): ' + esc(row.error) + '</div>' : '') +
             '</div>' +
             (row.status === "pending"
-              ? '<button type="button" class="place-delete-btn" data-action="cancel-scheduled">Ləğv et</button>'
+              ? '<button type="button" class="place-delete-btn" data-action="cancel-scheduled">' +
+                  (row.recurrence && row.recurrence !== "none" ? "Dayandır" : "Ləğv et") +
+                '</button>'
               : '');
           var cancelBtn = item.querySelector('[data-action="cancel-scheduled"]');
           if (cancelBtn) {

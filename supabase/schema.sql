@@ -599,6 +599,11 @@ create table scheduled_broadcasts (
   audience_plan text not null default 'all' check (audience_plan in ('all', 'free', 'premium')),
   audience_language text not null default 'all' check (audience_language in ('all', 'az', 'en', 'ru', 'tr')),
   send_at timestamptz not null,
+  -- 'none' = one-shot (existing behavior: terminal 'sent'/'failed' after
+  -- firing). Any other value keeps the row 'pending' and pushes send_at
+  -- to the next occurrence after each send — see admin-panel/api/
+  -- process-scheduled-broadcasts.js's nextSendAt().
+  recurrence text not null default 'none' check (recurrence in ('none', 'daily', 'weekly', 'monthly')),
   status text not null default 'pending' check (status in ('pending', 'sent', 'failed', 'canceled')),
   sent_count integer,
   error text,

@@ -36,6 +36,23 @@ function translationsFromRow(row) {
   return translations;
 }
 
+// Advances a recurring broadcast's own send_at rather than the current
+// wall-clock time, so a run that's a few minutes late (this cron fires
+// every ~10 minutes) doesn't drift the schedule forward. If the cron was
+// down for a while and several occurrences were missed, keeps advancing
+// past all of them so it lands on the next one still in the future
+// instead of re-sending every missed occurrence in a burst.
+function nextSendAt(current, recurrence) {
+  let next = new Date(current);
+  do {
+    if (recurrence === 'daily') next.setUTCDate(next.getUTCDate() + 1);
+    else if (recurrence === 'weekly') next.setUTCDate(next.getUTCDate() + 7);
+    else if (recurrence === 'monthly') next.setUTCMonth(next.getUTCMonth() + 1);
+    else break;
+  } while (next.getTime() <= Date.now());
+  return next;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'method_not_allowed' });
@@ -97,6 +114,7 @@ export default async function handler(req, res) {
     const app = getFirebaseApp();
     const results = [];
     for (const row of due) {
+      const isRecurring = row.recurrence && row.recurrence !== 'none';
       try {
         const result = await sendBroadcast({
           firebaseApp: app,
@@ -108,17 +126,47 @@ export default async function handler(req, res) {
           audienceLanguage: row.audience_language,
           translations: translationsFromRow(row),
         });
-        await supabase
-          .from('scheduled_broadcasts')
-          .update({ status: 'sent', sent_count: result.sent, sent_at: new Date().toISOString() })
-          .eq('id', row.id);
-        results.push({ id: row.id, status: 'sent' });
+        if (isRecurring) {
+          // Stays 'pending' with its send_at pushed to the next
+          // occurrence, rather than becoming terminal — the admin panel
+          // only offers a cancel button while status is 'pending'.
+          await supabase
+            .from('scheduled_broadcasts')
+            .update({
+              send_at: nextSendAt(row.send_at, row.recurrence).toISOString(),
+              sent_count: result.sent,
+              sent_at: new Date().toISOString(),
+              error: null,
+            })
+            .eq('id', row.id);
+          results.push({ id: row.id, status: 'sent_recurring' });
+        } else {
+          await supabase
+            .from('scheduled_broadcasts')
+            .update({ status: 'sent', sent_count: result.sent, sent_at: new Date().toISOString() })
+            .eq('id', row.id);
+          results.push({ id: row.id, status: 'sent' });
+        }
       } catch (err) {
         console.error('process-scheduled-broadcasts: send failed for', row.id, err);
-        await supabase
-          .from('scheduled_broadcasts')
-          .update({ status: 'failed', error: err.message, sent_at: new Date().toISOString() })
-          .eq('id', row.id);
+        if (isRecurring) {
+          // Don't get stuck retrying the same failure every ~10 minutes
+          // forever — log the error but still advance to the next
+          // occurrence.
+          await supabase
+            .from('scheduled_broadcasts')
+            .update({
+              send_at: nextSendAt(row.send_at, row.recurrence).toISOString(),
+              error: err.message,
+              sent_at: new Date().toISOString(),
+            })
+            .eq('id', row.id);
+        } else {
+          await supabase
+            .from('scheduled_broadcasts')
+            .update({ status: 'failed', error: err.message, sent_at: new Date().toISOString() })
+            .eq('id', row.id);
+        }
         results.push({ id: row.id, status: 'failed', error: err.message });
       }
     }
