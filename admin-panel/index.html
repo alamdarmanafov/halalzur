@@ -2551,7 +2551,7 @@
     var all = [];
     function next(offset) {
       return fetch(
-        SUPABASE_URL + "/rest/v1/certified_entries?select=id,barcode,product_name,brand,status&entry_type=eq.product&deleted_at=is.null",
+        SUPABASE_URL + "/rest/v1/certified_entries?select=id,barcode,product_name,brand,status,image_url,notes,admin_note,category,certificate_number,source_url&entry_type=eq.product&deleted_at=is.null",
         {
           headers: {
             apikey: SUPABASE_ANON_KEY,
@@ -2656,7 +2656,10 @@
           '<div class="pc-title">' + esc(row.product_name || row.brand) + '</div>' +
           '<div class="pc-sub">' + esc(row.brand) + ' · ' + (STATUS_LABEL[row.status] || row.status) + '</div>' +
           '<div class="pc-sub">Barkod: ' + esc(row.barcode || "—") + '</div>' +
-          '<button type="button" class="place-delete-btn" data-action="delete-side" data-side="' + side + '" style="margin-top:8px;">Bunu sil</button>' +
+          '<div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">' +
+            '<button type="button" class="btn" data-action="merge-keep" data-side="' + side + '" style="padding:4px 10px; font-size:12.5px;">Bunu saxla (birləşdir)</button>' +
+            '<button type="button" class="place-delete-btn" data-action="delete-side" data-side="' + side + '">Bunu sil</button>' +
+          '</div>' +
         '</div>'
       );
     }
@@ -2674,6 +2677,7 @@
         btn.disabled = true;
         sb("certified_entries?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
           .then(function () {
+            logAudit("delete", "certified_entries", row.id, { product_name: row.product_name, brand: row.brand });
             toast("Silindi: " + (row.product_name || row.brand));
             card.remove();
             loadProducts();
@@ -2684,7 +2688,91 @@
           });
       });
     });
+
+    card.querySelectorAll('[data-action="merge-keep"]').forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var keepRow = btn.getAttribute("data-side") === "a" ? pair.a : pair.b;
+        var dropRow = btn.getAttribute("data-side") === "a" ? pair.b : pair.a;
+        if (!window.confirm(
+          '"' + (keepRow.product_name || keepRow.brand) + '" saxlanılacaq, "' +
+          (dropRow.product_name || dropRow.brand) + '" silinəcək. Boş sahələr və tövsiyə sayı köçürüləcək. Davam edilsin?'
+        )) return;
+        var btns = card.querySelectorAll("button");
+        btns.forEach(function (b) { b.disabled = true; });
+        mergeProducts(keepRow, dropRow)
+          .then(function () {
+            toast("Birləşdirildi: " + (keepRow.product_name || keepRow.brand));
+            card.remove();
+            loadProducts();
+          })
+          .catch(function (err) {
+            toast("Xəta: " + err.message);
+            btns.forEach(function (b) { b.disabled = false; });
+          });
+      });
+    });
     return card;
+  }
+
+  // Keeps keepRow, deletes dropRow: copies over any field keepRow is
+  // missing (image, notes, admin note, category, cert number, source url)
+  // and reassigns dropRow's user recommendations to keepRow's barcode
+  // (skipping any user who already recommended keepRow, since
+  // product_recommendations has a unique(user_id, barcode) constraint) so
+  // merging doesn't quietly reset a product's popularity signal back to
+  // whatever the surviving row already had on its own.
+  function mergeProducts(keepRow, dropRow) {
+    var COPY_FIELDS = ["image_url", "notes", "admin_note", "category", "certificate_number", "source_url"];
+    var patch = {};
+    COPY_FIELDS.forEach(function (f) {
+      if (!keepRow[f] && dropRow[f]) patch[f] = dropRow[f];
+    });
+
+    var chain = Object.keys(patch).length
+      ? sb("certified_entries?id=eq." + keepRow.id, { method: "PATCH", headers: { "Prefer": "return=minimal" }, body: patch })
+      : Promise.resolve();
+
+    if (keepRow.barcode && dropRow.barcode && keepRow.barcode !== dropRow.barcode) {
+      chain = chain
+        .then(function () {
+          return Promise.all([
+            sb("product_recommendations?barcode=eq." + encodeURIComponent(dropRow.barcode) + "&select=id,user_id"),
+            sb("product_recommendations?barcode=eq." + encodeURIComponent(keepRow.barcode) + "&select=user_id"),
+          ]);
+        })
+        .then(function (results) {
+          var dropRecs = results[0] || [];
+          var keepUserIds = (results[1] || []).map(function (r) { return r.user_id; });
+          var toMove = dropRecs.filter(function (r) { return keepUserIds.indexOf(r.user_id) === -1; });
+          return Promise.all(
+            toMove.map(function (r) {
+              return sb("product_recommendations?id=eq." + r.id, {
+                method: "PATCH",
+                headers: { "Prefer": "return=minimal" },
+                body: { barcode: keepRow.barcode },
+              });
+            })
+          );
+        })
+        .then(function () {
+          return sb("product_recommendations?barcode=eq." + encodeURIComponent(dropRow.barcode), {
+            method: "DELETE",
+            headers: { "Prefer": "return=minimal" },
+          });
+        });
+    }
+
+    return chain
+      .then(function () {
+        return sb("certified_entries?id=eq." + dropRow.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } });
+      })
+      .then(function () {
+        logAudit("merge_products", "certified_entries", keepRow.id, {
+          kept: keepRow.product_name || keepRow.brand,
+          dropped: dropRow.product_name || dropRow.brand,
+          dropped_id: dropRow.id,
+        });
+      });
   }
 
   function updateProductPageControls() {
