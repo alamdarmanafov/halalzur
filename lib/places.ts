@@ -14,6 +14,7 @@ export type Place = {
   certifierName: string | null;
   note: string | null;
   imageUrl: string | null;
+  featured: boolean;
 };
 
 export const PLACE_CATEGORY_LABEL: Record<PlaceCategory, string> = {
@@ -46,6 +47,7 @@ const MOCK_PLACES: Place[] = [
     certifierName: 'GIMDES',
     note: 'Bütün ət məhsulları sertifikatlı təchizatçıdan gətirilir.',
     imageUrl: null,
+    featured: false,
   },
   {
     id: 'p2',
@@ -58,6 +60,7 @@ const MOCK_PLACES: Place[] = [
     certifierName: 'HAK',
     note: null,
     imageUrl: null,
+    featured: false,
   },
   {
     id: 'p3',
@@ -70,6 +73,7 @@ const MOCK_PLACES: Place[] = [
     certifierName: null,
     note: 'Menyuda alkoqollu içki servisi var — yalnız qida hissəsi üçün ehtiyatlı seçim edin.',
     imageUrl: null,
+    featured: false,
   },
   {
     id: 'p4',
@@ -82,6 +86,7 @@ const MOCK_PLACES: Place[] = [
     certifierName: null,
     note: 'Yalnız qəhvə və şirniyyat — heyvan mənşəli tərkib yoxdur.',
     imageUrl: null,
+    featured: false,
   },
   {
     id: 'p5',
@@ -94,6 +99,7 @@ const MOCK_PLACES: Place[] = [
     certifierName: 'AZSTANDART Halal',
     note: null,
     imageUrl: null,
+    featured: false,
   },
   {
     id: 'p6',
@@ -106,6 +112,7 @@ const MOCK_PLACES: Place[] = [
     certifierName: null,
     note: 'Hələ heç bir sertifikat orqanı tərəfindən yoxlanılmayıb.',
     imageUrl: null,
+    featured: false,
   },
 ];
 
@@ -120,6 +127,7 @@ type PlaceRow = {
   certifier_name: string | null;
   note: string | null;
   image_url: string | null;
+  featured: boolean;
 };
 
 function mapRowToPlace(row: PlaceRow): Place {
@@ -134,6 +142,7 @@ function mapRowToPlace(row: PlaceRow): Place {
     certifierName: row.certifier_name,
     note: row.note,
     imageUrl: row.image_url,
+    featured: row.featured,
   };
 }
 
@@ -141,9 +150,12 @@ export async function getAllPlaces(): Promise<Place[]> {
   if (isSupabaseConfigured && supabase) {
     const { data, error } = await supabase
       .from('places')
-      .select('id, name, category, status, address, latitude, longitude, certifier_name, note, image_url')
+      .select('id, name, category, status, address, latitude, longitude, certifier_name, note, image_url, featured')
       .eq('approved', true)
       .is('deleted_at', null)
+      // Featured places surface first, same as certified_entries.featured
+      // does for products — everything else stays newest-first.
+      .order('featured', { ascending: false })
       .order('created_at', { ascending: false });
 
     if (!error) return (data ?? []).map(mapRowToPlace);

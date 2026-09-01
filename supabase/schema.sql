@@ -685,3 +685,57 @@ group by se.barcode, ce.product_name, ce.brand, ce.status
 order by count(*) desc;
 
 grant select on confirmed_scan_counts to anon;
+
+-- Lets the admin highlight specific verified places (mirrors
+-- certified_entries.featured for products) — shown first in the app's
+-- Məkanlar list with a small badge.
+alter table places add column if not exists featured boolean not null default false;
+
+-- Community "tövsiyə et" (recommend) — a user taps this on a product's
+-- detail screen (reached by either scanning or searching); one row per
+-- user+barcode so a user can only recommend a given product once and can
+-- un-recommend by removing their own row. Distinct from the admin-only
+-- certified_entries.featured editorial flag — this is a popularity signal
+-- the community drives, not something an admin curates by hand.
+create table if not exists product_recommendations (
+  id uuid primary key default gen_random_uuid(),
+  user_id text not null,
+  barcode text not null,
+  created_at timestamptz not null default now(),
+  unique (user_id, barcode)
+);
+
+create index if not exists idx_product_recommendations_barcode on product_recommendations (barcode);
+
+alter table product_recommendations enable row level security;
+
+drop policy if exists "Public select" on product_recommendations;
+create policy "Public select" on product_recommendations
+  for select using (true);
+
+drop policy if exists "Public insert" on product_recommendations;
+create policy "Public insert" on product_recommendations
+  for insert with check (true);
+
+drop policy if exists "Public delete" on product_recommendations;
+create policy "Public delete" on product_recommendations
+  for delete using (true);
+
+-- Powers the admin panel's "Ən çox tövsiyə olunan məhsullar" report —
+-- same shape as confirmed_scan_counts, but counting user recommends
+-- instead of scans.
+drop view if exists product_recommend_counts;
+create view product_recommend_counts
+with (security_invoker = true) as
+select
+  pr.barcode,
+  count(*) as recommend_count,
+  ce.product_name,
+  ce.brand,
+  ce.status
+from product_recommendations pr
+join certified_entries ce on ce.barcode = pr.barcode and ce.deleted_at is null
+group by pr.barcode, ce.product_name, ce.brand, ce.status
+order by count(*) desc;
+
+grant select on product_recommend_counts to anon;
