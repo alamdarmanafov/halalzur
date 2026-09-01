@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { ECodeEntry } from '../lib/types';
 import { ECODE_STATUS_LABEL_KEY } from '../lib/eCodes';
+import { translateECodeCategory, translateECodeNote } from '../lib/eCodeTranslations';
 import { useLanguage } from '../lib/i18n-context';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
@@ -12,7 +13,7 @@ const STATUS_COLOR: Record<ECodeEntry['status'], string> = {
 };
 
 export function ECodeCard({ entry }: { entry: ECodeEntry }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const tint = STATUS_COLOR[entry.status];
   return (
     <View style={[styles.card, { borderColor: tint }]}>
@@ -23,9 +24,9 @@ export function ECodeCard({ entry }: { entry: ECodeEntry }) {
         </View>
       </View>
       <Text style={styles.name}>
-        {entry.name} · {entry.category}
+        {entry.name} · {translateECodeCategory(entry.category, language)}
       </Text>
-      <Text style={styles.note}>{entry.note}</Text>
+      <Text style={styles.note}>{translateECodeNote(entry.note, language)}</Text>
     </View>
   );
 }

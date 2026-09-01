@@ -24,6 +24,7 @@ import { lookupBarcode, STATUS_DESC_KEY, getHalalAlternatives, getDistinctBrands
 import { PRODUCT_CATEGORIES, getProductCategories } from '../../lib/categories';
 import { extractECodesFromText, searchECodes, ECODE_STATUS_LABEL_KEY } from '../../lib/eCodes';
 import { extractHaramKeywords, HaramKeywordStatus } from '../../lib/haramKeywords';
+import { translateECodeCategory } from '../../lib/eCodeTranslations';
 import { recognizeIngredientText } from '../../lib/ocr';
 import { hasInternetConnection } from '../../lib/network';
 import { useFavorites } from '../../lib/favorites-context';
@@ -839,7 +840,7 @@ export default function ProductDetailScreen() {
                         {item.code} · {item.name}
                       </Text>
                       <Text style={styles.ecodeRowMeta}>
-                        {item.category} · {t(ECODE_STATUS_LABEL_KEY[item.status])}
+                        {translateECodeCategory(item.category, language)} · {t(ECODE_STATUS_LABEL_KEY[item.status])}
                       </Text>
                     </View>
                     <Ionicons
