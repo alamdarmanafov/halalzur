@@ -434,6 +434,46 @@
 
     <section class="section" id="section-reports" hidden>
     <div class="panel-head">
+      <h2>Xüsusi tarix aralığı</h2>
+    </div>
+    <p class="hint">Gün/həftə/ay/il presetlərindən başqa, istədiyiniz tarix aralığı üçün rəqəmlərə baxın.</p>
+    <div style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom: 16px;">
+      <div class="field" style="margin:0;">
+        <label for="customRangeFrom">Başlanğıc</label>
+        <input type="date" id="customRangeFrom" />
+      </div>
+      <div class="field" style="margin:0;">
+        <label for="customRangeTo">Son</label>
+        <input type="date" id="customRangeTo" />
+      </div>
+      <button type="button" class="btn btn-approve" id="customRangeCalcBtn">Hesabla</button>
+    </div>
+    <div class="stats-row stats-row-4" id="customRangeStats" hidden>
+      <div class="stat-card"><div class="num" id="customRangeScans">–</div><div class="label">Skan</div></div>
+      <div class="stat-card"><div class="num" id="customRangeProducts">–</div><div class="label">Yeni məhsul</div></div>
+      <div class="stat-card"><div class="num" id="customRangeUsers">–</div><div class="label">Yeni istifadəçi</div></div>
+      <div class="stat-card"><div class="num" id="customRangeSubmissions">–</div><div class="label">Təklif</div></div>
+    </div>
+    <div class="gate-error" id="customRangeError"></div>
+
+    <div class="panel-head" style="margin-top: 32px;">
+      <h2>Geri dönmə (retention)</h2>
+      <button type="button" class="btn" id="retentionRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+        Hesabla
+      </button>
+    </div>
+    <p class="hint">
+      Qeydiyyatdan ən azı N gün keçmiş istifadəçilərin neçə faizi son aktivliyi (last_seen_at) həmin N-ci gündən
+      sonra olub — dəqiq "N-ci gün geri qayıtdı" deyil, "N gün sonra hələ aktivdir" təxmini göstəricisidir.
+    </p>
+    <div class="stats-row stats-row-4" id="retentionStats" hidden>
+      <div class="stat-card"><div class="num" id="retentionD1">–</div><div class="label">1 gün sonra</div></div>
+      <div class="stat-card"><div class="num" id="retentionD7">–</div><div class="label">7 gün sonra</div></div>
+      <div class="stat-card"><div class="num" id="retentionD30">–</div><div class="label">30 gün sonra</div></div>
+      <div class="stat-card"><div class="num" id="retentionCohortSize">–</div><div class="label">Ümumi istifadəçi</div></div>
+    </div>
+
+    <div class="panel-head" style="margin-top: 32px;">
       <h2>Ən çox rast gəlinən E-kodlar</h2>
       <button type="button" class="btn" id="ecodeReportRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
         Hesabla
@@ -1694,6 +1734,87 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       });
     });
   }
+
+  // ---- custom date range (Hesabatlar) ----
+  document.getElementById("customRangeCalcBtn").addEventListener("click", function () {
+    var errorEl = document.getElementById("customRangeError");
+    errorEl.textContent = "";
+    var fromVal = document.getElementById("customRangeFrom").value;
+    var toVal = document.getElementById("customRangeTo").value;
+    if (!fromVal || !toVal) {
+      errorEl.textContent = "Hər iki tarixi seçin.";
+      return;
+    }
+    var from = new Date(fromVal + "T00:00:00").toISOString();
+    // Inclusive of the whole "to" day, not just its midnight instant.
+    var to = new Date(toVal + "T23:59:59.999").toISOString();
+    if (from > to) {
+      errorEl.textContent = "Başlanğıc tarix sondan sonra ola bilməz.";
+      return;
+    }
+
+    var btn = this;
+    btn.disabled = true;
+    var range = "created_at=gte." + from + "&created_at=lte." + to;
+    Promise.all([
+      sbCount("scan_events?select=id&" + range),
+      sbCount("certified_entries?select=id&entry_type=eq.product&" + range),
+      sbCount("users?select=id&" + range),
+      sbCount("product_submissions?select=id&" + range),
+    ])
+      .then(function (counts) {
+        document.getElementById("customRangeScans").textContent = counts[0];
+        document.getElementById("customRangeProducts").textContent = counts[1];
+        document.getElementById("customRangeUsers").textContent = counts[2];
+        document.getElementById("customRangeSubmissions").textContent = counts[3];
+        document.getElementById("customRangeStats").hidden = false;
+      })
+      .catch(function (err) {
+        errorEl.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        btn.disabled = false;
+      });
+  });
+
+  // ---- retention ----
+  document.getElementById("retentionRefreshBtn").addEventListener("click", function () {
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Hesablanır…";
+    sb("users?select=created_at,last_seen_at&limit=100000")
+      .then(function (rows) {
+        rows = rows || [];
+        var now = Date.now();
+        function retentionAt(days) {
+          var msWindow = days * 86400000;
+          var eligible = 0;
+          var retained = 0;
+          rows.forEach(function (u) {
+            if (!u.created_at) return;
+            var signedUp = new Date(u.created_at).getTime();
+            if (now - signedUp < msWindow) return; // too new to judge this window yet
+            eligible++;
+            var lastSeen = u.last_seen_at ? new Date(u.last_seen_at).getTime() : signedUp;
+            if (lastSeen - signedUp >= msWindow) retained++;
+          });
+          return eligible === 0 ? "—" : Math.round((retained / eligible) * 100) + "%";
+        }
+        document.getElementById("retentionD1").textContent = retentionAt(1);
+        document.getElementById("retentionD7").textContent = retentionAt(7);
+        document.getElementById("retentionD30").textContent = retentionAt(30);
+        document.getElementById("retentionCohortSize").textContent = rows.length;
+        document.getElementById("retentionStats").hidden = false;
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
 
   // ---- dashboard ----
   function loadDashboard() {
