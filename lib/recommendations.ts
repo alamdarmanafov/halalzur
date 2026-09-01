@@ -42,3 +42,51 @@ export async function toggleRecommend(
     if (error) throw error;
   }
 }
+
+/**
+ * Batched (one query for the whole visible list) rather than per-row —
+ * the Places tab renders a list, not a single detail screen like a
+ * product barcode does, so N individual count queries per render would
+ * be wasteful.
+ */
+export async function getPlaceRecommendCounts(placeIds: string[]): Promise<Record<string, number>> {
+  if (!isSupabaseConfigured || !supabase || !placeIds.length) return {};
+  const { data, error } = await supabase.from('place_recommendations').select('place_id').in('place_id', placeIds);
+  if (error || !data) return {};
+  const counts: Record<string, number> = {};
+  data.forEach((row) => {
+    counts[row.place_id] = (counts[row.place_id] ?? 0) + 1;
+  });
+  return counts;
+}
+
+export async function getMyRecommendedPlaceIds(userId: string, placeIds: string[]): Promise<Set<string>> {
+  if (!isSupabaseConfigured || !supabase || !placeIds.length) return new Set();
+  const { data, error } = await supabase
+    .from('place_recommendations')
+    .select('place_id')
+    .eq('user_id', userId)
+    .in('place_id', placeIds);
+  if (error || !data) return new Set();
+  return new Set(data.map((row) => row.place_id));
+}
+
+/** Inserts or removes this user's own recommendation row for the place. */
+export async function togglePlaceRecommend(
+  userId: string,
+  placeId: string,
+  currentlyRecommended: boolean
+): Promise<void> {
+  if (!isSupabaseConfigured || !supabase) throw new Error('Supabase qoşulmayıb.');
+  if (currentlyRecommended) {
+    const { error } = await supabase
+      .from('place_recommendations')
+      .delete()
+      .eq('user_id', userId)
+      .eq('place_id', placeId);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from('place_recommendations').insert({ user_id: userId, place_id: placeId });
+    if (error) throw error;
+  }
+}

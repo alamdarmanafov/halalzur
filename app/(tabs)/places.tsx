@@ -30,6 +30,7 @@ import {
 import { useAuth } from '../../lib/auth-context';
 import { useLanguage } from '../../lib/i18n-context';
 import { distanceKm } from '../../lib/geo';
+import { getPlaceRecommendCounts, getMyRecommendedPlaceIds, togglePlaceRecommend } from '../../lib/recommendations';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Button } from '../../components/Button';
 import { BrandModal } from '../../components/BrandModal';
@@ -82,6 +83,8 @@ export default function PlacesScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [submittedNotice, setSubmittedNotice] = useState(false);
   const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [recommendCounts, setRecommendCounts] = useState<Record<string, number>>({});
+  const [myRecommends, setMyRecommends] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let active = true;
@@ -109,6 +112,52 @@ export default function PlacesScreen() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!data.length) {
+      setRecommendCounts({});
+      setMyRecommends(new Set());
+      return;
+    }
+    let cancelled = false;
+    const ids = data.map((p) => p.id);
+    getPlaceRecommendCounts(ids).then((counts) => {
+      if (!cancelled) setRecommendCounts(counts);
+    });
+    if (user) {
+      getMyRecommendedPlaceIds(user.id, ids).then((ids2) => {
+        if (!cancelled) setMyRecommends(ids2);
+      });
+    } else {
+      setMyRecommends(new Set());
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [data, user]);
+
+  const onToggleRecommendPlace = async (place: Place) => {
+    if (!user) {
+      Alert.alert(t('productRecommendSignInTitle'), t('placeRecommendSignInBody'));
+      return;
+    }
+    const currentlyRecommended = myRecommends.has(place.id);
+    try {
+      await togglePlaceRecommend(user.id, place.id, currentlyRecommended);
+      setMyRecommends((prev) => {
+        const next = new Set(prev);
+        if (currentlyRecommended) next.delete(place.id);
+        else next.add(place.id);
+        return next;
+      });
+      setRecommendCounts((prev) => ({
+        ...prev,
+        [place.id]: (prev[place.id] ?? 0) + (currentlyRecommended ? -1 : 1),
+      }));
+    } catch (err: any) {
+      Alert.alert(t('placesFormFailedTitle'), err.message ?? t('placesFormFailedBody'));
+    }
+  };
 
   const sortedData = useMemo(() => {
     if (!userLocation) return data;
@@ -259,9 +308,21 @@ export default function PlacesScreen() {
                 </Text>
               )}
             </View>
-            <Pressable hitSlop={8} onPress={() => openInMaps(item, t)} style={styles.directionsBtn}>
-              <Ionicons name="navigate-outline" size={20} color={colors.primary} />
-            </Pressable>
+            <View style={{ alignItems: 'center', gap: 6 }}>
+              <Pressable hitSlop={8} onPress={() => openInMaps(item, t)} style={styles.directionsBtn}>
+                <Ionicons name="navigate-outline" size={20} color={colors.primary} />
+              </Pressable>
+              <Pressable hitSlop={8} onPress={() => onToggleRecommendPlace(item)} style={styles.recommendBtn}>
+                <Ionicons
+                  name={myRecommends.has(item.id) ? 'thumbs-up' : 'thumbs-up-outline'}
+                  size={16}
+                  color={myRecommends.has(item.id) ? colors.primary : colors.gray}
+                />
+                {recommendCounts[item.id] > 0 && (
+                  <Text style={styles.recommendCount}>{recommendCounts[item.id]}</Text>
+                )}
+              </Pressable>
+            </View>
           </View>
         )}
       />
@@ -424,6 +485,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  recommendBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  recommendCount: { ...typography.small, color: colors.gray, fontWeight: '700' },
   placeName: { ...typography.h3, color: colors.black },
   address: { ...typography.small, color: colors.gray, marginTop: 2, marginBottom: spacing.xs },
   note: { ...typography.small, color: colors.gray, marginTop: spacing.xs, lineHeight: 17 },

@@ -348,6 +348,7 @@ export const translations: Record<Language, Dict> = {
     productRecommended: 'Tövsiyə edildi',
     productRecommendSignInTitle: 'Giriş lazımdır',
     productRecommendSignInBody: 'Məhsulu tövsiyə etmək üçün hesaba daxil olun.',
+    placeRecommendSignInBody: 'Məkanı tövsiyə etmək üçün hesaba daxil olun.',
     productDeepIngredientCheckTitle: 'Deep Ingredient Check',
     productDeepIngredientCheckIntro:
       'Bunlar AI qərarı deyil — halal sertifikat orqanlarının öz dərc etdiyi E-kod təsnifatından götürülüb.',
@@ -705,6 +706,7 @@ export const translations: Record<Language, Dict> = {
     productRecommended: 'Recommended',
     productRecommendSignInTitle: 'Sign in required',
     productRecommendSignInBody: 'Sign in to recommend this product.',
+    placeRecommendSignInBody: 'Sign in to recommend this place.',
     productDeepIngredientCheckTitle: 'Deep Ingredient Check',
     productDeepIngredientCheckIntro:
       "This isn't an AI judgment — it's pulled from the E-code classification halal certification bodies publish themselves.",

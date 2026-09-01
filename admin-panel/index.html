@@ -391,6 +391,14 @@
     <div id="topRecommendedList"></div>
 
     <div class="panel-head" style="margin-top: 32px;">
+      <h2>Ən çox tövsiyə olunan məkanlar</h2>
+      <button type="button" class="btn" id="topRecommendedPlacesRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+        Yenilə
+      </button>
+    </div>
+    <div id="topRecommendedPlacesList"></div>
+
+    <div class="panel-head" style="margin-top: 32px;">
       <h2>Xal lideri</h2>
     </div>
     <div id="leaderboardList"></div>
@@ -1146,6 +1154,7 @@
       loadDataHealth();
       loadTopConfirmed();
       loadTopRecommended();
+      loadTopRecommendedPlaces();
       loadLeaderboard();
       loadSyncLog();
       loadVersions();
@@ -1513,6 +1522,41 @@
       });
   }
   document.getElementById("topRecommendedRefreshBtn").addEventListener("click", loadTopRecommended);
+
+  function loadTopRecommendedPlaces() {
+    var wrap = document.getElementById("topRecommendedPlacesList");
+    wrap.textContent = "Yüklənir…";
+    sb("place_recommend_counts?order=recommend_count.desc&limit=15")
+      .then(function (rows) {
+        wrap.innerHTML = "";
+        if (!rows || !rows.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Hələ heç bir məkan tövsiyə edilməyib.";
+          wrap.appendChild(empty);
+          return;
+        }
+        rows.forEach(function (row) {
+          var item = document.createElement("div");
+          item.className = "place-card";
+          item.style.marginBottom = "8px";
+          item.innerHTML =
+            '<div>' +
+              '<div class="pc-title">' + esc(row.name) + '</div>' +
+              '<div class="pc-sub">' + (STATUS_LABEL[row.status] || row.status) + ' · 👍 ' + row.recommend_count + ' tövsiyə</div>' +
+            '</div>';
+          wrap.appendChild(item);
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Yüklənmədi: " + err.message;
+        wrap.appendChild(errEl);
+      });
+  }
+  document.getElementById("topRecommendedPlacesRefreshBtn").addEventListener("click", loadTopRecommendedPlaces);
 
   // ---- points leaderboard ----
   function loadLeaderboard() {
@@ -1998,6 +2042,7 @@
     loadDataHealth();
     loadTopConfirmed();
     loadTopRecommended();
+    loadTopRecommendedPlaces();
     loadLeaderboard();
     loadSyncLog();
     loadVersions();
