@@ -295,6 +295,13 @@
           style="position: absolute; top: 100%; left: 0; right: 0; margin-top: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 20px 48px -20px rgba(var(--shadow-color), 0.4); max-height: 420px; overflow-y: auto; z-index: 50;"
         ></div>
       </div>
+      <button
+        type="button"
+        id="offlineQueueBadge"
+        hidden
+        title="Klikləyin — indi göndərməyi yenidən sınayın"
+        style="font-size: 12px; font-weight: 700; color: var(--warn); background: var(--warn-bg); border: none; border-radius: 999px; padding: 6px 12px; margin-right: 10px; cursor: pointer; white-space: nowrap;"
+      ></button>
       <span id="adminIdentityLabel" style="font-size: 12.5px; color: var(--ink-muted); margin-right: 12px;"></span>
       <button class="logout-btn" id="logoutBtn">Çıxış</button>
     </div>
@@ -1553,8 +1560,104 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     toast._t = setTimeout(function () { el.classList.remove("show"); }, 2600);
   }
 
+  // ---- offline action queue ----
+  // A write that fails because there's genuinely no connectivity (fetch
+  // itself rejects with a TypeError — DNS/network unreachable, not an
+  // HTTP error response) gets queued to localStorage instead of just
+  // failing silently, and is retried automatically once the browser is
+  // back online. An HTTP error response (validation failure, 409, etc.)
+  // is a real rejection and is NOT queued — retrying it would just fail
+  // again the same way.
+  var OFFLINE_QUEUE_KEY = "halalzur_admin_offline_queue";
+
+  function loadOfflineQueue() {
+    try {
+      return JSON.parse(localStorage.getItem(OFFLINE_QUEUE_KEY) || "[]");
+    } catch (e) {
+      return [];
+    }
+  }
+  function saveOfflineQueue(queue) {
+    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(queue));
+    updateOfflineQueueBadge();
+  }
+  function updateOfflineQueueBadge() {
+    var badge = document.getElementById("offlineQueueBadge");
+    if (!badge) return;
+    var queue = loadOfflineQueue();
+    badge.hidden = queue.length === 0;
+    badge.textContent = "🔌 " + queue.length + " oflayn əməliyyat gözləyir";
+  }
+  function isNetworkError(err) {
+    return err instanceof TypeError;
+  }
+  function queueOfflineWrite(path, method, headers, body) {
+    var queue = loadOfflineQueue();
+    queue.push({
+      id: Date.now() + "_" + Math.random().toString(36).slice(2),
+      path: path,
+      method: method,
+      headers: headers || {},
+      body: body || null,
+      queuedAt: new Date().toISOString(),
+    });
+    saveOfflineQueue(queue);
+    toast("🔌 İnternet yoxdur — əməliyyat oflayn sırada saxlanıldı, qayıdanda avtomatik göndəriləcək");
+  }
+
+  function refreshActiveSectionAfterOfflineSync() {
+    var activeBtn = document.querySelector(".sidebar .nav-item.active");
+    var key = activeBtn && activeBtn.getAttribute("data-section");
+    if (key && sectionLoaders[key]) sectionLoaders[key]();
+  }
+
+  var offlineFlushInFlight = false;
+  function flushOfflineQueue() {
+    if (offlineFlushInFlight || !navigator.onLine) return;
+    var queue = loadOfflineQueue();
+    if (!queue.length) return;
+    offlineFlushInFlight = true;
+    var item = queue[0];
+    var headers = Object.assign(
+      {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: "Bearer " + (adminSession.accessToken || SUPABASE_ANON_KEY),
+        "Content-Type": "application/json",
+      },
+      item.headers || {}
+    );
+    fetch(SUPABASE_URL + "/rest/v1/" + item.path, {
+      method: item.method,
+      headers: headers,
+      body: item.body ? JSON.stringify(item.body) : undefined,
+    })
+      .then(function (res) {
+        if (!res.ok) return res.text().then(function (t) { throw new Error(t || res.statusText); });
+        saveOfflineQueue(loadOfflineQueue().filter(function (q) { return q.id !== item.id; }));
+        refreshActiveSectionAfterOfflineSync();
+      })
+      .catch(function (err) {
+        if (isNetworkError(err)) return; // still offline — leave it queued, try again later
+        // A real server-side rejection — retrying the exact same request
+        // would just fail the same way forever, so drop it and say so.
+        saveOfflineQueue(loadOfflineQueue().filter(function (q) { return q.id !== item.id; }));
+        toast("Oflayn əməliyyatlardan biri baş tutmadı: " + err.message);
+      })
+      .finally(function () {
+        offlineFlushInFlight = false;
+        if (loadOfflineQueue().length) flushOfflineQueue();
+      });
+  }
+
+  window.addEventListener("online", flushOfflineQueue);
+  setInterval(flushOfflineQueue, 30000);
+  document.getElementById("offlineQueueBadge").addEventListener("click", flushOfflineQueue);
+  updateOfflineQueueBadge();
+  flushOfflineQueue();
+
   function sb(path, opts) {
     opts = opts || {};
+    var method = opts.method || "GET";
     var headers = Object.assign(
       {
         "apikey": SUPABASE_ANON_KEY,
@@ -1564,14 +1667,21 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       opts.headers || {}
     );
     return fetch(SUPABASE_URL + "/rest/v1/" + path, {
-      method: opts.method || "GET",
+      method: method,
       headers: headers,
       body: opts.body ? JSON.stringify(opts.body) : undefined,
-    }).then(function (res) {
-      if (!res.ok) return res.text().then(function (t) { throw new Error(t || res.statusText); });
-      var ct = res.headers.get("content-type") || "";
-      return ct.indexOf("application/json") !== -1 ? res.json() : null;
-    });
+    })
+      .then(function (res) {
+        if (!res.ok) return res.text().then(function (t) { throw new Error(t || res.statusText); });
+        var ct = res.headers.get("content-type") || "";
+        return ct.indexOf("application/json") !== -1 ? res.json() : null;
+      })
+      .catch(function (err) {
+        if (method !== "GET" && isNetworkError(err)) {
+          queueOfflineWrite(path, method, opts.headers, opts.body);
+        }
+        throw err;
+      });
   }
 
   function sbCount(path) {
