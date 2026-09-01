@@ -13,9 +13,13 @@ export type AchievementTier = {
  * (see lib/auth-context.tsx grantAchievementPremium).
  */
 export const ACHIEVEMENT_TIERS: AchievementTier[] = [
+  { threshold: 1, days: 1, label: 'Xoş gəldin bonusu', labelEn: 'Welcome bonus' },
+  { threshold: 5, days: 3, label: '3 günlük Premium', labelEn: '3-day Premium' },
   { threshold: 10, days: 7, label: '1 həftəlik Premium', labelEn: '1-week Premium' },
+  { threshold: 20, days: 14, label: '2 həftəlik Premium', labelEn: '2-week Premium' },
   { threshold: 30, days: 30, label: '1 aylıq Premium', labelEn: '1-month Premium' },
   { threshold: 50, days: 90, label: '3 aylıq Premium', labelEn: '3-month Premium' },
+  { threshold: 75, days: 180, label: '6 aylıq Premium', labelEn: '6-month Premium' },
   { threshold: 100, days: 365, label: '1 illik Premium', labelEn: '1-year Premium' },
 ];
 
