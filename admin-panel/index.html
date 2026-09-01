@@ -407,11 +407,19 @@
       <h2>Data sağlamlığı</h2>
     </div>
     <div class="stats-row stats-row-4">
-      <div class="stat-card"><div class="num" id="healthMissingImage">–</div><div class="label">Şəkli yoxdur</div></div>
-      <div class="stat-card"><div class="num" id="healthMissingCategory">–</div><div class="label">Kateqoriyası yoxdur</div></div>
-      <div class="stat-card"><div class="num" id="healthMissingIngredients">–</div><div class="label">Tərkibi yoxdur</div></div>
-      <div class="stat-card"><div class="num" id="healthUnknownStatus">–</div><div class="label">Naməlum status</div></div>
+      <div class="stat-card" data-health-detail="image" style="cursor:pointer;"><div class="num" id="healthMissingImage">–</div><div class="label">Şəkli yoxdur</div></div>
+      <div class="stat-card" data-health-detail="category" style="cursor:pointer;"><div class="num" id="healthMissingCategory">–</div><div class="label">Kateqoriyası yoxdur</div></div>
+      <div class="stat-card" data-health-detail="ingredients" style="cursor:pointer;"><div class="num" id="healthMissingIngredients">–</div><div class="label">Tərkibi yoxdur</div></div>
+      <div class="stat-card" data-health-detail="status" style="cursor:pointer;"><div class="num" id="healthUnknownStatus">–</div><div class="label">Naməlum status</div></div>
     </div>
+    <p class="hint" style="margin-top: 6px;">Siyahını görmək üçün üstünə klikləyin.</p>
+    <div id="healthDetailList" style="margin-top: 8px;"></div>
+
+    <div style="margin-top: 16px;">
+      <button type="button" class="btn" id="checkBrokenImagesBtn">Şəkil linklərini yoxla (qırıq olanları tap)</button>
+      <span class="hint" id="checkBrokenImagesStatus" style="margin-left: 8px;"></span>
+    </div>
+    <div id="brokenImagesList" style="margin-top: 8px;"></div>
 
     <div class="panel-head" style="margin-top: 32px;">
       <h2>CSV eksport</h2>
@@ -1769,6 +1777,145 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       })
       .catch(function () {});
   }
+
+  var HEALTH_DETAIL_FILTER = {
+    image: "image_url=is.null",
+    category: "category=is.null",
+    ingredients: "ingredients=eq.%7B%7D",
+    status: "status=eq.unknown",
+  };
+
+  document.querySelectorAll("[data-health-detail]").forEach(function (card) {
+    card.addEventListener("click", function () {
+      var key = card.getAttribute("data-health-detail");
+      var listEl = document.getElementById("healthDetailList");
+      if (card.dataset.expanded === "1") {
+        card.dataset.expanded = "0";
+        listEl.innerHTML = "";
+        return;
+      }
+      document.querySelectorAll("[data-health-detail]").forEach(function (c) { c.dataset.expanded = "0"; });
+      card.dataset.expanded = "1";
+      listEl.innerHTML = '<p class="hint">Yüklənir…</p>';
+      sb(
+        "certified_entries?select=barcode,product_name,brand&entry_type=eq.product&deleted_at=is.null&" +
+          HEALTH_DETAIL_FILTER[key] + "&order=product_name.asc&limit=200"
+      )
+        .then(function (rows) {
+          if (!rows || !rows.length) {
+            listEl.innerHTML = '<p class="hint">Boşdur — hamısında var.</p>';
+            return;
+          }
+          listEl.innerHTML =
+            '<div class="cards">' +
+            rows
+              .map(function (r) {
+                return (
+                  '<div class="place-card" style="padding:10px 14px;">' +
+                    '<div>' +
+                      '<div class="pc-title">' + esc(r.product_name || r.brand || "Adsız") + '</div>' +
+                      '<div class="pc-sub">' + esc(r.brand) + (r.barcode ? " · " + esc(r.barcode) : "") + '</div>' +
+                    '</div>' +
+                  '</div>'
+                );
+              })
+              .join("") +
+            "</div>" +
+            (rows.length === 200 ? '<p class="hint">İlk 200 nəticə göstərilir.</p>' : "");
+        })
+        .catch(function (err) {
+          listEl.innerHTML = '<p class="hint">Xəta: ' + esc(err.message) + '</p>';
+        });
+    });
+  });
+
+  // Loads an <img> and resolves true/false without hitting CORS — a
+  // browser can always attempt to RENDER a cross-origin image even when
+  // fetch()/XHR would be blocked from reading its response, so this is
+  // the one reliable way to check "does this URL actually still serve
+  // an image" for arbitrary third-party hosts without a server-side
+  // proxy/new Vercel function.
+  function checkImageLoads(url) {
+    return new Promise(function (resolve) {
+      var img = new Image();
+      var done = false;
+      var finish = function (ok) {
+        if (done) return;
+        done = true;
+        resolve(ok);
+      };
+      img.onload = function () { finish(true); };
+      img.onerror = function () { finish(false); };
+      img.src = url;
+      // Some dead links hang instead of erroring (DNS black-hole, very
+      // slow host) — don't let one bad URL stall the whole scan.
+      setTimeout(function () { finish(false); }, 12000);
+    });
+  }
+
+  document.getElementById("checkBrokenImagesBtn").addEventListener("click", function () {
+    var btn = this;
+    var statusEl = document.getElementById("checkBrokenImagesStatus");
+    var listEl = document.getElementById("brokenImagesList");
+    btn.disabled = true;
+    listEl.innerHTML = "";
+    statusEl.textContent = "Məhsullar yüklənir…";
+
+    sb("certified_entries?select=id,barcode,product_name,brand,image_url&entry_type=eq.product&deleted_at=is.null&image_url=not.is.null&limit=100000")
+      .then(function (rows) {
+        rows = rows || [];
+        var broken = [];
+        var checked = 0;
+        var CONCURRENCY = 15;
+        var index = 0;
+
+        function next() {
+          if (index >= rows.length) return Promise.resolve();
+          var row = rows[index++];
+          return checkImageLoads(row.image_url).then(function (ok) {
+            checked++;
+            statusEl.textContent = "Yoxlanılır… " + checked + "/" + rows.length;
+            if (!ok) broken.push(row);
+            return next();
+          });
+        }
+
+        var workers = [];
+        for (var i = 0; i < CONCURRENCY; i++) workers.push(next());
+        return Promise.all(workers).then(function () {
+          return { total: rows.length, broken: broken };
+        });
+      })
+      .then(function (result) {
+        statusEl.textContent = result.total + " şəkil yoxlanıldı, " + result.broken.length + " qırıq tapıldı.";
+        if (!result.broken.length) {
+          listEl.innerHTML = '<p class="hint">Bütün şəkil linkləri işləyir.</p>';
+          return;
+        }
+        listEl.innerHTML =
+          '<div class="cards">' +
+          result.broken
+            .map(function (r) {
+              return (
+                '<div class="place-card" style="padding:10px 14px;">' +
+                  '<div>' +
+                    '<div class="pc-title">' + esc(r.product_name || r.brand || "Adsız") + '</div>' +
+                    '<div class="pc-sub">' + esc(r.brand) + (r.barcode ? " · " + esc(r.barcode) : "") + '</div>' +
+                    '<div class="pc-note">' + esc(r.image_url) + '</div>' +
+                  '</div>' +
+                '</div>'
+              );
+            })
+            .join("") +
+          "</div>";
+      })
+      .catch(function (err) {
+        statusEl.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        btn.disabled = false;
+      });
+  });
 
   // ---- most-common E-codes report ----
   function fetchAllIngredientsForReport() {
@@ -3426,13 +3573,47 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       ) {
         return;
       }
-      approveSubmission(row, card, e.target, chosenStatus, chosenCategory);
+      checkDuplicateBarcode(row.barcode)
+        .then(function (existing) {
+          if (
+            existing &&
+            !window.confirm(
+              'Diqqət: "' + row.barcode + '" barkodu bazada artıq var (' +
+              (existing.product_name || existing.brand) + ' · ' + (STATUS_LABEL[existing.status] || existing.status) +
+              '). Yenə də təsdiqləyib DUBLİKAT sətir yaratmaq istəyirsiniz? (Əvəzinə mövcud məhsulu redaktə etmək daha doğrudur.)'
+            )
+          ) {
+            return;
+          }
+          approveSubmission(row, card, e.target, chosenStatus, chosenCategory);
+        })
+        .catch(function () {
+          // Duplicate check failing (network hiccup etc.) shouldn't block
+          // approval entirely — just skip the warning this one time.
+          approveSubmission(row, card, e.target, chosenStatus, chosenCategory);
+        });
     });
     card.querySelector('[data-action="reject"]').addEventListener("click", function (e) {
       rejectSubmission(row, card, e.target);
     });
 
     return card;
+  }
+
+  // Warns the admin before approving a submission whose barcode already
+  // has a live (non-deleted) product entry — approving anyway creates a
+  // second row for the same barcode rather than updating the existing
+  // one, which is almost always a mistake (the submitter likely scanned
+  // a product that's already in the database under a slightly different
+  // name/brand spelling).
+  function checkDuplicateBarcode(barcode) {
+    if (!barcode) return Promise.resolve(null);
+    return sb(
+      "certified_entries?barcode=eq." + encodeURIComponent(barcode) +
+        "&entry_type=eq.product&deleted_at=is.null&select=product_name,brand,status&limit=1"
+    ).then(function (rows) {
+      return rows && rows[0] ? rows[0] : null;
+    });
   }
 
   function setCardBusy(card, busy) {
