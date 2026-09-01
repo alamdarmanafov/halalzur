@@ -4423,6 +4423,8 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
           (missing ? " (" + missing + " kart ekranda görünmürdü, ötürüldü)" : "")
         );
         logAudit("bulk_save_edits", "certified_entries", null, saved + " məhsul");
+        selectedProductIds = {};
+        updateProductBulkBar();
         reloadActiveProductsList();
       })
       .catch(function (err) {
