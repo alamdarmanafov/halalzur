@@ -5,6 +5,7 @@ export type Certifier = {
   name: string;
   shortName: string;
   country: string;
+  sourceUrl: string | null;
 };
 
 export type CertificationResult = {

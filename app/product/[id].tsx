@@ -13,6 +13,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -192,6 +193,16 @@ export default function ProductDetailScreen() {
         hasKnownIngredients ? product!.ingredients.join(', ') : manualIngredients
       ),
     [hasKnownIngredients, product, manualIngredients]
+  );
+  // Which detected E-codes actually explain a mushbooh/haram verdict —
+  // shown as the "why" next to the certifier card so a flagged status
+  // isn't just a bare badge with no visible reason.
+  const flaggedIngredients = useMemo(
+    () =>
+      detectedECodes
+        .filter((e) => e.status === 'haram' || e.status === 'mushbooh')
+        .map((e) => `${e.code} (${e.name})`),
+    [detectedECodes]
   );
 
   const hasECode = (code: string) =>
@@ -412,8 +423,23 @@ export default function ProductDetailScreen() {
             {product.verifiedAt && (
               <Text style={styles.certNumber}>{t('productVerifiedAt')} {product.verifiedAt}</Text>
             )}
+            {product.certifier?.sourceUrl && (
+              <Pressable onPress={() => Linking.openURL(product.certifier!.sourceUrl!)} hitSlop={8}>
+                <Text style={styles.sourceLink}>{t('productViewSource')}</Text>
+              </Pressable>
+            )}
           </View>
         </View>
+
+        {(product.status === 'haram' || product.status === 'mushbooh') && flaggedIngredients.length > 0 && (
+          <View style={styles.reasonCard}>
+            <Ionicons name="alert-circle" size={18} color={STATUS_TINT[product.status]} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.reasonTitle}>{t('productWhyFlaggedTitle')}</Text>
+              <Text style={styles.reasonText}>{flaggedIngredients.join(', ')}</Text>
+            </View>
+          </View>
+        )}
 
         {product.notes && (
           <View style={styles.noteCard}>
@@ -772,6 +798,24 @@ const styles = StyleSheet.create({
   certifierTitle: { ...typography.h3, color: colors.black },
   certifierBody: { ...typography.small, color: colors.gray, marginTop: 2 },
   certNumber: { ...typography.small, color: colors.primaryDark, marginTop: spacing.xs, fontWeight: '600' },
+  sourceLink: {
+    ...typography.small,
+    color: colors.primaryDark,
+    marginTop: spacing.xs,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  reasonCard: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  reasonTitle: { ...typography.small, color: colors.black, fontWeight: '700' },
+  reasonText: { ...typography.small, color: colors.gray, marginTop: 2 },
   noteCard: {
     flexDirection: 'row',
     gap: spacing.sm,

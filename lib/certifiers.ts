@@ -11,30 +11,35 @@ export const CERTIFIERS: Certifier[] = [
     name: 'GIMDES – Gıda ve İhtiyaç Maddeleri Denetleme ve Sertifikalandırma Araştırmaları Derneği',
     shortName: 'GIMDES',
     country: 'Türkiyə',
+    sourceUrl: null,
   },
   {
     id: 'hak',
     name: 'Helal Akreditasyon Kurumu (Türkiyə Gıda / Helal Standartları Qurumu)',
     shortName: 'HAK',
     country: 'Türkiyə',
+    sourceUrl: null,
   },
   {
     id: 'smiic',
     name: 'SMIIC – Standards and Metrology Institute for Islamic Countries',
     shortName: 'SMIIC',
     country: 'Beynəlxalq',
+    sourceUrl: null,
   },
   {
     id: 'jakim',
     name: 'JAKIM – Department of Islamic Development Malaysia',
     shortName: 'JAKIM',
     country: 'Malaziya',
+    sourceUrl: null,
   },
   {
     id: 'azstandart',
     name: 'AZSTANDART Halal Sertifikatlaşdırma Orqanı (Azərbaycan Standartlaşdırma İnstitutu)',
     shortName: 'AZSTANDART',
     country: 'Azərbaycan',
+    sourceUrl: null,
   },
 ];
 
