@@ -4,6 +4,14 @@
 -- (entry_type = 'company', barcode left null, matched by brand text
 -- search in the app rather than a scanned barcode). Run once in
 -- Supabase → SQL Editor.
+
+-- This project's certifiers table never got this row inserted (schema.sql
+-- gained it after the initial setup ran) — certified_entries.certifier_id
+-- has a foreign key into certifiers, so this must exist first.
+insert into certifiers (id, name, short_name, country, source_url) values
+  ('azstandart', 'AZSTANDART Halal Sertifikatlaşdırma Orqanı (Azərbaycan Standartlaşdırma İnstitutu)', 'AZSTANDART', 'Azərbaycan', 'https://azstandart.az/')
+on conflict (id) do nothing;
+
 insert into certified_entries (entry_type, brand, status, certifier_id, verified_at, notes, source_url) values
   ('company', 'Min bərəkət', 'halal', 'azstandart', current_date,
    'Səhliyalı müəssisəsinin "Min bərəkət" ticarət nişanı — AZSTANDART Halal sertifikatı alıb.',
