@@ -18,6 +18,7 @@ export async function syncUser(user: User): Promise<void> {
   if (!isSupabaseConfigured || !supabase) return;
   if (!isSyncableUserId(user.id)) return;
 
+  const now = new Date().toISOString();
   await supabase.from('users').upsert(
     {
       id: user.id,
@@ -26,10 +27,30 @@ export async function syncUser(user: User): Promise<void> {
       plan: user.plan,
       premium_expires_at: user.premiumExpiresAt,
       claimed_achievements: user.claimedAchievements,
-      updated_at: new Date().toISOString(),
+      updated_at: now,
+      last_seen_at: now,
     },
     { onConflict: 'id' }
   );
+}
+
+/**
+ * Fire-and-forget, called once per app launch for an already-signed-in
+ * user (see the AuthProvider bootstrap effect in auth-context.tsx) — the
+ * lightest possible write so opening the app updates users.last_seen_at
+ * (admin panel's Users list) without re-upserting the full syncUser()
+ * payload on every launch.
+ */
+export function touchLastSeen(userId: string): void {
+  if (!isSupabaseConfigured || !supabase) return;
+  if (!isSyncableUserId(userId)) return;
+  supabase
+    .from('users')
+    .update({ last_seen_at: new Date().toISOString() })
+    .eq('id', userId)
+    .then(({ error }) => {
+      if (error) console.warn('touchLastSeen failed:', error.message);
+    });
 }
 
 /**
@@ -44,7 +65,7 @@ export function syncUserLanguage(userId: string, language: 'az' | 'en'): void {
   if (!isSyncableUserId(userId)) return;
   supabase
     .from('users')
-    .update({ language, updated_at: new Date().toISOString() })
+    .update({ language, updated_at: new Date().toISOString(), last_seen_at: new Date().toISOString() })
     .eq('id', userId)
     .then(({ error }) => {
       if (error) console.warn('syncUserLanguage failed:', error.message);

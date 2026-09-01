@@ -4862,6 +4862,7 @@
         '<div class="pc-sub" style="margin-top:6px;">' + planPill + banPill + '</div>' +
         (row.banned && row.ban_reason ? '<div class="pc-note">Səbəb: ' + esc(row.ban_reason) + '</div>' : '') +
         '<div class="pc-sub" data-role="referral-code-display">Referral kodu: ' + esc(row.referral_code || "—") + '</div>' +
+        '<div class="pc-sub">Son aktivlik: ' + (row.last_seen_at ? new Date(row.last_seen_at).toLocaleString("az-AZ") : "—") + '</div>' +
         '<div data-role="user-detail" style="margin-top:8px;"></div>' +
       '</div>' +
       '<div style="display:flex; flex-direction:column; gap:6px;">' +

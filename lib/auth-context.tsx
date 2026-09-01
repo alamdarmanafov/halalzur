@@ -4,7 +4,7 @@ import { GoogleSignin, isSuccessResponse } from '@react-native-google-signin/goo
 import { createContext, useContext, useEffect, useMemo, useState, PropsWithChildren } from 'react';
 import { User } from './types';
 import { supabase } from './supabase';
-import { syncUser, fetchRemoteAccountState } from './userSync';
+import { syncUser, fetchRemoteAccountState, touchLastSeen } from './userSync';
 import { AchievementTier } from './achievements';
 
 const STORAGE_KEY = 'halalzur.user';
@@ -93,6 +93,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           : stored;
         setUser(next);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        touchLastSeen(next.id);
       })
       .finally(() => setIsLoading(false));
   }, []);
