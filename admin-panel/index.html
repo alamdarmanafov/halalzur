@@ -103,19 +103,27 @@
     border-bottom: 1px solid var(--border);
   }
   .topbar-row {
-    max-width: 1040px; margin: 0 auto; padding: 0 24px; height: 64px;
-    display: flex; align-items: center; justify-content: space-between;
+    max-width: 1040px; margin: 0 auto; padding: 0 24px; min-height: 64px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 0;
   }
-  .brand { display: flex; align-items: center; gap: 10px; }
-  .brand svg { width: 26px; height: 26px; border-radius: 7px; }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand svg { width: 26px; height: 26px; border-radius: 7px; flex-shrink: 0; }
   .brand b { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 16.5px; }
   .brand b span { color: var(--brand); }
   .brand small { display: block; color: var(--ink-muted); font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; }
   .logout-btn {
     background: transparent; border: 1.5px solid var(--border); color: var(--ink-muted);
-    padding: 8px 14px; border-radius: 999px; font-size: 13.5px; font-weight: 600; cursor: pointer;
+    padding: 8px 14px; border-radius: 999px; font-size: 13.5px; font-weight: 600; cursor: pointer; flex-shrink: 0;
   }
   .logout-btn:hover { color: var(--ink); border-color: var(--ink-muted); }
+  #adminIdentityLabel { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  @media (max-width: 640px) {
+    .topbar-row { padding: 10px 16px; }
+    .brand small { display: none; }
+    .topbar-row > div[style*="flex: 1"] { order: 3; flex-basis: 100%; max-width: none !important; margin: 0 !important; }
+    #adminIdentityLabel { display: none; }
+  }
 
   .shell { display: flex; align-items: flex-start; max-width: 1180px; margin: 0 auto; }
 
@@ -168,8 +176,9 @@
   .submission-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px;
   }
-  .sc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
-  .sc-title { font-family: "Manrope", sans-serif; font-weight: 700; font-size: 16.5px; }
+  .sc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+  .sc-top > div:first-child { min-width: 0; flex: 1 1 180px; }
+  .sc-title { font-family: "Manrope", sans-serif; font-weight: 700; font-size: 16.5px; overflow-wrap: break-word; }
   .sc-sub { color: var(--ink-muted); font-size: 13.5px; margin-top: 2px; }
   .status-pill {
     font-size: 12px; font-weight: 700; padding: 5px 12px; border-radius: 999px; white-space: nowrap;
@@ -226,9 +235,10 @@
 
   .place-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px 20px;
-    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap;
   }
-  .place-card .pc-title { font-family: "Manrope", sans-serif; font-weight: 700; font-size: 15.5px; }
+  .place-card > div:first-child { min-width: 0; flex: 1 1 200px; }
+  .place-card .pc-title { font-family: "Manrope", sans-serif; font-weight: 700; font-size: 15.5px; overflow-wrap: break-word; }
   .place-card .pc-sub { color: var(--ink-muted); font-size: 13px; margin-top: 2px; }
   .pc-badge-pending {
     display: inline-block; color: var(--warn); background: var(--warn-bg);
