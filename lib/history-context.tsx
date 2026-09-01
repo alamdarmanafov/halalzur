@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useMemo, useState, PropsWithChildren } from 'react';
 import { CertificationResult } from './types';
+import { maybeRequestReviewAfterScans } from './reviewPrompt';
 
 const STORAGE_KEY = 'halalzur.history';
 // Same cap for everyone — the Premium spec is explicit that history is
@@ -41,6 +42,7 @@ export function HistoryProvider({ children }: PropsWithChildren) {
         );
         setHistory(next);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        maybeRequestReviewAfterScans(next.length);
       },
       removeScan: async (barcode) => {
         const next = history.filter((h) => h.barcode !== barcode);
