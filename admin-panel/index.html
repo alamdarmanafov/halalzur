@@ -677,6 +677,14 @@
           <label for="productIngredients">Tərkib (vergüllə ayırın)</label>
           <input type="text" id="productIngredients" placeholder="Məs. Şəkər, Fındıq, Bitki yağı" />
         </div>
+        <div class="field field-wide" style="position:relative;">
+          <label for="addProductEcodeInput">E-kod əlavə et (istəyə bağlı)</label>
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="addProductEcodeInput" placeholder="Kod və ya ad — məs. E100, gelatin" autocomplete="off" style="flex:1; min-width:0;" />
+            <button type="button" class="btn" id="addProductEcodeBtn" style="white-space:nowrap;">Əlavə et</button>
+          </div>
+          <div id="addProductEcodeDropdown" hidden style="position:absolute; top:100%; left:0; right:0; margin-top:4px; background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.12); max-height:240px; overflow-y:auto; z-index:30;"></div>
+        </div>
         <div class="field field-wide">
           <label for="productNote">Qeyd (istəyə bağlı)</label>
           <textarea id="productNote" rows="2" placeholder="Məs. Tərkibdə mənbəyi təsdiqlənməmiş E441 var."></textarea>
@@ -4094,6 +4102,36 @@
         submitBtn.textContent = "Məhsulu əlavə et";
       });
   });
+
+  // Same E-kod helper as buildProductCard's edit view, just appending
+  // into the plain "Tərkib" text field here instead of a saved row's
+  // ingredients array, since a new product hasn't been created yet.
+  (function () {
+    var ecodeInput = document.getElementById("addProductEcodeInput");
+    var ecodeDropdown = document.getElementById("addProductEcodeDropdown");
+    setupEcodeAutocomplete(ecodeInput, ecodeDropdown);
+
+    document.getElementById("addProductEcodeBtn").addEventListener("click", function () {
+      var raw = ecodeInput.value.trim();
+      if (!raw) return;
+      var code = raw.split(" — ")[0].trim().toUpperCase().replace(/\s+/g, "");
+      if (!ECODE_PATTERN.test(code)) {
+        toast("Düzgün E-kod formatı deyil (məs. E100)");
+        return;
+      }
+      var ingredientsField = document.getElementById("productIngredients");
+      var parts = ingredientsField.value.split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+      if (parts.some(function (p) { return p.toUpperCase() === code; })) {
+        toast(code + " artıq tərkibdə var");
+        ecodeInput.value = "";
+        return;
+      }
+      parts.push(code);
+      ingredientsField.value = parts.join(", ");
+      ecodeInput.value = "";
+      toast(code + " əlavə edildi");
+    });
+  })();
 
   // Minimal RFC4180-ish CSV row parser — handles quoted fields with commas
   // and escaped ("") quotes, which a plain split(",") would break on.
