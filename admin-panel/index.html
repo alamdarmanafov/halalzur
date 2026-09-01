@@ -1060,6 +1060,29 @@
         <label for="broadcastBody">Mətn</label>
         <textarea id="broadcastBody" rows="2" placeholder="Məs. Halalzur-a Məkanlar bölməsi əlavə olundu."></textarea>
       </div>
+      <div style="margin-bottom: 14px; display: flex; gap: 10px; flex-wrap: wrap;">
+        <button type="button" class="btn" id="broadcastTranslationsToggleBtn">🌐 Digər dillər (EN/RU/TR)</button>
+        <button type="button" class="btn" id="broadcastPreviewToggleBtn">👁 4 dildə önizlə</button>
+      </div>
+      <div id="broadcastTranslationsWrap" hidden style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; padding: 14px; border: 1px dashed var(--border); border-radius: 12px;">
+        <p class="hint" style="margin: 0;">
+          Boş buraxılan dil üçün bildiriş avtomatik yuxarıdakı Azərbaycan mətnini göstərəcək. Bu, "Dil" filtri ilə
+          KİMİN alacağını deyil, "Hamısı" seçiləndə hər istifadəçinin HANSI mətni alacağını təyin edir.
+        </p>
+        <div class="field-grid">
+          <div class="field"><label for="broadcastTitleEn">Başlıq (English)</label><input type="text" id="broadcastTitleEn" /></div>
+          <div class="field"><label for="broadcastBodyEn">Mətn (English)</label><textarea id="broadcastBodyEn" rows="2"></textarea></div>
+        </div>
+        <div class="field-grid">
+          <div class="field"><label for="broadcastTitleRu">Başlıq (Русский)</label><input type="text" id="broadcastTitleRu" /></div>
+          <div class="field"><label for="broadcastBodyRu">Mətn (Русский)</label><textarea id="broadcastBodyRu" rows="2"></textarea></div>
+        </div>
+        <div class="field-grid">
+          <div class="field"><label for="broadcastTitleTr">Başlıq (Türkçe)</label><input type="text" id="broadcastTitleTr" /></div>
+          <div class="field"><label for="broadcastBodyTr">Mətn (Türkçe)</label><textarea id="broadcastBodyTr" rows="2"></textarea></div>
+        </div>
+      </div>
+      <div id="broadcastPreviewWrap" hidden style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;"></div>
       <div style="margin-bottom: 14px;">
         <button type="button" class="btn" id="saveNotificationTemplateBtn">Bunu şablon kimi saxla</button>
         <button type="button" class="place-delete-btn" id="deleteNotificationTemplateBtn" hidden>Seçili şablonu sil</button>
@@ -6547,6 +6570,81 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     };
   }
 
+  var BROADCAST_LANG_FIELDS = [
+    { lang: "en", label: "English", title: "broadcastTitleEn", body: "broadcastBodyEn" },
+    { lang: "ru", label: "Русский", title: "broadcastTitleRu", body: "broadcastBodyRu" },
+    { lang: "tr", label: "Türkçe", title: "broadcastTitleTr", body: "broadcastBodyTr" },
+  ];
+
+  // Returns only the languages that actually have both a title and a
+  // body filled in — a half-filled translation is treated as absent so
+  // it doesn't silently ship a blank notification body.
+  function broadcastTranslations() {
+    var out = {};
+    BROADCAST_LANG_FIELDS.forEach(function (f) {
+      var title = document.getElementById(f.title).value.trim();
+      var body = document.getElementById(f.body).value.trim();
+      if (title && body) out[f.lang] = { title: title, body: body };
+    });
+    return out;
+  }
+
+  function broadcastTranslationsToDbColumns(translations) {
+    var out = {};
+    BROADCAST_LANG_FIELDS.forEach(function (f) {
+      var t = translations[f.lang];
+      out["title_" + f.lang] = t ? t.title : null;
+      out["body_" + f.lang] = t ? t.body : null;
+    });
+    return out;
+  }
+
+  function clearBroadcastFields() {
+    document.getElementById("broadcastTitle").value = "";
+    document.getElementById("broadcastBody").value = "";
+    BROADCAST_LANG_FIELDS.forEach(function (f) {
+      document.getElementById(f.title).value = "";
+      document.getElementById(f.body).value = "";
+    });
+    document.getElementById("broadcastPreviewWrap").hidden = true;
+  }
+
+  document.getElementById("broadcastTranslationsToggleBtn").addEventListener("click", function () {
+    var wrap = document.getElementById("broadcastTranslationsWrap");
+    wrap.hidden = !wrap.hidden;
+  });
+
+  document.getElementById("broadcastPreviewToggleBtn").addEventListener("click", function () {
+    var wrap = document.getElementById("broadcastPreviewWrap");
+    wrap.hidden = !wrap.hidden;
+    if (wrap.hidden) return;
+
+    var azTitle = document.getElementById("broadcastTitle").value.trim() || "(başlıq boşdur)";
+    var azBody = document.getElementById("broadcastBody").value.trim() || "(mətn boşdur)";
+    var translations = broadcastTranslations();
+    var cards = [{ lang: "az", label: "Azərbaycan", title: azTitle, body: azBody }].concat(
+      BROADCAST_LANG_FIELDS.map(function (f) {
+        var t = translations[f.lang];
+        return { lang: f.lang, label: f.label, title: t ? t.title : azTitle, body: t ? t.body : azBody, fallback: !t };
+      })
+    );
+    wrap.innerHTML = "";
+    cards.forEach(function (c) {
+      var card = document.createElement("div");
+      card.style.cssText =
+        "width: 240px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px;";
+      card.innerHTML =
+        '<div style="font-size: 11px; font-weight: 700; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 8px;">' +
+          esc(c.label) + (c.fallback ? " · AZ mətni" : "") +
+        '</div>' +
+        '<div style="font-family: \'Manrope\', sans-serif; font-weight: 800; font-size: 14.5px; margin-bottom: 4px; overflow-wrap: break-word;">' +
+          esc(c.title) +
+        '</div>' +
+        '<div style="font-size: 13px; color: var(--ink-muted); line-height: 1.5; overflow-wrap: break-word;">' + esc(c.body) + '</div>';
+      wrap.appendChild(card);
+    });
+  });
+
   document.getElementById("broadcastSendBtn").addEventListener("click", function () {
     var errorEl = document.getElementById("broadcastError");
     errorEl.textContent = "";
@@ -6562,7 +6660,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     btn.disabled = true;
     var original = btn.textContent;
     btn.textContent = "Göndərilir…";
-    var payload = Object.assign({ title: title, body: body }, broadcastAudience());
+    var payload = Object.assign({ title: title, body: body, translations: broadcastTranslations() }, broadcastAudience());
     fetch("/api/send-broadcast", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-app-key": SUPABASE_ANON_KEY },
@@ -6578,8 +6676,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
             ? "Push bildirişi göndərildi (hamıya)"
             : "Push bildirişi göndərildi (" + result.sent + " / " + result.total + " cihaza)"
         );
-        document.getElementById("broadcastTitle").value = "";
-        document.getElementById("broadcastBody").value = "";
+        clearBroadcastFields();
       })
       .catch(function (err) {
         errorEl.textContent = "Xəta: " + err.message;
@@ -6618,18 +6715,20 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     sb("scheduled_broadcasts", {
       method: "POST",
       headers: { "Prefer": "return=minimal" },
-      body: {
-        title: title,
-        body: body,
-        audience_plan: audience.audiencePlan,
-        audience_language: audience.audienceLanguage,
-        send_at: sendAt.toISOString(),
-      },
+      body: Object.assign(
+        {
+          title: title,
+          body: body,
+          audience_plan: audience.audiencePlan,
+          audience_language: audience.audienceLanguage,
+          send_at: sendAt.toISOString(),
+        },
+        broadcastTranslationsToDbColumns(broadcastTranslations())
+      ),
     })
       .then(function () {
         toast("Bildiriş planlandı: " + sendAt.toLocaleString("az-AZ"));
-        document.getElementById("broadcastTitle").value = "";
-        document.getElementById("broadcastBody").value = "";
+        clearBroadcastFields();
         document.getElementById("broadcastScheduleAt").value = "";
         loadScheduledBroadcasts();
       })
@@ -6673,6 +6772,15 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     if (!row) return;
     document.getElementById("broadcastTitle").value = row.title;
     document.getElementById("broadcastBody").value = row.body;
+    var hasTranslations = false;
+    BROADCAST_LANG_FIELDS.forEach(function (f) {
+      var titleVal = row["title_" + f.lang] || "";
+      var bodyVal = row["body_" + f.lang] || "";
+      if (titleVal || bodyVal) hasTranslations = true;
+      document.getElementById(f.title).value = titleVal;
+      document.getElementById(f.body).value = bodyVal;
+    });
+    document.getElementById("broadcastTranslationsWrap").hidden = !hasTranslations;
   });
 
   document.getElementById("saveNotificationTemplateBtn").addEventListener("click", function () {
@@ -6687,7 +6795,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     sb("notification_templates", {
       method: "POST",
       headers: { "Prefer": "return=minimal" },
-      body: { title: title, body: body },
+      body: Object.assign({ title: title, body: body }, broadcastTranslationsToDbColumns(broadcastTranslations())),
     })
       .then(function () {
         toast("Şablon saxlanıldı");

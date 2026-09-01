@@ -40,7 +40,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  const { title, body, audiencePlan, audienceLanguage } = req.body || {};
+  const { title, body, audiencePlan, audienceLanguage, translations } = req.body || {};
   if (!title || !body) {
     res.status(400).json({ error: 'missing_fields' });
     return;
@@ -67,6 +67,7 @@ export default async function handler(req, res) {
       body,
       audiencePlan,
       audienceLanguage,
+      translations,
     });
     res.status(200).json(result);
   } catch (err) {

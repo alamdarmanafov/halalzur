@@ -588,6 +588,14 @@ create table scheduled_broadcasts (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   body text not null,
+  -- Optional per-language overrides — blank means "fall back to the
+  -- Azerbaijani title/body above" (see admin-panel/lib/broadcast.js).
+  title_en text,
+  body_en text,
+  title_ru text,
+  body_ru text,
+  title_tr text,
+  body_tr text,
   audience_plan text not null default 'all' check (audience_plan in ('all', 'free', 'premium')),
   audience_language text not null default 'all' check (audience_language in ('all', 'az', 'en', 'ru', 'tr')),
   send_at timestamptz not null,
@@ -603,11 +611,11 @@ alter table scheduled_broadcasts enable row level security;
 create policy "Public read" on scheduled_broadcasts
   for select using (true);
 
-create policy "Public insert" on scheduled_broadcasts
-  for insert with check (true);
+create policy "Admin insert" on scheduled_broadcasts
+  for insert with check (is_admin());
 
-create policy "Public update" on scheduled_broadcasts
-  for update using (true) with check (true);
+create policy "Admin update" on scheduled_broadcasts
+  for update using (is_admin()) with check (is_admin());
 
 -- Private admin note on a product — distinct from `notes`, which is
 -- shown to end users (e.g. "E330 — bitki mənşəlidir..."); admin_note is
@@ -811,15 +819,23 @@ create table if not exists notification_templates (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   body text not null,
+  -- Optional per-language overrides, same fallback rule as
+  -- scheduled_broadcasts above.
+  title_en text,
+  body_en text,
+  title_ru text,
+  body_ru text,
+  title_tr text,
+  body_tr text,
   created_at timestamptz not null default now()
 );
 alter table notification_templates enable row level security;
 drop policy if exists "Public read" on notification_templates;
 create policy "Public read" on notification_templates for select using (true);
 drop policy if exists "Public insert" on notification_templates;
-create policy "Public insert" on notification_templates for insert with check (true);
+create policy "Admin insert" on notification_templates for insert with check (is_admin());
 drop policy if exists "Public delete" on notification_templates;
-create policy "Public delete" on notification_templates for delete using (true);
+create policy "Admin delete" on notification_templates for delete using (is_admin());
 
 -- One row per landing-page view (website/invite.html?code=X) — lets the
 -- admin panel show a code's click-through rate alongside its actual

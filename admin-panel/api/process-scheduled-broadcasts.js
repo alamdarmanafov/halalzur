@@ -26,6 +26,16 @@ import { createClient } from '@supabase/supabase-js';
 import { sendBroadcast } from '../lib/broadcast.js';
 import { getFirebaseApp } from '../lib/firebaseAdmin.js';
 
+function translationsFromRow(row) {
+  const translations = {};
+  for (const lang of ['en', 'ru', 'tr']) {
+    const title = row['title_' + lang];
+    const body = row['body_' + lang];
+    if (title && body) translations[lang] = { title, body };
+  }
+  return translations;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'method_not_allowed' });
@@ -96,6 +106,7 @@ export default async function handler(req, res) {
           body: row.body,
           audiencePlan: row.audience_plan,
           audienceLanguage: row.audience_language,
+          translations: translationsFromRow(row),
         });
         await supabase
           .from('scheduled_broadcasts')
