@@ -146,6 +146,22 @@ export default function SubscriptionScreen() {
     return live?.displayPrice ?? PLANS[key].price;
   };
 
+  /**
+   * Both driven entirely by App Store Connect config, not app code: a
+   * free trial is an "introductory offer" set on the subscription
+   * product there, and family sharing is a checkbox on that same
+   * product (Apple's own Family Sharing group — not a separate plan/
+   * price tier). react-native-iap just reflects whatever's configured.
+   */
+  const trialLabelFor = (key: keyof typeof PLANS): string | null => {
+    const live = subscriptions.find((s) => s.id === PLANS[key].id);
+    if (!live || live.platform !== 'ios' || live.introductoryPricePaymentModeIOS !== 'free-trial') return null;
+    const n = live.introductoryPriceNumberOfPeriodsIOS;
+    const unit = live.introductoryPriceSubscriptionPeriodIOS;
+    return n && unit ? `${n} ${unit} ${t('subFreeTrialSuffix')}` : t('subFreeTrialGeneric');
+  };
+  const isFamilyShareable = subscriptions.some((s) => s.platform === 'ios' && s.isFamilyShareableIOS);
+
   const purchasePremium = async () => {
     if (Platform.OS !== 'ios') {
       Alert.alert(t('subNotSupportedTitle'), t('subNotSupportedBody'));
@@ -233,6 +249,7 @@ export default function SubscriptionScreen() {
                   <Text style={styles.planPeriod}>{t(plan.labelKey)}</Text>
                   <Text style={styles.planPrice}>{priceFor(key)}</Text>
                   <Text style={styles.planPer}>/ {t(plan.periodKey)}</Text>
+                  {trialLabelFor(key) && <Text style={styles.planTrial}>{trialLabelFor(key)}</Text>}
                 </Pressable>
               );
             }
@@ -249,6 +266,13 @@ export default function SubscriptionScreen() {
         <Pressable onPress={restorePurchases} style={{ marginTop: spacing.md }} disabled={restoring}>
           <Text style={styles.restoreText}>{restoring ? t('subRestoring') : t('subRestorePurchases')}</Text>
         </Pressable>
+
+        {isFamilyShareable && (
+          <View style={styles.familyRow}>
+            <Ionicons name="people-outline" size={16} color={colors.gray} />
+            <Text style={styles.familyText}>{t('subFamilySharingNote')}</Text>
+          </View>
+        )}
 
         {iapError && Platform.OS === 'ios' && <Text style={styles.iapNotice}>{t('subIapNotice')}</Text>}
 
@@ -321,7 +345,16 @@ const styles = StyleSheet.create({
   planPeriod: { ...typography.small, fontSize: 12, color: colors.gray, fontWeight: '700', marginTop: spacing.xs },
   planPrice: { ...typography.h3, color: colors.primaryDark, marginTop: 4 },
   planPer: { fontSize: 11, color: colors.gray },
+  planTrial: { fontSize: 10.5, color: colors.primary, fontWeight: '700', marginTop: 4, textAlign: 'center' },
   restoreText: { textAlign: 'center', color: colors.primary, fontWeight: '600' },
+  familyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: spacing.sm,
+  },
+  familyText: { fontSize: 12, color: colors.gray },
   iapNotice: {
     ...typography.small,
     color: colors.warning,
