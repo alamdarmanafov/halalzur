@@ -12,7 +12,15 @@ insert into certifiers (id, name, short_name, country, source_url) values
   ('azstandart', 'AZSTANDART Halal Sertifikatlaşdırma Orqanı (Azərbaycan Standartlaşdırma İnstitutu)', 'AZSTANDART', 'Azərbaycan', 'https://azstandart.az/')
 on conflict (id) do nothing;
 
-insert into certified_entries (entry_type, brand, status, certifier_id, verified_at, notes, source_url) values
+-- INSERT ... SELECT ... WHERE NOT EXISTS instead of a plain multi-row
+-- VALUES insert — makes this safe to run more than once. A plain INSERT
+-- doesn't know these company-level rows have no barcode to check a
+-- unique constraint against (Postgres never treats NULL as equal to
+-- NULL for uniqueness), so running this file twice previously created
+-- duplicate rows for every brand below, silently, with no error.
+insert into certified_entries (entry_type, brand, status, certifier_id, verified_at, notes, source_url)
+select v.entry_type, v.brand, v.status, v.certifier_id, v.verified_at, v.notes, v.source_url
+from (values
   ('company', 'Min bərəkət', 'halal', 'azstandart', current_date,
    'Səhliyalı müəssisəsinin "Min bərəkət" ticarət nişanı — AZSTANDART Halal sertifikatı alıb.',
    'https://qaynarinfo.az/az/bu-muessiseler-quothalalquot-sertifikati-aldi-siyahi'),
@@ -33,4 +41,9 @@ insert into certified_entries (entry_type, brand, status, certifier_id, verified
    'https://qaynarinfo.az/az/bu-muessiseler-quothalalquot-sertifikati-aldi-siyahi'),
   ('company', 'M&T', 'halal', 'azstandart', current_date,
    'M&T LTD firması — AZSTANDART Halal sertifikatı alıb.',
-   'https://qaynarinfo.az/az/bu-muessiseler-quothalalquot-sertifikati-aldi-siyahi');
+   'https://qaynarinfo.az/az/bu-muessiseler-quothalalquot-sertifikati-aldi-siyahi')
+) as v(entry_type, brand, status, certifier_id, verified_at, notes, source_url)
+where not exists (
+  select 1 from certified_entries ce
+  where ce.brand = v.brand and ce.certifier_id = v.certifier_id and ce.barcode is null
+);

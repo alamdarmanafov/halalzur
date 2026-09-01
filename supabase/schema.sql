@@ -783,3 +783,14 @@ group by pr.place_id, p.name, p.category, p.status
 order by count(*) desc;
 
 grant select on place_recommend_counts to anon;
+
+-- Guards against exactly the bug that let add_azstandart_companies.sql
+-- create duplicate barcode-less rows when run more than once: a
+-- 'product' entry (unlike a 'company' one — see this table's own
+-- comment above about GIMDES's mostly brand-level certificates) must
+-- always have a barcode. The barcode unique index only protects
+-- non-null barcodes (Postgres never treats NULL as equal to NULL for
+-- uniqueness), so nothing previously stopped a barcode-less INSERT from
+-- being run again and again.
+alter table certified_entries
+  add constraint chk_product_requires_barcode check (entry_type <> 'product' or barcode is not null);
