@@ -4036,6 +4036,10 @@
           '</div>' +
         '</div>' +
         '<div data-role="ingredients-block">' + buildIngredientsHtml(row.ingredients) + '</div>' +
+        '<div data-role="ecode-auto-wrap" style="margin: 4px 0 8px;">' +
+          '<button type="button" class="btn" data-action="find-ecodes-auto">🔍 E-kodları avtomatik tap</button>' +
+          '<div data-role="ecode-auto-result" style="margin-top:8px;"></div>' +
+        '</div>' +
         '<div style="display:flex; flex-wrap:wrap; gap:12px;">' +
           '<div class="field" style="flex:1 1 140px; margin:0;">' +
             '<label>Status</label>' +
@@ -4128,6 +4132,9 @@
         findOffImage(row, card, e.target);
       });
     }
+    card.querySelector('[data-action="find-ecodes-auto"]').addEventListener("click", function (e) {
+      findEcodesAuto(row, card, e.target);
+    });
     return card;
   }
 
@@ -4162,6 +4169,162 @@
         btn.disabled = false;
         btn.textContent = original;
       });
+  }
+
+  function extractEcodesFromRawText(text) {
+    if (!text) return [];
+    var matches = text.match(/E\s?\d{3,4}[a-z]?/gi) || [];
+    var seen = {};
+    var out = [];
+    matches.forEach(function (m) {
+      var norm = m.toUpperCase().replace(/\s+/g, "");
+      if (!seen[norm]) {
+        seen[norm] = true;
+        out.push(norm);
+      }
+    });
+    return out;
+  }
+
+  // "E-kodları avtomatik tap": first tries Open Food Facts (real
+  // published ingredients_text for this exact barcode — trusted at the
+  // same level as an admin typing a code in by hand, so found codes are
+  // added immediately, same as findOffImage's CORS rationale). Only if
+  // OFF has nothing does this fall back to /api/find-ecodes-ai (web
+  // search) — those results are always shown as a checkbox review list
+  // the admin must explicitly confirm, never auto-saved, since they're
+  // a web-search finding rather than a real product record.
+  function findEcodesAuto(row, card, btn) {
+    var resultEl = card.querySelector('[data-role="ecode-auto-result"]');
+    var original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Axtarılır…";
+    resultEl.innerHTML = "";
+
+    var offLookup = row.barcode
+      ? fetch(
+          "https://world.openfoodfacts.org/api/v2/product/" +
+            encodeURIComponent(row.barcode) +
+            ".json?fields=ingredients_text,ingredients_text_en"
+        )
+          .then(function (res) {
+            return res.ok ? res.json() : null;
+          })
+          .then(function (data) {
+            if (!data || data.status !== 1 || !data.product) return null;
+            var text = data.product.ingredients_text_en || data.product.ingredients_text || "";
+            var codes = extractEcodesFromRawText(text);
+            return codes.length ? { source: "openfoodfacts", ecodes: codes } : null;
+          })
+          .catch(function () {
+            return null;
+          })
+      : Promise.resolve(null);
+
+    offLookup
+      .then(function (offResult) {
+        if (offResult) return offResult;
+        return fetch("/api/find-ecodes-ai", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-app-key": SUPABASE_ANON_KEY },
+          body: JSON.stringify({ productName: row.product_name || row.brand, brand: row.brand }),
+        })
+          .then(function (res) {
+            return res.json();
+          })
+          .catch(function () {
+            return { source: "error", ecodes: [] };
+          });
+      })
+      .then(function (result) {
+        renderEcodeAutoResult(row, card, resultEl, result);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  }
+
+  function renderEcodeAutoResult(row, card, resultEl, result) {
+    var existing = (row.ingredients || []).map(function (i) {
+      return i.trim().toUpperCase().replace(/\s+/g, "");
+    });
+
+    if (!result || result.source === "not_configured") {
+      resultEl.innerHTML =
+        '<div class="pc-note">Open Food Facts-da tapılmadı, AI axtarışı konfiqurasiya edilməyib (ANTHROPIC_API_KEY Vercel-də yoxdur).</div>';
+      return;
+    }
+    if (result.source === "error" || !result.ecodes || !result.ecodes.length) {
+      resultEl.innerHTML = '<div class="pc-note">Heç bir E-kod tapılmadı — əl ilə daxil edin.</div>';
+      return;
+    }
+
+    var newCodes = result.ecodes.filter(function (c) {
+      return existing.indexOf(c) === -1;
+    });
+
+    if (result.source === "openfoodfacts") {
+      if (!newCodes.length) {
+        resultEl.innerHTML =
+          '<div class="pc-note">Open Food Facts-da tapılan bütün E-kodlar artıq tərkibdə var: ' +
+          esc(result.ecodes.join(", ")) +
+          "</div>";
+        return;
+      }
+      var merged = (row.ingredients || []).concat(newCodes);
+      saveIngredients(row, card, merged);
+      resultEl.innerHTML =
+        '<div class="pc-note">🟢 Open Food Facts-dan tapıldı və əlavə edildi: ' + esc(newCodes.join(", ")) + "</div>";
+      logAudit("auto_find_ecodes", "certified_entries", row.id, { source: "openfoodfacts", codes: newCodes });
+      return;
+    }
+
+    // AI-sourced — review required, nothing written until confirmed.
+    if (!newCodes.length) {
+      resultEl.innerHTML =
+        '<div class="pc-note">AI axtarışının tapdığı bütün E-kodlar artıq tərkibdə var: ' +
+        esc(result.ecodes.join(", ")) +
+        "</div>";
+      return;
+    }
+    var checkboxesHtml = newCodes
+      .map(function (code) {
+        return (
+          '<label style="display:flex; align-items:center; gap:6px; margin:4px 0;">' +
+          '<input type="checkbox" data-ecode-review="' +
+          esc(code) +
+          '" checked /> ' +
+          esc(code) +
+          "</label>"
+        );
+      })
+      .join("");
+    resultEl.innerHTML =
+      '<div class="pc-note" style="border-left:3px solid #d9a441; padding-left:8px;">' +
+      "🟡 AI axtarışı ilə tapıldı — mütləq yoxlayın, bu təsdiqlənməmiş internet axtarışı nəticəsidir." +
+      (result.citation
+        ? ' <a href="' + esc(result.citation) + '" target="_blank" rel="noopener">Mənbəyə bax</a>'
+        : "") +
+      "</div>" +
+      checkboxesHtml +
+      '<button type="button" class="btn" data-action="confirm-ai-ecodes" style="margin-top:6px;">Seçilənləri tərkibə əlavə et</button>';
+
+    resultEl.querySelector('[data-action="confirm-ai-ecodes"]').addEventListener("click", function () {
+      var checked = Array.prototype.slice
+        .call(resultEl.querySelectorAll("[data-ecode-review]:checked"))
+        .map(function (el) {
+          return el.getAttribute("data-ecode-review");
+        });
+      if (!checked.length) {
+        resultEl.innerHTML = '<div class="pc-note">Heç biri seçilmədi.</div>';
+        return;
+      }
+      var merged = (row.ingredients || []).concat(checked);
+      saveIngredients(row, card, merged);
+      resultEl.innerHTML = '<div class="pc-note">Əlavə edildi: ' + esc(checked.join(", ")) + "</div>";
+      logAudit("auto_find_ecodes", "certified_entries", row.id, { source: "ai", codes: checked });
+    });
   }
 
   function addEcodeToProduct(row, card, input) {
