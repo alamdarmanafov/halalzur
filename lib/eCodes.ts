@@ -1,5 +1,6 @@
 import { ECodeEntry, ECodeStatus } from './types';
 import { TranslationKey } from './i18n';
+import { supabase, isSupabaseConfigured } from './supabase';
 
 export const ECODE_STATUS_LABEL_KEY: Record<ECodeStatus, TranslationKey> = {
   halal: 'ecodeStatusHalal',
@@ -338,15 +339,47 @@ export const E_CODES: ECodeEntry[] = [
   { code: "E999", name: "Quillaia extract", category: "Köpükləndirici", status: "halal", note: "Kvillaya ekstraktı — Bitki mənşəli." },
 ];
 
+/**
+ * Admin-added codes not in the hardcoded E_CODES table above (see
+ * custom_ecodes in supabase/schema.sql) — populated by loadCustomECodes()
+ * and merged into every lookup below. Mutated in place (push, not
+ * reassignment) so every module that imported this array sees updates
+ * without needing its own reload logic.
+ */
+export const EXTRA_ECODES: ECodeEntry[] = [];
+
+export async function loadCustomECodes(): Promise<void> {
+  if (!isSupabaseConfigured || !supabase) return;
+  const { data, error } = await supabase
+    .from('custom_ecodes')
+    .select('code, name, category, status, note');
+  if (error || !data) return;
+  EXTRA_ECODES.length = 0;
+  EXTRA_ECODES.push(
+    ...data.map((row) => ({
+      code: row.code as string,
+      name: row.name as string,
+      category: (row.category as string) || 'Digər',
+      status: row.status as ECodeStatus,
+      note: (row.note as string) || '',
+    }))
+  );
+}
+
+function allECodes(): ECodeEntry[] {
+  return EXTRA_ECODES.length ? [...E_CODES, ...EXTRA_ECODES] : E_CODES;
+}
+
 export function findECode(query: string): ECodeEntry | undefined {
   const q = query.trim().toUpperCase().replace(/\s+/g, '');
-  return E_CODES.find((e) => e.code.toUpperCase().replace(/\s+/g, '') === q);
+  return allECodes().find((e) => e.code.toUpperCase().replace(/\s+/g, '') === q);
 }
 
 export function searchECodes(query: string): ECodeEntry[] {
   const q = query.trim().toLowerCase();
-  if (!q) return E_CODES;
-  return E_CODES.filter(
+  const list = allECodes();
+  if (!q) return list;
+  return list.filter(
     (e) =>
       e.code.toLowerCase().includes(q) ||
       e.name.toLowerCase().includes(q) ||
@@ -363,14 +396,15 @@ export function searchECodes(query: string): ECodeEntry[] {
  */
 export function extractECodesFromText(text: string): ECodeEntry[] {
   const found = new Map<string, ECodeEntry>();
+  const list = allECodes();
 
   // "E123" / "E123a" style tokens — exact match first, then the old
   // 4-character-prefix fallback for a variant missing from the table.
   const codeMatches = text.match(/E\s?-?\s?\d{3,4}[a-h]?/gi) ?? [];
   for (const raw of codeMatches) {
     const normalized = raw.toUpperCase().replace(/[\s-]/g, '');
-    const exact = E_CODES.find((e) => e.code.toUpperCase() === normalized);
-    const entry = exact ?? E_CODES.find((e) => e.code.toUpperCase().startsWith(normalized.slice(0, 4)));
+    const exact = list.find((e) => e.code.toUpperCase() === normalized);
+    const entry = exact ?? list.find((e) => e.code.toUpperCase().startsWith(normalized.slice(0, 4)));
     if (entry) found.set(entry.code, entry);
   }
 
@@ -378,7 +412,7 @@ export function extractECodesFromText(text: string): ECodeEntry[] {
   // label that says "Gelatin" or "Lecithin" with no "E441"/"E322" next to
   // it) — whole-word match, skipping short names too likely to false-hit
   // ("Talc" would; but < 5 chars is rare among these anyway).
-  for (const entry of E_CODES) {
+  for (const entry of list) {
     for (const namePart of entry.name.split(/[/,]/).map((s) => s.trim())) {
       if (namePart.length < 5) continue;
       const escaped = namePart.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');

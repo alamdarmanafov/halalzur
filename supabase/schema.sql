@@ -895,3 +895,26 @@ create policy "Public read" on purchase_events for select using (true);
 -- Best-effort: never blocks sign-up, stays null if the app has no
 -- EXPO_PUBLIC_ADMIN_API_URL configured or the request fails.
 alter table users add column if not exists country text;
+
+-- Admin-added E-codes not in the app's hardcoded 307-entry reference
+-- table (lib/eCodes.ts's E_CODES — a full migration of that list was
+-- judged too large/risky to do in one pass). This is additive: the app
+-- merges these with the hardcoded list at lookup time (lib/eCodes.ts's
+-- loadCustomECodes()) rather than replacing anything, so an admin can
+-- add a code the reference sheet is missing without anyone touching code.
+create table if not exists custom_ecodes (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  name text not null,
+  category text,
+  status text not null check (status in ('halal', 'haram', 'mushbooh', 'depends')),
+  note text,
+  created_at timestamptz not null default now()
+);
+alter table custom_ecodes enable row level security;
+drop policy if exists "Public read" on custom_ecodes;
+create policy "Public read" on custom_ecodes for select using (true);
+drop policy if exists "Public insert" on custom_ecodes;
+create policy "Public insert" on custom_ecodes for insert with check (true);
+drop policy if exists "Public delete" on custom_ecodes;
+create policy "Public delete" on custom_ecodes for delete using (true);

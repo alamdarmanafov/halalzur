@@ -330,6 +330,10 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 5v6c0 5 3.4 8.5 8 11 4.6-2.5 8-6 8-11V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>
           <span>Sertifikatorlar</span>
         </button>
+        <button class="nav-item" type="button" data-section="ecodes">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+          <span>E-kodlar</span>
+        </button>
         <button class="nav-item" type="button" data-section="trash">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M6 7v13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>
           <span>Zibil qutusu</span>
@@ -1102,6 +1106,51 @@
     <div class="cards" id="certifierCards" style="margin-top: 20px;"></div>
     </section>
 
+    <section class="section" id="section-ecodes" hidden>
+    <div class="panel-head">
+      <h2>E-kodlar</h2>
+      <span id="customEcodesCountLabel"></span>
+    </div>
+    <p class="hint">
+      Tətbiqin daxili 307 E-kodluq siyahısını burdan dəyişmək olmur — bura yalnız o siyahıda OLMAYAN kodları
+      əlavə etmək üçündür. Əlavə edilən kod dərhal həm tətbiqdə, həm burda axtarışa çıxır.
+    </p>
+    <form class="place-form" id="customEcodeForm">
+      <div class="field-grid">
+        <div class="field">
+          <label for="customEcodeCode">Kod</label>
+          <input type="text" id="customEcodeCode" placeholder="Məs. E1105" required />
+        </div>
+        <div class="field">
+          <label for="customEcodeName">Ad</label>
+          <input type="text" id="customEcodeName" placeholder="Məs. Lysozyme" required />
+        </div>
+        <div class="field">
+          <label for="customEcodeCategory">Kateqoriya (istəyə bağlı)</label>
+          <input type="text" id="customEcodeCategory" placeholder="Məs. Konservant" />
+        </div>
+        <div class="field">
+          <label for="customEcodeStatus">Status</label>
+          <select id="customEcodeStatus" required>
+            <option value="">— Status seçin —</option>
+            <option value="halal">Halal</option>
+            <option value="mushbooh">Şübhəli</option>
+            <option value="haram">Haram</option>
+            <option value="depends">Mənbəyindən asılıdır</option>
+          </select>
+        </div>
+        <div class="field field-wide">
+          <label for="customEcodeNote">Qeyd (istəyə bağlı)</label>
+          <textarea id="customEcodeNote" rows="2" placeholder="Məs. Yumurta ağından alınır, adətən halal."></textarea>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-approve" style="margin-top: 12px;">E-kod əlavə et</button>
+      <div class="gate-error" id="customEcodeFormError"></div>
+    </form>
+    <div class="cards" id="customEcodeCards" style="margin-top: 20px;"></div>
+    <div class="empty-state" id="customEcodesEmptyState" hidden>Hələ heç bir əlavə E-kod yoxdur.</div>
+    </section>
+
     <section class="section" id="section-trash" hidden>
     <div class="panel-head">
       <h2>Zibil qutusu</h2>
@@ -1278,6 +1327,7 @@
     users: document.getElementById("section-users"),
     feedback: document.getElementById("section-feedback"),
     certifiers: document.getElementById("section-certifiers"),
+    ecodes: document.getElementById("section-ecodes"),
     trash: document.getElementById("section-trash"),
     audit: document.getElementById("section-audit"),
   };
@@ -1322,6 +1372,7 @@
     },
     feedback: loadFeedback,
     certifiers: loadCertifiers,
+    ecodes: loadCustomEcodes,
     trash: loadTrash,
     audit: loadAuditLog,
   };
@@ -2275,6 +2326,120 @@
       .finally(function () {
         btn.disabled = false;
         btn.textContent = original;
+      });
+  });
+
+  // ---- custom E-codes ----
+  // Additive to the app's hardcoded 307-entry E_CODES table (lib/eCodes.ts)
+  // — see that file's loadCustomECodes() and supabase/schema.sql's
+  // custom_ecodes comment for why this doesn't touch the hardcoded list.
+  var ECODE_STATUS_LABEL = { halal: "🟢 Halal", mushbooh: "🟡 Şübhəli", haram: "🔴 Haram", depends: "🟡 Mənbəyindən asılıdır" };
+
+  function loadCustomEcodes() {
+    sb("custom_ecodes?order=created_at.desc&select=*")
+      .then(function (rows) {
+        renderCustomEcodeCards(rows || []);
+      })
+      .catch(function (err) {
+        toast("E-kodlar yüklənmədi: " + err.message);
+      });
+  }
+
+  function renderCustomEcodeCards(list) {
+    var container = document.getElementById("customEcodeCards");
+    var empty = document.getElementById("customEcodesEmptyState");
+    document.getElementById("customEcodesCountLabel").textContent = list.length + " əlavə E-kod";
+    container.innerHTML = "";
+    if (!list.length) {
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = true;
+    list.forEach(function (row) {
+      var card = document.createElement("div");
+      card.className = "place-card";
+      card.innerHTML =
+        '<div>' +
+          '<div class="pc-title">' + esc(row.code) + ' — ' + esc(row.name) + '</div>' +
+          '<div class="pc-sub">' + (ECODE_STATUS_LABEL[row.status] || row.status) +
+            (row.category ? ' · ' + esc(row.category) : '') +
+          '</div>' +
+          (row.note ? '<div class="pc-note">' + esc(row.note) + '</div>' : '') +
+        '</div>' +
+        '<button type="button" class="place-delete-btn" data-action="delete-custom-ecode">Sil</button>';
+      card.querySelector('[data-action="delete-custom-ecode"]').addEventListener("click", function (e) {
+        deleteCustomEcode(row, card, e.target);
+      });
+      container.appendChild(card);
+    });
+  }
+
+  function deleteCustomEcode(row, card, btn) {
+    if (!window.confirm('"' + row.code + '" silinsin?')) return;
+    btn.disabled = true;
+    sb("custom_ecodes?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+      .then(function () {
+        toast("Silindi: " + row.code);
+        logAudit("delete", "custom_ecodes", row.id, row.code);
+        card.remove();
+        loadCustomEcodes();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+      });
+  }
+
+  document.getElementById("customEcodeForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var errorEl = document.getElementById("customEcodeFormError");
+    errorEl.textContent = "";
+    var code = document.getElementById("customEcodeCode").value.trim().toUpperCase().replace(/\s+/g, "");
+    var name = document.getElementById("customEcodeName").value.trim();
+    var category = document.getElementById("customEcodeCategory").value.trim();
+    var status = document.getElementById("customEcodeStatus").value;
+    var note = document.getElementById("customEcodeNote").value.trim();
+
+    if (!code || !name) {
+      errorEl.textContent = "Kod və ad tələb olunur.";
+      return;
+    }
+    if (!ECODE_PATTERN.test(code)) {
+      errorEl.textContent = "Düzgün E-kod formatı deyil (məs. E100 və ya E472a).";
+      return;
+    }
+    if (!status) {
+      errorEl.textContent = "Status seçin.";
+      return;
+    }
+    // Warn rather than silently letting a duplicate of the hardcoded
+    // 307-entry list through — ECODE_LIST is that same list, already
+    // loaded here for the product-edit autocomplete.
+    if (ECODE_LIST.some(function (pair) { return pair[0].toUpperCase() === code; })) {
+      errorEl.textContent = code + " artıq tətbiqin daxili siyahısında var — bura əlavə etməyə ehtiyac yoxdur.";
+      return;
+    }
+
+    var submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    sb("custom_ecodes", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: { code: code, name: name, category: category || null, status: status, note: note || null },
+    })
+      .then(function () {
+        toast("E-kod əlavə edildi: " + code);
+        logAudit("create", "custom_ecodes", code, name);
+        e.target.reset();
+        loadCustomEcodes();
+      })
+      .catch(function (err) {
+        errorEl.textContent = /duplicate key|already exists/i.test(err.message)
+          ? "Bu kod artıq əlavə edilib."
+          : "Xəta: " + err.message;
+      })
+      .finally(function () {
+        submitBtn.disabled = false;
       });
   });
 

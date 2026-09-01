@@ -8,8 +8,10 @@ import { LanguageProvider } from '../lib/i18n-context';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { initSentry, Sentry } from '../lib/sentry';
 import { rootViewRef } from '../lib/screenshotRef';
+import { loadCustomECodes } from '../lib/eCodes';
 
 initSentry();
+loadCustomECodes();
 
 function RootLayout() {
   return (
