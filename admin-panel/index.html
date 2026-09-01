@@ -483,6 +483,7 @@
     <div class="nav" style="flex-direction: row; gap: 6px; margin-bottom: 20px;">
       <button type="button" class="nav-item active" id="productsTabBrowseBtn" style="width: auto;">Məhsullar</button>
       <button type="button" class="nav-item" id="productsTabAddBtn" style="width: auto;">Məhsul əlavə et</button>
+      <button type="button" class="nav-item" id="productsTabEditBtn" style="width: auto;">Məhsul redaktə</button>
     </div>
 
     <div id="productsTabBrowse">
@@ -681,6 +682,23 @@
         <button type="submit" class="btn">Get</button>
       </form>
     </div>
+    </div>
+
+    <div id="productsTabEdit" hidden>
+      <div class="place-form" style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+        <div class="field" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+          <label for="editProductSearch">Axtar (ad, marka, barkod)</label>
+          <input type="text" id="editProductSearch" placeholder="Məs. Fındıq, ya da 8690..." />
+        </div>
+      </div>
+      <p class="hint">Yalnız artıq statusu təyin olunmuş (naməlum olmayan) məhsullar — son yenilənənlər əvvəldə.</p>
+      <div class="cards" id="editProductCards" style="margin-top: 8px;"></div>
+      <div class="empty-state" id="editProductsEmptyState" hidden>Nəticə tapılmadı.</div>
+      <div style="display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px;">
+        <button type="button" class="btn" id="editProductPrevPageBtn">← Əvvəlki</button>
+        <span id="editProductPageLabel"></span>
+        <button type="button" class="btn" id="editProductNextPageBtn">Növbəti →</button>
+      </div>
     </div>
     </section>
 
@@ -1049,19 +1067,26 @@
     }).catch(function () {});
   }
 
+  function setProductsTab(which) {
+    var btns = { browse: "productsTabBrowseBtn", add: "productsTabAddBtn", edit: "productsTabEditBtn" };
+    Object.keys(btns).forEach(function (key) {
+      document.getElementById(btns[key]).classList.toggle("active", key === which);
+    });
+    document.getElementById("productsTabBrowse").hidden = which !== "browse";
+    document.getElementById("productsTabBrowseList").hidden = which !== "browse";
+    document.getElementById("productsTabAdd").hidden = which !== "add";
+    document.getElementById("productsTabEdit").hidden = which !== "edit";
+    if (which === "edit") loadEditProducts();
+  }
+
   document.getElementById("productsTabBrowseBtn").addEventListener("click", function () {
-    document.getElementById("productsTabBrowseBtn").classList.add("active");
-    document.getElementById("productsTabAddBtn").classList.remove("active");
-    document.getElementById("productsTabBrowse").hidden = false;
-    document.getElementById("productsTabBrowseList").hidden = false;
-    document.getElementById("productsTabAdd").hidden = true;
+    setProductsTab("browse");
   });
   document.getElementById("productsTabAddBtn").addEventListener("click", function () {
-    document.getElementById("productsTabAddBtn").classList.add("active");
-    document.getElementById("productsTabBrowseBtn").classList.remove("active");
-    document.getElementById("productsTabAdd").hidden = false;
-    document.getElementById("productsTabBrowse").hidden = true;
-    document.getElementById("productsTabBrowseList").hidden = true;
+    setProductsTab("add");
+  });
+  document.getElementById("productsTabEditBtn").addEventListener("click", function () {
+    setProductsTab("edit");
   });
 
   function toast(msg) {
@@ -2603,6 +2628,88 @@
     currentProductPage = page - 1;
     input.value = "";
     loadProducts();
+  });
+
+  // ---- "Məhsul redaktə" tab — a lean, separate search+edit view over
+  // already-reviewed products (status not unknown), most-recently-updated
+  // first. Reuses buildProductCard for the actual row (same edit/delete/
+  // E-code/featured/admin-note controls as the main Məhsullar tab) rather
+  // than duplicating that logic — this tab only needs its own filtering,
+  // sorting and pagination.
+  var currentEditProductRows = [];
+  var currentEditProductPage = 0;
+  var currentEditProductTotal = 0;
+  var EDIT_PRODUCT_PAGE_SIZE = 50;
+  var editProductFilterDebounce;
+
+  function editProductFilterParams() {
+    var search = document.getElementById("editProductSearch").value.trim();
+    var params = "&deleted_at=is.null&status=neq.unknown";
+    if (search) {
+      var safe = search.replace(/[,()%]/g, "");
+      var barcodeCondition = /^\d+$/.test(safe) ? "barcode.eq." + safe : "barcode.ilike.%" + safe + "%";
+      params +=
+        "&or=(" +
+        "product_name.ilike.%" + safe + "%," +
+        "brand.ilike.%" + safe + "%," +
+        barcodeCondition +
+        ")";
+    }
+    return params;
+  }
+
+  function loadEditProducts() {
+    var params = editProductFilterParams();
+    var offset = currentEditProductPage * EDIT_PRODUCT_PAGE_SIZE;
+
+    sbCount("certified_entries?select=id" + params)
+      .then(function (total) {
+        currentEditProductTotal = total;
+        var totalPages = Math.max(1, Math.ceil(total / EDIT_PRODUCT_PAGE_SIZE));
+        document.getElementById("editProductPageLabel").textContent =
+          "Səhifə " + (currentEditProductPage + 1) + " / " + totalPages;
+        document.getElementById("editProductPrevPageBtn").disabled = currentEditProductPage <= 0;
+        document.getElementById("editProductNextPageBtn").disabled = currentEditProductPage + 1 >= totalPages;
+      })
+      .catch(function () {});
+
+    sb(
+      "certified_entries?order=updated_at.desc&limit=" + EDIT_PRODUCT_PAGE_SIZE + "&offset=" + offset + "&select=*" + params
+    )
+      .then(function (rows) {
+        currentEditProductRows = rows || [];
+        var container = document.getElementById("editProductCards");
+        var empty = document.getElementById("editProductsEmptyState");
+        container.innerHTML = "";
+        if (!currentEditProductRows.length) {
+          empty.hidden = false;
+          return;
+        }
+        empty.hidden = true;
+        currentEditProductRows.forEach(function (row) {
+          container.appendChild(buildProductCard(row));
+        });
+      })
+      .catch(function (err) {
+        toast("Məhsullar yüklənmədi: " + err.message);
+      });
+  }
+
+  document.getElementById("editProductSearch").addEventListener("input", function () {
+    clearTimeout(editProductFilterDebounce);
+    editProductFilterDebounce = setTimeout(function () {
+      currentEditProductPage = 0;
+      loadEditProducts();
+    }, 350);
+  });
+  document.getElementById("editProductPrevPageBtn").addEventListener("click", function () {
+    if (currentEditProductPage <= 0) return;
+    currentEditProductPage -= 1;
+    loadEditProducts();
+  });
+  document.getElementById("editProductNextPageBtn").addEventListener("click", function () {
+    currentEditProductPage += 1;
+    loadEditProducts();
   });
 
   function updateProductBulkBar() {
