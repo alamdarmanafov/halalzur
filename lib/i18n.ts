@@ -56,6 +56,9 @@ export const translations: Record<Language, Dict> = {
     productsDeleteConfirm: 'Sil',
     productsRecentLabel: 'Son skan etdikləriniz',
     productsPopularLabel: 'Populyar məhsullar',
+    productsRecommendedToggle: 'Tövsiyə edilən',
+    productsRecommendedLabel: 'İstifadəçilər tərəfindən ən çox tövsiyə olunan',
+    productsShowMore: 'Daha çox göstər',
     productsEmptyResult: 'Nəticə tapılmadı',
 
     placesTitle: 'Məkanlar',
@@ -414,6 +417,9 @@ export const translations: Record<Language, Dict> = {
     productsDeleteConfirm: 'Remove',
     productsRecentLabel: 'Your recent scans',
     productsPopularLabel: 'Popular products',
+    productsRecommendedToggle: 'Recommended',
+    productsRecommendedLabel: 'Most recommended by users',
+    productsShowMore: 'Show more',
     productsEmptyResult: 'No results found',
 
     placesTitle: 'Places',

@@ -296,6 +296,40 @@ export async function getManyByBarcode(barcodes: string[]): Promise<Record<strin
   return map;
 }
 
+type ProductRecommendCountRow = { barcode: string; recommend_count: number };
+
+export type RecommendedProduct = CertificationResult & { recommendCount: number };
+
+/**
+ * Products.tsx's "Tövsiyə edilən" section — ranked by how many different
+ * users tapped "Tövsiyə et" on the product detail screen (lib/
+ * recommendations.ts), not an admin editorial pick like
+ * certified_entries.featured. Reads the count from
+ * product_recommend_counts (a view, see supabase/schema.sql) then
+ * re-fetches full product rows via getManyByBarcode, since the view only
+ * carries enough columns for the admin panel's own report.
+ */
+export async function getMostRecommendedProducts(limit: number): Promise<RecommendedProduct[]> {
+  if (!isSupabaseConfigured || !supabase) return [];
+
+  const { data, error } = await supabase
+    .from('product_recommend_counts')
+    .select('barcode, recommend_count')
+    .order('recommend_count', { ascending: false })
+    .limit(limit)
+    .returns<ProductRecommendCountRow[]>();
+
+  if (error || !data || data.length === 0) return [];
+
+  const byBarcode = await getManyByBarcode(data.map((row) => row.barcode));
+  // getManyByBarcode returns an unordered map — re-apply the
+  // recommend-count ranking order, and drop any barcode that no longer
+  // resolves to a live product (soft-deleted since being recommended).
+  return data
+    .filter((row) => !!byBarcode[row.barcode])
+    .map((row) => ({ ...byBarcode[row.barcode], recommendCount: row.recommend_count }));
+}
+
 export function getAllProducts(): CertificationResult[] {
   return Object.values(MOCK_DB);
 }

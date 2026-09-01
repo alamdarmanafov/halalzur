@@ -17,7 +17,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useHistory } from '../../lib/history-context';
 import { useLanguage } from '../../lib/i18n-context';
-import { searchProducts, getManyByBarcode } from '../../lib/certification';
+import {
+  searchProducts,
+  getManyByBarcode,
+  getMostRecommendedProducts,
+  RecommendedProduct,
+} from '../../lib/certification';
 import { PRODUCT_CATEGORIES } from '../../lib/categories';
 import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -58,6 +63,11 @@ export default function ProductsScreen() {
   // approves/re-statuses later never updates there on its own — this
   // refreshes each history barcode against the live data.
   const [liveHistory, setLiveHistory] = useState<Record<string, CertificationResult>>({});
+  const [recommendedMode, setRecommendedMode] = useState(false);
+  const [recommendedProducts, setRecommendedProducts] = useState<RecommendedProduct[]>([]);
+  const [loadingRecommended, setLoadingRecommended] = useState(false);
+  const RECOMMENDED_PAGE_SIZE = 10;
+  const [recommendedVisibleCount, setRecommendedVisibleCount] = useState(RECOMMENDED_PAGE_SIZE);
 
   useEffect(() => {
     let active = true;
@@ -90,30 +100,63 @@ export default function ProductsScreen() {
     };
   }, [history]);
 
+  useEffect(() => {
+    if (!recommendedMode) return;
+    let active = true;
+    setLoadingRecommended(true);
+    getMostRecommendedProducts(200).then((r) => {
+      if (!active) return;
+      setRecommendedProducts(r);
+      setRecommendedVisibleCount(RECOMMENDED_PAGE_SIZE);
+      setLoadingRecommended(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [recommendedMode]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      setResults(await searchProducts(query));
-      if (history.length) setLiveHistory(await getManyByBarcode(history.map((h) => h.barcode)));
+      if (recommendedMode) {
+        setRecommendedProducts(await getMostRecommendedProducts(200));
+        setRecommendedVisibleCount(RECOMMENDED_PAGE_SIZE);
+      } else {
+        setResults(await searchProducts(query));
+        if (history.length) setLiveHistory(await getManyByBarcode(history.map((h) => h.barcode)));
+      }
     } finally {
       setRefreshing(false);
     }
   };
 
-  const data = useMemo(() => {
-    const base = query
+  const filteredData = useMemo(() => {
+    const base = recommendedMode
+      ? recommendedProducts
+      : query
       ? results
       : history.length
       ? history.map((h) => liveHistory[h.barcode] ?? h)
       : results;
     if (category === 'Hamısı') return base;
     return base.filter((item) => item.category.toLowerCase().includes(category.toLowerCase()));
-  }, [query, results, history, liveHistory, category]);
+  }, [query, results, history, liveHistory, category, recommendedMode, recommendedProducts]);
+
+  // Recommended mode paginates 10-at-a-time client-side (already fetched
+  // up to 200) rather than everything at once — nothing else does, since
+  // search/history/category browsing are already naturally short lists.
+  const data = recommendedMode ? filteredData.slice(0, recommendedVisibleCount) : filteredData;
+  const hasMoreRecommended = recommendedMode && recommendedVisibleCount < filteredData.length;
 
   // Only history-backed rows are deletable — search/browse results are the
   // shared product database, not something a personal "wrong scan" delete
   // applies to.
-  const isHistoryView = !query && history.length > 0;
+  const isHistoryView = !recommendedMode && !query && history.length > 0;
+
+  const toggleRecommendedMode = () => {
+    setRecommendedMode((prev) => !prev);
+    setQuery('');
+  };
   const confirmDelete = (item: CertificationResult) => {
     Alert.alert(t('productsDeleteTitle'), `"${item.productName}" ${t('productsDeleteBody')}`, [
       { text: t('productsDeleteCancel'), style: 'cancel' },
@@ -134,6 +177,20 @@ export default function ProductsScreen() {
           style={styles.searchInput}
         />
       </View>
+
+      <Pressable
+        style={[styles.recommendedToggle, recommendedMode && styles.recommendedToggleActive]}
+        onPress={toggleRecommendedMode}
+      >
+        <Ionicons
+          name={recommendedMode ? 'thumbs-up' : 'thumbs-up-outline'}
+          size={16}
+          color={recommendedMode ? colors.white : colors.primaryDark}
+        />
+        <Text style={[styles.recommendedToggleText, recommendedMode && styles.recommendedToggleTextActive]}>
+          {t('productsRecommendedToggle')}
+        </Text>
+      </Pressable>
 
       <View style={styles.categoryRowWrap}>
         <ScrollView
@@ -169,10 +226,14 @@ export default function ProductsScreen() {
         />
       </View>
 
-      {!query && (
-        <Text style={styles.sectionLabel}>
-          {history.length ? t('productsRecentLabel') : t('productsPopularLabel')}
-        </Text>
+      {recommendedMode ? (
+        <Text style={styles.sectionLabel}>{t('productsRecommendedLabel')}</Text>
+      ) : (
+        !query && (
+          <Text style={styles.sectionLabel}>
+            {history.length ? t('productsRecentLabel') : t('productsPopularLabel')}
+          </Text>
+        )
       )}
 
       <FlatList
@@ -193,12 +254,17 @@ export default function ProductsScreen() {
             </View>
           )
         }
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <Pressable
             style={styles.card}
             onPress={() => router.push({ pathname: '/product/[id]', params: { id: item.barcode } })}
             onLongPress={isHistoryView ? () => confirmDelete(item) : undefined}
           >
+            {recommendedMode && (
+              <View style={[styles.rankBadge, index === 0 && styles.rankBadgeGold]}>
+                <Text style={styles.rankBadgeText}>{index + 1}</Text>
+              </View>
+            )}
             <Text style={styles.emoji}>{item.imageEmoji}</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.productName} numberOfLines={1}>
@@ -207,7 +273,15 @@ export default function ProductsScreen() {
               <Text style={styles.brand} numberOfLines={1}>
                 {item.brand} · {item.category}
               </Text>
-              <StatusBadge status={item.status} size="sm" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <StatusBadge status={item.status} size="sm" />
+                {recommendedMode && (
+                  <View style={styles.recommendCountRow}>
+                    <Ionicons name="thumbs-up" size={12} color={colors.primary} />
+                    <Text style={styles.recommendCountText}>{(item as RecommendedProduct).recommendCount}</Text>
+                  </View>
+                )}
+              </View>
             </View>
             {isHistoryView ? (
               <Pressable hitSlop={8} onPress={() => confirmDelete(item)}>
@@ -218,6 +292,18 @@ export default function ProductsScreen() {
             )}
           </Pressable>
         )}
+        ListFooterComponent={
+          hasMoreRecommended ? (
+            <Pressable
+              style={styles.moreBtn}
+              onPress={() => setRecommendedVisibleCount((n) => n + RECOMMENDED_PAGE_SIZE)}
+            >
+              <Text style={styles.moreBtnText}>
+                {t('productsShowMore')} ({Math.min(RECOMMENDED_PAGE_SIZE, filteredData.length - recommendedVisibleCount)})
+              </Text>
+            </Pressable>
+          ) : null
+        }
       />
     </SafeAreaView>
   );
@@ -237,6 +323,45 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   searchInput: { flex: 1, fontSize: typography.body.fontSize, color: colors.black },
+  recommendedToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    backgroundColor: colors.white,
+  },
+  recommendedToggleActive: { backgroundColor: colors.primary },
+  recommendedToggleText: { ...typography.small, color: colors.primaryDark, fontWeight: '700' },
+  recommendedToggleTextActive: { color: colors.white },
+  rankBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primaryDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rankBadgeGold: { backgroundColor: colors.warning },
+  rankBadgeText: { color: colors.white, fontWeight: '800', fontSize: 12 },
+  recommendCountRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  recommendCountText: { ...typography.caption, color: colors.primary, fontWeight: '700' },
+  moreBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+  },
+  moreBtnText: { ...typography.body, color: colors.primaryDark, fontWeight: '700' },
   categoryRowWrap: { position: 'relative' },
   categoryRow: { marginTop: spacing.md, flexGrow: 0 },
   categoryFade: { position: 'absolute', right: 0, top: spacing.md, bottom: 0, width: 28 },
