@@ -1,6 +1,7 @@
 {
   "name": "halalzur-admin-panel",
   "private": true,
+  "type": "module",
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
     "firebase-admin": "^12.7.0"
