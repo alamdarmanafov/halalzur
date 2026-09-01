@@ -4861,6 +4861,7 @@
         '<div class="pc-sub">' + esc(row.email || "—") + '</div>' +
         '<div class="pc-sub" style="margin-top:6px;">' + planPill + banPill + '</div>' +
         (row.banned && row.ban_reason ? '<div class="pc-note">Səbəb: ' + esc(row.ban_reason) + '</div>' : '') +
+        '<div class="pc-sub" data-role="referral-code-display">Referral kodu: ' + esc(row.referral_code || "—") + '</div>' +
         '<div data-role="user-detail" style="margin-top:8px;"></div>' +
       '</div>' +
       '<div style="display:flex; flex-direction:column; gap:6px;">' +
@@ -4872,6 +4873,7 @@
           (row.banned ? "Blokdan çıxar" : "Blokla") +
         '</button>' +
         '<button class="btn" data-action="send-notification">🔔 Bildiriş göndər</button>' +
+        '<button class="btn" data-action="edit-referral-code">Referral kodunu dəyiş</button>' +
       '</div>';
 
     card.querySelector('[data-action="toggle-plan"]').addEventListener("click", function (e) {
@@ -4886,7 +4888,44 @@
     card.querySelector('[data-action="send-notification"]').addEventListener("click", function (e) {
       sendUserNotification(row, e.target);
     });
+    card.querySelector('[data-action="edit-referral-code"]').addEventListener("click", function (e) {
+      editReferralCode(row, card, e.target);
+    });
     return card;
+  }
+
+  function editReferralCode(row, card, btn) {
+    var next = window.prompt(
+      '"' + (row.name || row.email || "İstifadəçi") + '" üçün referral kodu (boş buraxsanız silinəcək):',
+      row.referral_code || ""
+    );
+    if (next === null) return;
+    next = next.trim() || null;
+    btn.disabled = true;
+    sb("users?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { referral_code: next, updated_at: new Date().toISOString() },
+    })
+      .then(function () {
+        row.referral_code = next;
+        card.querySelector('[data-role="referral-code-display"]').textContent = "Referral kodu: " + (next || "—");
+        toast("Referral kodu yeniləndi");
+        logAudit("edit_referral_code", "users", row.id, { referral_code: next });
+      })
+      .catch(function (err) {
+        // unique(referral_code) — a duplicate code surfaces here as a
+        // Postgres 23505 error, which is the one realistic failure mode
+        // worth a specific message rather than the raw Postgres text.
+        if (/duplicate key|already exists/i.test(err.message)) {
+          toast("Bu kod artıq başqa istifadəçidə var");
+        } else {
+          toast("Xəta: " + err.message);
+        }
+      })
+      .finally(function () {
+        btn.disabled = false;
+      });
   }
 
   function sendUserNotification(row, btn) {
