@@ -23,7 +23,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { lookupBarcode, STATUS_DESC_KEY, getHalalAlternatives, getDistinctBrands } from '../../lib/certification';
 import { PRODUCT_CATEGORIES, getProductCategories } from '../../lib/categories';
 import { extractECodesFromText, searchECodes, ECODE_STATUS_LABEL_KEY } from '../../lib/eCodes';
-import { extractHaramKeywords } from '../../lib/haramKeywords';
+import { extractHaramKeywords, HaramKeywordStatus } from '../../lib/haramKeywords';
 import { recognizeIngredientText } from '../../lib/ocr';
 import { hasInternetConnection } from '../../lib/network';
 import { useFavorites } from '../../lib/favorites-context';
@@ -263,6 +263,18 @@ export default function ProductDetailScreen() {
   // catches "gelatin" or "donuz yağı" written out by name, which the
   // E-code regex above never sees since it only matches "E" + digits.
   const detectedKeywords = useMemo(() => extractHaramKeywords(ingredientText), [ingredientText]);
+  // Per-ingredient-chip status, so a specific chip like "donuz yağı" or
+  // "жир свиной" can be highlighted red/yellow in the ingredient list
+  // itself, not just summarized in the reason card below.
+  const ingredientChipStatus = useMemo(() => {
+    const map = new Map<string, HaramKeywordStatus>();
+    (product?.ingredients ?? []).forEach((ing) => {
+      const matches = extractHaramKeywords(ing);
+      if (!matches.length) return;
+      map.set(ing, matches.some((m) => m.status === 'haram') ? 'haram' : 'mushbooh');
+    });
+    return map;
+  }, [product?.ingredients]);
   // Which detected E-codes/keywords actually explain a mushbooh/haram
   // verdict — shown as the "why" next to the certifier card so a
   // flagged status isn't just a bare badge with no visible reason.
@@ -646,11 +658,29 @@ export default function ProductDetailScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('productIngredientsTitle')}</Text>
             <View style={styles.ingredientWrap}>
-              {product.ingredients.map((ing, index) => (
-                <View key={`${ing}-${index}`} style={styles.ingredientChip}>
-                  <Text style={styles.ingredientText}>{translateIngredientTerm(ing, language)}</Text>
-                </View>
-              ))}
+              {product.ingredients.map((ing, index) => {
+                const flagged = ingredientChipStatus.get(ing);
+                return (
+                  <View
+                    key={`${ing}-${index}`}
+                    style={[
+                      styles.ingredientChip,
+                      flagged === 'haram' && styles.ingredientChipHaram,
+                      flagged === 'mushbooh' && styles.ingredientChipMushbooh,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.ingredientText,
+                        flagged === 'haram' && styles.ingredientTextHaram,
+                        flagged === 'mushbooh' && styles.ingredientTextMushbooh,
+                      ]}
+                    >
+                      {translateIngredientTerm(ing, language)}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           </View>
         )}
@@ -1151,5 +1181,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   ingredientText: { ...typography.small, color: colors.primaryDark },
+  ingredientChipHaram: { backgroundColor: '#FBE9E9' },
+  ingredientChipMushbooh: { backgroundColor: '#FBF3DF' },
+  ingredientTextHaram: { color: colors.danger, fontWeight: '700' },
+  ingredientTextMushbooh: { color: colors.warning, fontWeight: '700' },
   barcode: { ...typography.body, color: colors.gray, letterSpacing: 2 },
 });

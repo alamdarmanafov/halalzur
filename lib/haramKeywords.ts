@@ -78,10 +78,13 @@ function allKeywords(): HaramKeywordEntry[] {
 
 export type HaramKeywordMatch = { keyword: string; status: HaramKeywordStatus; note: string };
 
-// Latin letters plus the Azerbaijani/Turkish accented letters actually
-// used in these keywords — used to approximate a word boundary, since
-// JS's \b is ASCII-only and would fail on "əti"/"yağı" etc.
-const WORD_CHARS = 'a-zA-ZəıöüşçğƏIİÖÜŞÇĞ';
+// Unicode-aware word-boundary approximation (JS's \b is ASCII-only and
+// would fail on "əti"/"yağı", every Cyrillic keyword, and any future
+// script). \p{L}/\p{N} (letters/numbers, any script) needs the "u" flag —
+// Hermes (RN's JS engine) has supported Unicode property escapes since
+// well before this app's Expo SDK, so this works on-device the same as
+// in Node.
+const WORD_BOUNDARY = '[^\\p{L}\\p{N}]';
 
 /** Scans free-text ingredient lists for named (non-E-code) haram/mushbooh items. */
 export function extractHaramKeywords(text: string): HaramKeywordMatch[] {
@@ -90,7 +93,7 @@ export function extractHaramKeywords(text: string): HaramKeywordMatch[] {
   const seen = new Set<string>();
   allKeywords().forEach((entry) => {
     const escaped = entry.keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const re = new RegExp('(^|[^' + WORD_CHARS + '])' + escaped + '($|[^' + WORD_CHARS + '])', 'i');
+    const re = new RegExp('(^|' + WORD_BOUNDARY + ')' + escaped + '($|' + WORD_BOUNDARY + ')', 'iu');
     const key = entry.keyword.toLowerCase();
     if (!seen.has(key) && re.test(text)) {
       seen.add(key);
