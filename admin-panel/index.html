@@ -563,6 +563,9 @@
           <span id="productBulkCount">0 məhsul seçilib</span>
           <button type="button" class="btn btn-approve" id="productBulkSelectAllBtn">Bu səhifəni seç</button>
           <button type="button" class="btn" id="productBulkSelectFilteredBtn">Filterə uyğun hamısını seç</button>
+          <button type="button" class="btn btn-approve" id="productBulkSaveEditsBtn" disabled>
+            Seçilənləri yadda saxla (kartlarda gördüyünüz dəyərlərlə)
+          </button>
           <button type="button" class="place-delete-btn" id="productBulkDeleteBtn" disabled>Seçilənləri sil</button>
           <button type="button" class="btn" id="productBulkCancelBtn">Ləğv et</button>
         </div>
@@ -1214,12 +1217,23 @@
     </p>
     <form class="place-form" id="haramKeywordForm">
       <div class="field-grid">
-        <div class="field">
-          <label for="haramKeywordInput">Söz/ifadə</label>
-          <input type="text" id="haramKeywordInput" placeholder="Məs. donuz jelatini" required />
+        <div class="field field-wide">
+          <label for="haramKeywordInput">Söz/ifadə (yazıb Enter və ya vergül basın — hər biri ayrı tağ olur)</label>
+          <div
+            id="haramKeywordTagBox"
+            style="display:flex; flex-wrap:wrap; gap:6px; align-items:center; padding:6px; border:1.5px solid var(--border); border-radius:10px; background:var(--bg); min-height:44px;"
+          >
+            <div id="haramKeywordTagList" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+            <input
+              type="text"
+              id="haramKeywordInput"
+              placeholder="Məs. donuz jelatini"
+              style="flex:1; min-width:120px; border:none; background:transparent; padding:6px;"
+            />
+          </div>
         </div>
         <div class="field">
-          <label for="haramKeywordStatus">Status</label>
+          <label for="haramKeywordStatus">Status (bütün tağlara tətbiq olunur)</label>
           <select id="haramKeywordStatus" required>
             <option value="">— Status seçin —</option>
             <option value="haram">Haram</option>
@@ -1227,11 +1241,11 @@
           </select>
         </div>
         <div class="field field-wide">
-          <label for="haramKeywordNote">Qeyd (istəyə bağlı)</label>
+          <label for="haramKeywordNote">Qeyd (istəyə bağlı, bütün tağlara tətbiq olunur)</label>
           <textarea id="haramKeywordNote" rows="2" placeholder="Məs. Adətən donuz mənşəlidir."></textarea>
         </div>
       </div>
-      <button type="submit" class="btn btn-approve" style="margin-top: 12px;">Açar söz əlavə et</button>
+      <button type="submit" class="btn btn-approve" style="margin-top: 12px;">Açar söz(lər) əlavə et</button>
       <div class="gate-error" id="haramKeywordFormError"></div>
     </form>
 
@@ -2681,44 +2695,121 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       });
   }
 
+  // Tag-input for "Söz/ifadə": type a word, press Enter/comma (or just
+  // blur/submit) and it becomes a removable chip — lets an admin queue
+  // up several keywords that share the same status/note in one go,
+  // instead of one submit per word.
+  var haramKeywordTags = [];
+
+  function renderHaramKeywordTags() {
+    var list = document.getElementById("haramKeywordTagList");
+    list.innerHTML = haramKeywordTags
+      .map(function (tag, i) {
+        return (
+          '<span style="display:inline-flex; align-items:center; gap:4px; background:var(--surface); border-radius:999px; padding:4px 10px; font-size:13px;">' +
+            esc(tag) +
+            '<span data-remove-tag-index="' + i + '" style="cursor:pointer; opacity:0.6; font-weight:700;">×</span>' +
+          '</span>'
+        );
+      })
+      .join("");
+  }
+
+  function addHaramKeywordTag(raw) {
+    var tag = raw.replace(/,$/, "").trim().toLowerCase();
+    if (tag && haramKeywordTags.indexOf(tag) === -1) {
+      haramKeywordTags.push(tag);
+      renderHaramKeywordTags();
+    }
+  }
+
+  document.getElementById("haramKeywordTagList").addEventListener("click", function (e) {
+    var target = e.target.closest("[data-remove-tag-index]");
+    if (!target) return;
+    haramKeywordTags.splice(parseInt(target.getAttribute("data-remove-tag-index"), 10), 1);
+    renderHaramKeywordTags();
+  });
+
+  var haramKeywordInputEl = document.getElementById("haramKeywordInput");
+  haramKeywordInputEl.addEventListener("keydown", function (e) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addHaramKeywordTag(haramKeywordInputEl.value);
+      haramKeywordInputEl.value = "";
+    } else if (e.key === "Backspace" && !haramKeywordInputEl.value && haramKeywordTags.length) {
+      haramKeywordTags.pop();
+      renderHaramKeywordTags();
+    }
+  });
+  haramKeywordInputEl.addEventListener("blur", function () {
+    if (haramKeywordInputEl.value.trim()) {
+      addHaramKeywordTag(haramKeywordInputEl.value);
+      haramKeywordInputEl.value = "";
+    }
+  });
+
   document.getElementById("haramKeywordForm").addEventListener("submit", function (e) {
     e.preventDefault();
     var errorEl = document.getElementById("haramKeywordFormError");
     errorEl.textContent = "";
-    var keyword = document.getElementById("haramKeywordInput").value.trim().toLowerCase();
+
+    // Whatever's still sitting in the input (not yet turned into a tag
+    // via Enter/comma/blur) counts too — no need to remember one last
+    // Enter press before submitting.
+    if (haramKeywordInputEl.value.trim()) {
+      addHaramKeywordTag(haramKeywordInputEl.value);
+      haramKeywordInputEl.value = "";
+    }
+
     var status = document.getElementById("haramKeywordStatus").value;
     var note = document.getElementById("haramKeywordNote").value.trim();
 
-    if (!keyword) {
-      errorEl.textContent = "Söz/ifadə tələb olunur.";
+    if (!haramKeywordTags.length) {
+      errorEl.textContent = "Ən azı bir söz/ifadə əlavə edin (yazıb Enter basın).";
       return;
     }
     if (!status) {
       errorEl.textContent = "Status seçin.";
       return;
     }
-    if (HARAM_KEYWORDS.some(function (row) { return row[0].toLowerCase() === keyword; })) {
-      errorEl.textContent = '"' + keyword + '" artıq tətbiqin daxili siyahısında var — bura əlavə etməyə ehtiyac yoxdur.';
+
+    var rows = [];
+    var skippedBuiltIn = [];
+    haramKeywordTags.forEach(function (tag) {
+      if (HARAM_KEYWORDS.some(function (row) { return row[0].toLowerCase() === tag; })) {
+        skippedBuiltIn.push(tag);
+        return;
+      }
+      rows.push({ keyword: tag, status: status, note: note || null });
+    });
+
+    if (!rows.length) {
+      errorEl.textContent = "Bütün sözlər artıq tətbiqin daxili siyahısında var.";
       return;
     }
 
     var submitBtn = e.target.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
-    sb("haram_keywords", {
+    sb("haram_keywords?on_conflict=keyword", {
       method: "POST",
-      headers: { "Prefer": "return=minimal" },
-      body: { keyword: keyword, status: status, note: note || null },
+      headers: { "Prefer": "resolution=ignore-duplicates,return=minimal" },
+      body: rows,
     })
       .then(function () {
-        toast("Açar söz əlavə edildi: " + keyword);
-        logAudit("create", "haram_keywords", keyword, status);
+        toast(
+          rows.length + " söz əlavə edildi" +
+          (skippedBuiltIn.length
+            ? " (" + skippedBuiltIn.length + " artıq daxili siyahıda idi: " + skippedBuiltIn.join(", ") + ")"
+            : "")
+        );
+        logAudit("bulk_create", "haram_keywords", null, rows.length + " söz");
+        haramKeywordTags = [];
+        renderHaramKeywordTags();
         e.target.reset();
         loadHaramKeywords();
       })
       .catch(function (err) {
-        errorEl.textContent = /duplicate key|already exists/i.test(err.message)
-          ? "Bu söz artıq əlavə edilib."
-          : "Xəta: " + err.message;
+        errorEl.textContent = "Xəta: " + err.message;
       })
       .finally(function () {
         submitBtn.disabled = false;
@@ -3936,6 +4027,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     var count = Object.keys(selectedProductIds).length;
     document.getElementById("productBulkCount").textContent = count + " məhsul seçilib";
     document.getElementById("productBulkDeleteBtn").disabled = count === 0;
+    document.getElementById("productBulkSaveEditsBtn").disabled = count === 0;
     document.getElementById("productBulkAddEcodeBtn").disabled = count === 0;
     document.getElementById("productBulkSetImageBtn").disabled = count === 0;
     document.getElementById("productBulkRenewDateBtn").disabled = count === 0;
@@ -4158,6 +4250,73 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     });
     updateProductBulkBar();
     rerenderActiveProductsList();
+  });
+
+  // "Seçilənləri yadda saxla": unlike the other bulk buttons (which set
+  // the SAME value across every selected row via their own separate
+  // inputs), this saves whatever each selected row's OWN card fields
+  // (status/category/image/qeyd) currently show — the natural action
+  // when the admin has been editing several cards inline and wants one
+  // click instead of a separate "Yadda saxla" per card. Only rows
+  // actually visible on the current page/screen can be saved this way
+  // — a selected row from "Filterə uyğun hamısını seç" that isn't on
+  // this page has no card to read values from, so it's skipped and
+  // counted separately.
+  document.getElementById("productBulkSaveEditsBtn").addEventListener("click", function () {
+    var ids = Object.keys(selectedProductIds);
+    if (!ids.length) return;
+    if (!window.confirm(ids.length + " seçilmiş məhsulun kartlarda göstərilən dəyərləri yadda saxlanılsın?")) return;
+
+    var cardsContainer =
+      activeProductsTab === "edit" ? document.getElementById("editProductCards") : document.getElementById("productCards");
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Yadda saxlanır…";
+
+    var saved = 0;
+    var missing = 0;
+    var promises = ids.map(function (id) {
+      var card = cardsContainer.querySelector('[data-product-id="' + id + '"]');
+      if (!card) {
+        missing++;
+        return Promise.resolve();
+      }
+      var status = card.querySelector('[data-role="edit-status"]').value;
+      var category = card.querySelector('[data-role="edit-category"]').value.trim();
+      var imageUrl = card.querySelector('[data-role="edit-image"]').value.trim();
+      var adminNote = card.querySelector('[data-role="edit-admin-note"]').value.trim();
+      return sb("certified_entries?id=eq." + id, {
+        method: "PATCH",
+        headers: { "Prefer": "return=minimal" },
+        body: {
+          status: status,
+          category: category || null,
+          image_url: imageUrl || null,
+          admin_note: adminNote || null,
+          updated_at: new Date().toISOString(),
+        },
+      }).then(function () {
+        saved++;
+      });
+    });
+
+    Promise.all(promises)
+      .then(function () {
+        toast(
+          saved + " məhsul yadda saxlandı" +
+          (missing ? " (" + missing + " kart ekranda görünmürdü, ötürüldü)" : "")
+        );
+        logAudit("bulk_save_edits", "certified_entries", null, saved + " məhsul");
+        reloadActiveProductsList();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
   });
 
   document.getElementById("productBulkDeleteBtn").addEventListener("click", function () {
@@ -4583,6 +4742,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     card.className = "place-card";
     card.style.flexDirection = "column";
     card.style.alignItems = "stretch";
+    card.dataset.productId = row.id;
     card.innerHTML =
       '<div style="display:flex; flex-direction:column; gap:12px;">' +
         (productSelectionMode
