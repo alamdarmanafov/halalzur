@@ -338,6 +338,10 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
           <span>Bələdçi</span>
         </button>
+        <button class="nav-item" type="button" data-section="keywords">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 20.5 3 13a2.83 2.83 0 0 1 0-4l6-6a2.83 2.83 0 0 1 4 0l7.5 7.5a2.83 2.83 0 0 1 0 4L14 21a2.83 2.83 0 0 1-3.5-.5z"/><circle cx="8.5" cy="8.5" r="1"/></svg>
+          <span>Açar sözlər</span>
+        </button>
         <button class="nav-item" type="button" data-section="trash">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M6 7v13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>
           <span>Zibil qutusu</span>
@@ -679,6 +683,7 @@
             <option value="haram">Tövsiyə edilmir</option>
             <option value="unknown">Naməlum</option>
           </select>
+          <div id="productStatusSuggestion" class="pc-note" style="margin-top: 6px;" hidden></div>
         </div>
         <div class="field">
           <label for="productCertNumber">Sertifikat № (istəyə bağlı)</label>
@@ -1196,6 +1201,43 @@
     <div class="empty-state" id="guideArticlesEmptyState" hidden>Hələ heç bir məqalə yoxdur.</div>
     </section>
 
+    <section class="section" id="section-keywords" hidden>
+    <div class="panel-head">
+      <h2>Açar sözlər</h2>
+      <span id="haramKeywordsCountLabel"></span>
+    </div>
+    <p class="hint">
+      Tərkib mətnində E-kod deyil, adla yazılan haram/şübhəli maddələr üçündür (məs. "jelatin", "donuz yağı").
+      Tətbiqin daxili başlanğıc siyahısını burdan dəyişmək olmur — bura yalnız o siyahıda OLMAYAN sözləri əlavə
+      etmək üçündür. Əlavə edilən söz dərhal həm tətbiqdə (tərkib yoxlanışında), həm burda (tərkib çiplərinin
+      rənglənməsində) nəzərə alınır.
+    </p>
+    <form class="place-form" id="haramKeywordForm">
+      <div class="field-grid">
+        <div class="field">
+          <label for="haramKeywordInput">Söz/ifadə</label>
+          <input type="text" id="haramKeywordInput" placeholder="Məs. donuz jelatini" required />
+        </div>
+        <div class="field">
+          <label for="haramKeywordStatus">Status</label>
+          <select id="haramKeywordStatus" required>
+            <option value="">— Status seçin —</option>
+            <option value="haram">Haram</option>
+            <option value="mushbooh">Şübhəli/mənbəyindən asılıdır</option>
+          </select>
+        </div>
+        <div class="field field-wide">
+          <label for="haramKeywordNote">Qeyd (istəyə bağlı)</label>
+          <textarea id="haramKeywordNote" rows="2" placeholder="Məs. Adətən donuz mənşəlidir."></textarea>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-approve" style="margin-top: 12px;">Açar söz əlavə et</button>
+      <div class="gate-error" id="haramKeywordFormError"></div>
+    </form>
+    <div class="cards" id="haramKeywordCards" style="margin-top: 20px;"></div>
+    <div class="empty-state" id="haramKeywordsEmptyState" hidden>Hələ heç bir əlavə açar söz yoxdur.</div>
+    </section>
+
     <section class="section" id="section-trash" hidden>
     <div class="panel-head">
       <h2>Zibil qutusu</h2>
@@ -1387,6 +1429,7 @@
     certifiers: document.getElementById("section-certifiers"),
     ecodes: document.getElementById("section-ecodes"),
     guide: document.getElementById("section-guide"),
+    keywords: document.getElementById("section-keywords"),
     trash: document.getElementById("section-trash"),
     audit: document.getElementById("section-audit"),
   };
@@ -1433,6 +1476,7 @@
     certifiers: loadCertifiers,
     ecodes: loadCustomEcodes,
     guide: loadGuideArticles,
+    keywords: loadHaramKeywords,
     trash: loadTrash,
     audit: loadAuditLog,
   };
@@ -2549,6 +2593,112 @@
       });
   });
 
+  // ---- haram/mushbooh keywords (named ingredients, not E-codes) ----
+  // Additive to the hardcoded HARAM_KEYWORDS starter list above — same
+  // pattern as custom_ecodes.
+  var HARAM_KEYWORD_STATUS_LABEL = { haram: "🔴 Haram", mushbooh: "🟡 Şübhəli/mənbəyindən asılıdır" };
+
+  function loadHaramKeywords() {
+    sb("haram_keywords?order=created_at.desc&select=*")
+      .then(function (rows) {
+        rows = rows || [];
+        CUSTOM_HARAM_KEYWORDS = rows.map(function (row) {
+          return [row.keyword, row.status, row.note || ""];
+        });
+        renderHaramKeywordCards(rows);
+      })
+      .catch(function (err) {
+        toast("Açar sözlər yüklənmədi: " + err.message);
+      });
+  }
+
+  function renderHaramKeywordCards(list) {
+    var container = document.getElementById("haramKeywordCards");
+    var empty = document.getElementById("haramKeywordsEmptyState");
+    document.getElementById("haramKeywordsCountLabel").textContent = list.length + " əlavə açar söz";
+    container.innerHTML = "";
+    if (!list.length) {
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = true;
+    list.forEach(function (row) {
+      var card = document.createElement("div");
+      card.className = "place-card";
+      card.innerHTML =
+        '<div>' +
+          '<div class="pc-title">' + esc(row.keyword) + '</div>' +
+          '<div class="pc-sub">' + (HARAM_KEYWORD_STATUS_LABEL[row.status] || row.status) + '</div>' +
+          (row.note ? '<div class="pc-note">' + esc(row.note) + '</div>' : '') +
+        '</div>' +
+        '<button type="button" class="place-delete-btn" data-action="delete-haram-keyword">Sil</button>';
+      card.querySelector('[data-action="delete-haram-keyword"]').addEventListener("click", function (e) {
+        deleteHaramKeyword(row, card, e.target);
+      });
+      container.appendChild(card);
+    });
+  }
+
+  function deleteHaramKeyword(row, card, btn) {
+    if (!window.confirm('"' + row.keyword + '" silinsin?')) return;
+    btn.disabled = true;
+    sb("haram_keywords?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+      .then(function () {
+        toast("Silindi: " + row.keyword);
+        logAudit("delete", "haram_keywords", row.id, row.keyword);
+        card.remove();
+        loadHaramKeywords();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+      });
+  }
+
+  document.getElementById("haramKeywordForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var errorEl = document.getElementById("haramKeywordFormError");
+    errorEl.textContent = "";
+    var keyword = document.getElementById("haramKeywordInput").value.trim().toLowerCase();
+    var status = document.getElementById("haramKeywordStatus").value;
+    var note = document.getElementById("haramKeywordNote").value.trim();
+
+    if (!keyword) {
+      errorEl.textContent = "Söz/ifadə tələb olunur.";
+      return;
+    }
+    if (!status) {
+      errorEl.textContent = "Status seçin.";
+      return;
+    }
+    if (HARAM_KEYWORDS.some(function (row) { return row[0].toLowerCase() === keyword; })) {
+      errorEl.textContent = '"' + keyword + '" artıq tətbiqin daxili siyahısında var — bura əlavə etməyə ehtiyac yoxdur.';
+      return;
+    }
+
+    var submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    sb("haram_keywords", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: { keyword: keyword, status: status, note: note || null },
+    })
+      .then(function () {
+        toast("Açar söz əlavə edildi: " + keyword);
+        logAudit("create", "haram_keywords", keyword, status);
+        e.target.reset();
+        loadHaramKeywords();
+      })
+      .catch(function (err) {
+        errorEl.textContent = /duplicate key|already exists/i.test(err.message)
+          ? "Bu söz artıq əlavə edilib."
+          : "Xəta: " + err.message;
+      })
+      .finally(function () {
+        submitBtn.disabled = false;
+      });
+  });
+
   // ---- Halal bələdçisi (guide_articles) ----
   // Simple CRUD, admin-authored, Azerbaijani-only content shown in the
   // app's Profile → Halal bələdçisi screen (app/guide.tsx). Edit reuses
@@ -2827,6 +2977,7 @@
     // merged in immediately, not only once the admin happens to visit
     // the "E-kodlar" section.
     loadCustomEcodes();
+    loadHaramKeywords();
   }
 
   if (sessionStorage.getItem(SESSION_KEY) === "1") {
@@ -4175,13 +4326,98 @@
   }
   rebuildEcodeStatusMap();
 
+  // Named (non-E-code) haram/mushbooh ingredients — "gelatin", "donuz
+  // yağı" etc. written out by name instead of an E-number, which
+  // ECODE_STATUS_MAP above never catches since it's keyed by E-code only.
+  // Mirrors lib/haramKeywords.ts (same starter list + admin-additive
+  // pattern) — kept as a separate JS copy since this static HTML file
+  // doesn't share TS modules with the app.
+  var HARAM_KEYWORDS = [
+    ["donuz əti", "haram", "Donuz mənşəli ət."],
+    ["domuz eti", "haram", "Donuz mənşəli ət (türk yazılışı)."],
+    ["pork", "haram", "Donuz mənşəli ət."],
+    ["donuz yağı", "haram", "Donuz mənşəli piy."],
+    ["domuz yağı", "haram", "Donuz mənşəli piy (türk yazılışı)."],
+    ["lard", "haram", "Donuz mənşəli piy."],
+    ["bekon", "haram", "Adətən donuz mənşəlidir."],
+    ["bacon", "haram", "Adətən donuz mənşəlidir."],
+    ["hamon", "haram", "Adətən donuz mənşəli hazır ətdir."],
+    ["jambon", "haram", "Adətən donuz mənşəli hazır ətdir."],
+    ["prosciutto", "haram", "Donuz mənşəli hazır ət."],
+    ["şərab", "haram", "Spirtli içki."],
+    ["şarap", "haram", "Spirtli içki (türk yazılışı)."],
+    ["wine", "haram", "Spirtli içki."],
+    ["konyak", "haram", "Spirtli içki (distillə edilmiş)."],
+    ["cognac", "haram", "Spirtli içki (distillə edilmiş)."],
+    ["viski", "haram", "Spirtli içki (distillə edilmiş)."],
+    ["whisky", "haram", "Spirtli içki (distillə edilmiş)."],
+    ["karmin", "haram", "Həşərat mənşəli qırmızı rəngləyici (bax: E120)."],
+    ["koşenil", "haram", "Həşərat mənşəli qırmızı rəngləyici (bax: E120)."],
+    ["cochineal", "haram", "Həşərat mənşəli qırmızı rəngləyici (bax: E120)."],
+    ["jelatin", "mushbooh", "Mənbəyi (mal/balıq = halal, donuz = haram) etiketdən görünmür."],
+    ["gelatin", "mushbooh", "Mənbəyi (mal/balıq = halal, donuz = haram) etiketdən görünmür."],
+    ["peynir mayası", "mushbooh", "Heyvan mənşəli maya ola bilər — mənbəyi etiketdən görünmür."],
+    ["rennet", "mushbooh", "Heyvan mənşəli maya ola bilər — mənbəyi etiketdən görünmür."],
+    ["pepperoni", "mushbooh", "Adətən donuz, bəzən mal əti — mənbəyi etiketdən görünmür."],
+  ];
+  var CUSTOM_HARAM_KEYWORDS = [];
+  function allHaramKeywords() {
+    return HARAM_KEYWORDS.concat(CUSTOM_HARAM_KEYWORDS);
+  }
+  // Ingredients are stored as short discrete phrases (one per chip), so a
+  // plain case-insensitive substring check is enough here — the longer
+  // free-text scan in lib/haramKeywords.ts (whole ingredient paragraphs)
+  // is the one that needs real word-boundary matching.
+  function matchHaramKeyword(ingredientText) {
+    var lower = ingredientText.toLowerCase();
+    var match = allHaramKeywords().find(function (row) {
+      return lower.indexOf(row[0].toLowerCase()) !== -1;
+    });
+    return match ? { keyword: match[0], status: match[1], note: match[2] } : null;
+  }
+
+  // Suggests (never decides) a halal status from a product's ingredient
+  // list, combining E-code + named-keyword detection: any haram signal
+  // wins, then any yellow (mushbooh/depends) signal, else "halal" only
+  // when there's ingredient text to judge from at all — no ingredients
+  // means no suggestion (null), never a silent "halal" default. Callers
+  // must always present this as a pre-filled, editable suggestion the
+  // admin still has to review and save themselves, never as an
+  // auto-applied fact.
+  function suggestStatusFromIngredients(ingredients) {
+    if (!ingredients || !ingredients.length) return null;
+    var hasHaram = false;
+    var hasCaution = false;
+    ingredients.forEach(function (ing) {
+      var code = ing.trim().toUpperCase().replace(/\s+/g, "");
+      var isECode = ECODE_PATTERN.test(code);
+      var status = isECode ? ECODE_STATUS_MAP[code] : null;
+      if (!isECode) {
+        var km = matchHaramKeyword(ing);
+        if (km) status = km.status;
+      }
+      if (status === "haram") hasHaram = true;
+      if (status === "mushbooh" || status === "depends") hasCaution = true;
+    });
+    if (hasHaram) return "haram";
+    if (hasCaution) return "mushbooh";
+    return "halal";
+  }
+
+  var STATUS_SUGGESTION_LABEL = {
+    halal: "🟢 Halal (tərkibdə heç bir haram/şübhəli maddə tapılmadı)",
+    mushbooh: "🟡 Şübhəli (tərkibdə mənbəyi qeyri-müəyyən maddə var)",
+    haram: "🔴 Tövsiyə edilmir (tərkibdə haram maddə var)",
+  };
+
   function buildIngredientsHtml(ingredients) {
     if (!ingredients || !ingredients.length) return "";
     var chips = ingredients
       .map(function (ing, index) {
         var code = ing.trim().toUpperCase().replace(/\s+/g, "");
         var isECode = ECODE_PATTERN.test(code);
-        var status = isECode ? ECODE_STATUS_MAP[code] : null;
+        var keywordMatch = !isECode ? matchHaramKeyword(ing) : null;
+        var status = isECode ? ECODE_STATUS_MAP[code] : keywordMatch ? keywordMatch.status : null;
         var style = status && ECODE_CHIP_STYLE[status] ? ECODE_CHIP_STYLE[status] : "background:#f0f0f0; color:#444;";
         return (
           '<span style="display:inline-flex; align-items:center; gap:4px; margin:2px 4px 2px 0; padding:2px 6px 2px 8px; border-radius:10px; font-size:12px; ' +
@@ -4212,10 +4448,38 @@
         }
         row.ingredients = ingredients;
         card.querySelector('[data-role="ingredients-block"]').innerHTML = buildIngredientsHtml(ingredients);
+        applyStatusSuggestionToCard(row, card);
       })
       .catch(function (err) {
         toast("Xəta: " + err.message);
       });
+  }
+
+  // Only touches the status dropdown for a product that's still
+  // "Naməlum" (unknown) — a product with a real admin-set status is
+  // never overwritten by a suggestion. See suggestStatusFromIngredients's
+  // own comment for what counts as a suggestion vs. a decision.
+  function applyStatusSuggestionToCard(row, card) {
+    var hintEl = card.querySelector('[data-role="status-suggestion"]');
+    if (!hintEl) return;
+    // Once the admin has touched the dropdown themselves (even before
+    // clicking "Yadda saxla"), a later ingredient change (E-code add/
+    // remove, auto-find) must never silently overwrite that in-progress
+    // choice — row.status itself only updates after a real save, so it
+    // alone can't tell "still unknown in the DB" apart from "admin just
+    // picked something but hasn't saved yet".
+    if (row.status !== "unknown" || card.dataset.statusManuallySet === "1") {
+      hintEl.hidden = true;
+      return;
+    }
+    var suggestion = suggestStatusFromIngredients(row.ingredients);
+    if (!suggestion) {
+      hintEl.hidden = true;
+      return;
+    }
+    card.querySelector('[data-role="edit-status"]').value = suggestion;
+    hintEl.hidden = false;
+    hintEl.textContent = "Təklif (tərkibə əsasən — özünüz yoxlayıb təsdiqləyin): " + STATUS_SUGGESTION_LABEL[suggestion];
   }
 
   function buildProductCard(row) {
@@ -4257,6 +4521,7 @@
               '<option value="haram">Tövsiyə edilmir</option>' +
               '<option value="unknown">Naməlum</option>' +
             '</select>' +
+            '<div data-role="status-suggestion" class="pc-note" style="margin-top: 6px;" hidden></div>' +
           '</div>' +
           '<div class="field" style="flex:1 1 160px; margin:0;">' +
             '<label>Kateqoriya</label>' +
@@ -4297,6 +4562,7 @@
     card.querySelector('[data-role="edit-category"]').value = row.category || "";
     card.querySelector('[data-role="edit-image"]').value = row.image_url || "";
     card.querySelector('[data-role="edit-admin-note"]').value = row.admin_note || "";
+    applyStatusSuggestionToCard(row, card);
 
     if (productSelectionMode) {
       var checkbox = card.querySelector('[data-role="select-checkbox"]');
@@ -4311,6 +4577,10 @@
       });
     }
 
+    card.querySelector('[data-role="edit-status"]').addEventListener("change", function () {
+      card.dataset.statusManuallySet = "1";
+      card.querySelector('[data-role="status-suggestion"]').hidden = true;
+    });
     card.querySelector('[data-action="save-product"]').addEventListener("click", function (e) {
       var newStatus = card.querySelector('[data-role="edit-status"]').value;
       var newCategory = card.querySelector('[data-role="edit-category"]').value.trim();
@@ -4618,7 +4888,10 @@
         row.category = category || null;
         row.image_url = imageUrl || null;
         row.admin_note = adminNote || null;
-        loadProducts();
+        // Tab-aware (not a hardcoded loadProducts()) — saving from the
+        // "Məhsul redaktə" tab must refresh that tab's own list, not
+        // silently refresh the hidden Browse tab's list instead.
+        reloadActiveProductsList();
       })
       .catch(function (err) {
         toast("Xəta: " + err.message);
@@ -4722,6 +4995,8 @@
       .then(function () {
         toast("Məhsul əlavə edildi: " + name);
         e.target.reset();
+        productStatusManuallySet = false;
+        document.getElementById("productStatusSuggestion").hidden = true;
         document.getElementById("productsTabBrowseBtn").click();
         loadProducts();
         loadUnclassified();
@@ -4733,6 +5008,40 @@
         submitBtn.disabled = false;
         submitBtn.textContent = "Məhsulu əlavə et";
       });
+  });
+
+  // Suggests (never sets without review) a status from the "Tərkib"
+  // field as the admin types — see suggestStatusFromIngredients's own
+  // comment for the exact rule. Only fills the still-blank/suggested
+  // dropdown; once the admin picks a status themselves, this stops
+  // touching it until the form is reset.
+  var productStatusManuallySet = false;
+  document.getElementById("productStatus").addEventListener("change", function () {
+    productStatusManuallySet = this.value !== "";
+  });
+
+  function refreshProductStatusSuggestion() {
+    var hintEl = document.getElementById("productStatusSuggestion");
+    if (productStatusManuallySet) {
+      hintEl.hidden = true;
+      return;
+    }
+    var raw = document.getElementById("productIngredients").value.trim();
+    var ingredients = raw ? raw.split(",").map(function (s) { return s.trim(); }).filter(Boolean) : [];
+    var suggestion = suggestStatusFromIngredients(ingredients);
+    if (!suggestion) {
+      hintEl.hidden = true;
+      return;
+    }
+    document.getElementById("productStatus").value = suggestion;
+    hintEl.hidden = false;
+    hintEl.textContent = "Təklif (tərkibə əsasən — özünüz yoxlayıb təsdiqləyin): " + STATUS_SUGGESTION_LABEL[suggestion];
+  }
+
+  var productIngredientsSuggestDebounce;
+  document.getElementById("productIngredients").addEventListener("input", function () {
+    clearTimeout(productIngredientsSuggestDebounce);
+    productIngredientsSuggestDebounce = setTimeout(refreshProductStatusSuggestion, 300);
   });
 
   // Same E-kod helper as buildProductCard's edit view, just appending
@@ -4763,6 +5072,7 @@
       ingredientsField.value = parts.join(", ");
       ecodeInput.value = "";
       toast(code + " əlavə edildi");
+      refreshProductStatusSuggestion();
     });
   })();
 

@@ -989,3 +989,18 @@ create table if not exists guide_articles (
 alter table guide_articles enable row level security;
 drop policy if exists "Public read/insert/update/delete" on guide_articles;
 create policy "Public read/insert/update/delete" on guide_articles for all using (true) with check (true);
+
+-- Admin-added named-ingredient (not E-code) haram/mushbooh keywords —
+-- additive to the hardcoded starter list in lib/haramKeywords.ts, same
+-- pattern as custom_ecodes: the app merges these in at scan time
+-- (loadCustomHaramKeywords()) rather than replacing anything.
+create table if not exists haram_keywords (
+  id uuid primary key default gen_random_uuid(),
+  keyword text not null unique,
+  status text not null check (status in ('haram', 'mushbooh')),
+  note text,
+  created_at timestamptz not null default now()
+);
+alter table haram_keywords enable row level security;
+drop policy if exists "Public read/insert/delete" on haram_keywords;
+create policy "Public read/insert/delete" on haram_keywords for all using (true) with check (true);

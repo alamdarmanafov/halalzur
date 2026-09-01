@@ -23,6 +23,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { lookupBarcode, STATUS_DESC_KEY, getHalalAlternatives, getDistinctBrands } from '../../lib/certification';
 import { PRODUCT_CATEGORIES, getProductCategories } from '../../lib/categories';
 import { extractECodesFromText, searchECodes, ECODE_STATUS_LABEL_KEY } from '../../lib/eCodes';
+import { extractHaramKeywords } from '../../lib/haramKeywords';
 import { recognizeIngredientText } from '../../lib/ocr';
 import { hasInternetConnection } from '../../lib/network';
 import { useFavorites } from '../../lib/favorites-context';
@@ -256,41 +257,46 @@ export default function ProductDetailScreen() {
   }, [product, isPremium]);
 
   const hasKnownIngredients = (product?.ingredients.length ?? 0) > 0;
-  const detectedECodes = useMemo(
-    () =>
-      extractECodesFromText(
-        hasKnownIngredients ? product!.ingredients.join(', ') : manualIngredients
-      ),
-    [hasKnownIngredients, product, manualIngredients]
-  );
-  // Which detected E-codes actually explain a mushbooh/haram verdict —
-  // shown as the "why" next to the certifier card so a flagged status
-  // isn't just a bare badge with no visible reason. Includes "depends"
-  // codes too (E_CODES has no data with status "mushbooh" at all — every
-  // yellow/cautionary code in the real table is "depends"), not just the
-  // earlier haram-only version.
+  const ingredientText = hasKnownIngredients ? product!.ingredients.join(', ') : manualIngredients;
+  const detectedECodes = useMemo(() => extractECodesFromText(ingredientText), [ingredientText]);
+  // Named ingredients (not E-codes) that are haram/source-dependent —
+  // catches "gelatin" or "donuz yağı" written out by name, which the
+  // E-code regex above never sees since it only matches "E" + digits.
+  const detectedKeywords = useMemo(() => extractHaramKeywords(ingredientText), [ingredientText]);
+  // Which detected E-codes/keywords actually explain a mushbooh/haram
+  // verdict — shown as the "why" next to the certifier card so a
+  // flagged status isn't just a bare badge with no visible reason.
+  // Includes "depends" codes too (E_CODES has no data with status
+  // "mushbooh" at all — every yellow/cautionary code in the real table
+  // is "depends"), not just the earlier haram-only version.
   const flaggedIngredients = useMemo(
-    () =>
-      detectedECodes
+    () => [
+      ...detectedECodes
         .filter((e) => e.status === 'haram' || e.status === 'mushbooh' || e.status === 'depends')
         .map((e) => `${e.code} (${e.name})`),
-    [detectedECodes]
+      ...detectedKeywords.map((k) => k.keyword),
+    ],
+    [detectedECodes, detectedKeywords]
   );
   // A halal-status product can still contain a source-dependent
-  // ("yellow") E-code — E471, E322, gelatin E441, etc. — that isn't
-  // itself grounds for a haram/mushbooh verdict but is worth a heads-up.
-  // Only shown when the product ISN'T already haram/mushbooh (that case
-  // gets the fuller "why this status" card above via flaggedIngredients)
-  // and there's no haram code mixed in (a real haram code always takes
-  // the reason-card path, not this softer caution note).
+  // ("yellow") E-code or named ingredient — E471, E322, gelatin, etc. —
+  // that isn't itself grounds for a haram/mushbooh verdict but is worth
+  // a heads-up. Only shown when the product ISN'T already haram/mushbooh
+  // (that case gets the fuller "why this status" card above via
+  // flaggedIngredients) and there's no haram signal mixed in (a real
+  // haram code/keyword always takes the reason-card path, not this
+  // softer caution note).
   const cautionIngredients = useMemo(
-    () =>
-      detectedECodes
-        .filter((e) => e.status === 'mushbooh' || e.status === 'depends')
-        .map((e) => `${e.code} (${e.name})`),
-    [detectedECodes]
+    () => [
+      ...detectedECodes.filter((e) => e.status === 'mushbooh' || e.status === 'depends').map((e) => `${e.code} (${e.name})`),
+      ...detectedKeywords.filter((k) => k.status === 'mushbooh').map((k) => k.keyword),
+    ],
+    [detectedECodes, detectedKeywords]
   );
-  const hasHaramIngredient = useMemo(() => detectedECodes.some((e) => e.status === 'haram'), [detectedECodes]);
+  const hasHaramIngredient = useMemo(
+    () => detectedECodes.some((e) => e.status === 'haram') || detectedKeywords.some((k) => k.status === 'haram'),
+    [detectedECodes, detectedKeywords]
+  );
 
   const hasECode = (code: string) =>
     manualIngredients

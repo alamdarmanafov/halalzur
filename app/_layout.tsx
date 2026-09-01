@@ -10,9 +10,11 @@ import { OfflineBanner } from '../components/OfflineBanner';
 import { initSentry, Sentry } from '../lib/sentry';
 import { rootViewRef } from '../lib/screenshotRef';
 import { loadCustomECodes } from '../lib/eCodes';
+import { loadCustomHaramKeywords } from '../lib/haramKeywords';
 
 initSentry();
 loadCustomECodes();
+loadCustomHaramKeywords();
 
 function RootLayout() {
   return (
