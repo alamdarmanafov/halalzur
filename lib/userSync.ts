@@ -1,5 +1,6 @@
 import { User } from './types';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { getOrCreateReferralCode } from './referrals';
 
 /**
  * A stable per-account id — Apple ('apple-...'), Google ('google-...'), or
@@ -32,6 +33,23 @@ export async function syncUser(user: User): Promise<void> {
     },
     { onConflict: 'id' }
   );
+
+  ensureReferralCode(user.id);
+}
+
+/**
+ * Fire-and-forget — previously a referral code was only ever assigned the
+ * first time someone opened app/referrals.tsx (Profil → Dostunu dəvət
+ * et), so an account that never visited that screen had no code at all.
+ * getOrCreateReferralCode() is a no-op once a code already exists, so
+ * calling it here on every sync/app-launch is safe — it just guarantees
+ * every account ends up with one without anyone having to open that
+ * screen first.
+ */
+export function ensureReferralCode(userId: string): void {
+  getOrCreateReferralCode(userId).catch((err) => {
+    console.warn('ensureReferralCode failed:', err.message);
+  });
 }
 
 /**
