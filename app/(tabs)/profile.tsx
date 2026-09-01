@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Alert, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -13,6 +13,7 @@ import { syncUserLanguage } from '../../lib/userSync';
 import { isAdmin } from '../../lib/admin';
 import { getPoints, fetchPendingSubmissions } from '../../lib/submissions';
 import { POINTS_PER_PREMIUM_DAY, MIN_REDEEMABLE_DAYS } from '../../lib/points';
+import { computeBadges, BADGE_ICON, BADGE_LABEL_KEY } from '../../lib/badges';
 import { deleteAccount } from '../../lib/deleteAccount';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
@@ -55,6 +56,17 @@ export default function ProfileScreen() {
   };
 
   useEffect(loadProfileData, [user, admin]);
+
+  const badges = useMemo(
+    () =>
+      computeBadges({
+        isPremium,
+        claimedAchievements: user?.claimedAchievements ?? [],
+        points,
+        scansCount: history.length,
+      }),
+    [isPremium, user?.claimedAchievements, points, history.length]
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -256,6 +268,17 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
 
+        {badges.length > 0 && (
+          <View style={styles.badgeRow}>
+            {badges.map((id) => (
+              <View key={id} style={styles.badgeChip}>
+                <Ionicons name={BADGE_ICON[id] as keyof typeof Ionicons.glyphMap} size={14} color={colors.primaryDark} />
+                <Text style={styles.badgeChipText}>{t(BADGE_LABEL_KEY[id])}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         {!isPremium && (
           <Pressable onPress={() => router.push('/subscription')}>
             <LinearGradient
@@ -337,6 +360,17 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   pointsText: { ...typography.small, color: colors.primaryDark, fontWeight: '800' },
+  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.lg },
+  badgeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+  },
+  badgeChipText: { ...typography.small, color: colors.primaryDark, fontWeight: '700' },
   planCard: {
     flexDirection: 'row',
     alignItems: 'center',
