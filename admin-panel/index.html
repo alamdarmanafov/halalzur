@@ -1292,6 +1292,15 @@
       <button type="button" class="btn" id="guideArticleCancelEditBtn" hidden style="margin-top: 12px;">Redaktəni ləğv et</button>
       <div class="gate-error" id="guideArticleFormError"></div>
     </form>
+    <div style="margin-top: 20px;">
+      <h3 style="margin: 0 0 10px; font-size: 13px; color: var(--ink-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;">
+        Canlı önizləmə — tətbiqdə Profil → Halal bələdçisi belə görünəcək
+      </h3>
+      <div style="max-width: 340px; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px 18px;">
+        <div id="guideArticlePreviewTitle" style="font-family: 'Manrope', sans-serif; font-weight: 700; font-size: 15px; margin-bottom: 8px; overflow-wrap: break-word;"></div>
+        <div id="guideArticlePreviewBody" style="font-size: 13.5px; color: var(--ink-muted); line-height: 1.6; white-space: pre-wrap; overflow-wrap: break-word;"></div>
+      </div>
+    </div>
     <div class="cards" id="guideArticleCards" style="margin-top: 20px;"></div>
     <div class="empty-state" id="guideArticlesEmptyState" hidden>Hələ heç bir məqalə yoxdur.</div>
     </section>
@@ -3304,6 +3313,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         document.getElementById("guideArticleSubmitBtn").textContent = "Yadda saxla";
         document.getElementById("guideArticleCancelEditBtn").hidden = false;
         document.getElementById("guideArticleTitle").scrollIntoView({ behavior: "smooth", block: "center" });
+        updateGuideArticlePreview();
       });
       card.querySelector('[data-action="delete-guide-article"]').addEventListener("click", function (e) {
         deleteGuideArticle(row, card, e.target);
@@ -3312,12 +3322,23 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     });
   }
 
+  function updateGuideArticlePreview() {
+    var title = document.getElementById("guideArticleTitle").value.trim();
+    var body = document.getElementById("guideArticleBody").value.trim();
+    document.getElementById("guideArticlePreviewTitle").textContent = title || "(başlıq boşdur)";
+    document.getElementById("guideArticlePreviewBody").textContent = body || "(mətn boşdur)";
+  }
+  document.getElementById("guideArticleTitle").addEventListener("input", updateGuideArticlePreview);
+  document.getElementById("guideArticleBody").addEventListener("input", updateGuideArticlePreview);
+  updateGuideArticlePreview();
+
   function resetGuideArticleForm() {
     editingGuideArticleId = null;
     document.getElementById("guideArticleForm").reset();
     document.getElementById("guideArticleOrder").value = "0";
     document.getElementById("guideArticleSubmitBtn").textContent = "Məqalə əlavə et";
     document.getElementById("guideArticleCancelEditBtn").hidden = true;
+    updateGuideArticlePreview();
   }
 
   document.getElementById("guideArticleCancelEditBtn").addEventListener("click", resetGuideArticleForm);
