@@ -32,6 +32,7 @@ import { useLanguage } from '../../lib/i18n-context';
 import { translateIngredientTerm } from '../../lib/ingredientGlossary';
 import { submitProduct, hasSubmittedProduct } from '../../lib/submissions';
 import { getRecommendCount, hasRecommended, toggleRecommend } from '../../lib/recommendations';
+import { getRatingSummary, getMyRating, setRating, RatingSummary } from '../../lib/ratings';
 import { isFollowingBrand, followBrand, unfollowBrand } from '../../lib/brandFollows';
 import { sendPushNotification } from '../../lib/pushNotify';
 import { CertificationResult } from '../../lib/types';
@@ -77,6 +78,8 @@ export default function ProductDetailScreen() {
   const [recommendCount, setRecommendCount] = useState(0);
   const [recommending, setRecommending] = useState(false);
   const [followingBrand, setFollowingBrand] = useState(false);
+  const [ratingSummary, setRatingSummary] = useState<RatingSummary>({ average: 0, count: 0 });
+  const [myRating, setMyRating] = useState(0);
 
   useEffect(() => {
     getDistinctBrands()
@@ -169,6 +172,42 @@ export default function ProductDetailScreen() {
       cancelled = true;
     };
   }, [user, product?.brand]);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    getRatingSummary(id).then((summary) => {
+      if (!cancelled) setRatingSummary(summary);
+    });
+    if (user) {
+      getMyRating(user.id, id).then((r) => {
+        if (!cancelled) setMyRating(r);
+      });
+    } else {
+      setMyRating(0);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [id, user]);
+
+  const onRateProduct = async (rating: number) => {
+    if (!product) return;
+    if (!user) {
+      Alert.alert(t('productRecommendSignInTitle'), t('productRecommendSignInBody'));
+      return;
+    }
+    const previous = myRating;
+    setMyRating(rating);
+    try {
+      await setRating(user.id, product.barcode, rating);
+      const summary = await getRatingSummary(product.barcode);
+      setRatingSummary(summary);
+    } catch (err: any) {
+      setMyRating(previous);
+      Alert.alert(t('productSubmitFailedTitle'), err.message ?? t('productSubmitFailedBody'));
+    }
+  };
 
   const onToggleFollowBrand = async () => {
     if (!user || !product) {
@@ -458,6 +497,23 @@ export default function ProductDetailScreen() {
               {recommendCount > 0 ? ` · ${recommendCount}` : ''}
             </Text>
           </Pressable>
+
+          <View style={styles.starRow}>
+            {[1, 2, 3, 4, 5].map((n) => (
+              <Pressable key={n} onPress={() => onRateProduct(n)} hitSlop={6}>
+                <Ionicons
+                  name={n <= myRating ? 'star' : 'star-outline'}
+                  size={22}
+                  color={n <= myRating ? colors.accent : colors.grayLight}
+                />
+              </Pressable>
+            ))}
+            {ratingSummary.count > 0 && (
+              <Text style={styles.starSummary}>
+                {ratingSummary.average.toFixed(1)} · {ratingSummary.count}
+              </Text>
+            )}
+          </View>
         </View>
 
         <View style={[styles.certifierCard, { borderColor: tint }]}>
@@ -841,6 +897,8 @@ const styles = StyleSheet.create({
   recommendPillActive: { backgroundColor: colors.primary },
   recommendPillText: { ...typography.small, color: colors.primaryDark, fontWeight: '700' },
   recommendPillTextActive: { color: colors.white },
+  starRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.sm },
+  starSummary: { ...typography.small, color: colors.gray, marginLeft: spacing.xs, fontWeight: '600' },
   certifierCard: {
     flexDirection: 'row',
     gap: spacing.md,
