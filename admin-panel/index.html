@@ -1234,6 +1234,32 @@
       <button type="submit" class="btn btn-approve" style="margin-top: 12px;">Açar söz əlavə et</button>
       <div class="gate-error" id="haramKeywordFormError"></div>
     </form>
+
+    <div style="margin-top: 16px;">
+      <button type="button" class="btn" id="haramKeywordBulkToggleBtn">Toplu əlavə et</button>
+    </div>
+    <div class="place-form" id="haramKeywordBulkWrap" hidden style="margin-top: 12px;">
+      <p class="hint">
+        Hər sətirdə bir söz, sahələri <code>|</code> işarəsi ilə ayırın:<br />
+        <code>söz və ya ifadə|status|qeyd (istəyə bağlı)</code><br />
+        Status: <code>haram</code> və ya <code>mushbooh</code> (şübhəli) — <b>zəruridir</b>, düzgün olmayan
+        sətirlər əlavə edilmir. Artıq mövcud olan sözlər (tətbiqin daxili siyahısında və ya bura əvvəl
+        əlavə edilmiş) sükutla ötürülür.
+      </p>
+      <div class="field">
+        <textarea
+          id="haramKeywordBulkInput"
+          rows="8"
+          placeholder="etil spirti|mushbooh|Alimlər arasında fikir ayrılığı var
+gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
+        ></textarea>
+      </div>
+      <button type="button" class="btn btn-approve" id="haramKeywordBulkSubmit" style="margin-top: 12px;">
+        Hamısını əlavə et
+      </button>
+      <div class="gate-error" id="haramKeywordBulkError"></div>
+    </div>
+
     <div class="cards" id="haramKeywordCards" style="margin-top: 20px;"></div>
     <div class="empty-state" id="haramKeywordsEmptyState" hidden>Hələ heç bir əlavə açar söz yoxdur.</div>
     </section>
@@ -2696,6 +2722,76 @@
       })
       .finally(function () {
         submitBtn.disabled = false;
+      });
+  });
+
+  document.getElementById("haramKeywordBulkToggleBtn").addEventListener("click", function () {
+    var wrap = document.getElementById("haramKeywordBulkWrap");
+    wrap.hidden = !wrap.hidden;
+  });
+
+  document.getElementById("haramKeywordBulkSubmit").addEventListener("click", function () {
+    var errorEl = document.getElementById("haramKeywordBulkError");
+    errorEl.textContent = "";
+    var lines = document
+      .getElementById("haramKeywordBulkInput")
+      .value.split("\n")
+      .map(function (l) { return l.trim(); })
+      .filter(Boolean);
+
+    var rows = [];
+    var skipped = [];
+    var seen = {};
+    lines.forEach(function (line, i) {
+      var parts = line.split("|");
+      var keyword = (parts[0] || "").trim().toLowerCase();
+      var status = (parts[1] || "").trim().toLowerCase();
+      var note = (parts[2] || "").trim();
+      var validStatus = status === "haram" || status === "mushbooh";
+      var alreadyBuiltIn = HARAM_KEYWORDS.some(function (row) { return row[0].toLowerCase() === keyword; });
+      var alreadyCustom = CUSTOM_HARAM_KEYWORDS.some(function (row) { return row[0].toLowerCase() === keyword; });
+      if (!keyword || !validStatus || alreadyBuiltIn || alreadyCustom || seen[keyword]) {
+        skipped.push(i + 1);
+        return;
+      }
+      seen[keyword] = true;
+      rows.push({ keyword: keyword, status: status, note: note || null });
+    });
+
+    if (!rows.length) {
+      errorEl.textContent = "Əlavə ediləcək düzgün sətir tapılmadı (format: söz|status|qeyd, status haram ya mushbooh olmalıdır).";
+      return;
+    }
+
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Əlavə edilir…";
+    // on_conflict=keyword + resolution=ignore-duplicates: a row that
+    // slipped past the client-side dedup above (e.g. two custom-loaded
+    // lists disagreeing on casing) is silently skipped by Postgres
+    // rather than failing the whole batch.
+    sb("haram_keywords?on_conflict=keyword", {
+      method: "POST",
+      headers: { "Prefer": "resolution=ignore-duplicates,return=minimal" },
+      body: rows,
+    })
+      .then(function () {
+        toast(
+          rows.length + " söz əlavə edildi" +
+          (skipped.length ? " (" + skipped.length + " sətir ötürüldü: sətir " + skipped.join(", ") + ")" : "")
+        );
+        logAudit("bulk_create", "haram_keywords", null, rows.length + " söz");
+        document.getElementById("haramKeywordBulkInput").value = "";
+        document.getElementById("haramKeywordBulkWrap").hidden = true;
+        loadHaramKeywords();
+      })
+      .catch(function (err) {
+        errorEl.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
       });
   });
 
