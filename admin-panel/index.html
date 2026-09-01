@@ -1098,7 +1098,13 @@
   }
 
   // ---- sidebar navigation ----
-  var navItems = document.querySelectorAll(".nav-item");
+  // Scoped to .sidebar — the Products page's own "Məhsullar" / "Məhsul
+  // əlavə et" sub-tab buttons also use the .nav-item class for styling,
+  // and a bare ".nav-item" selector here would pick those up too: they
+  // have no data-section, so this handler would then hide every section
+  // (key ends up null, and "every key !== null" is true) whenever either
+  // sub-tab button was clicked.
+  var navItems = document.querySelectorAll(".sidebar .nav-item");
   var sections = {
     dashboard: document.getElementById("section-dashboard"),
     submissions: document.getElementById("section-submissions"),
