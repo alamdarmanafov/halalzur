@@ -7497,6 +7497,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         '</button>' +
         '<button class="btn" data-action="send-notification">🔔 Bildiriş göndər</button>' +
         '<button class="btn" data-action="edit-referral-code">Referral kodunu dəyiş</button>' +
+        '<button class="btn" data-action="export-user-data">📦 Datasını ixrac et</button>' +
       '</div>';
 
     card.querySelector('[data-action="toggle-plan"]').addEventListener("click", function (e) {
@@ -7514,7 +7515,61 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     card.querySelector('[data-action="edit-referral-code"]').addEventListener("click", function (e) {
       editReferralCode(row, card, e.target);
     });
+    card.querySelector('[data-action="export-user-data"]').addEventListener("click", function (e) {
+      exportUserData(row, e.target);
+    });
     return card;
+  }
+
+  // One JSON file with everything this user has across the app — points,
+  // favorites, ratings, brand follows, recommendations, referrals (sent
+  // and received), submissions, feedback, purchase estimates. Excludes
+  // device_tokens: that table has no select policy at all, even for
+  // admins (see supabase/schema.sql's comment on it — only a service-role
+  // backend can read push tokens back out), so it would always come back
+  // empty here anyway.
+  function exportUserData(row, btn) {
+    var original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Hazırlanır…";
+    var uid = encodeURIComponent(row.id);
+    var queries = {
+      profile: "users?id=eq." + uid + "&select=*",
+      user_points: "user_points?user_id=eq." + uid + "&select=*",
+      points_log: "points_log?user_id=eq." + uid + "&select=*",
+      favorites: "favorites?user_id=eq." + uid + "&select=*",
+      product_ratings: "product_ratings?user_id=eq." + uid + "&select=*",
+      brand_follows: "brand_follows?user_id=eq." + uid + "&select=*",
+      product_recommendations: "product_recommendations?user_id=eq." + uid + "&select=*",
+      place_recommendations: "place_recommendations?user_id=eq." + uid + "&select=*",
+      referrals: "referrals?or=(referrer_id.eq." + uid + ",referred_id.eq." + uid + ")&select=*",
+      product_submissions: "product_submissions?submitted_by=eq." + uid + "&select=*",
+      feedback_reports: "feedback_reports?user_id=eq." + uid + "&select=*",
+      purchase_events: "purchase_events?user_id=eq." + uid + "&select=*",
+    };
+    var keys = Object.keys(queries);
+    Promise.all(keys.map(function (k) { return sb(queries[k]).catch(function () { return []; }); }))
+      .then(function (results) {
+        var out = { exported_at: new Date().toISOString(), user_id: row.id };
+        keys.forEach(function (k, i) { out[k] = results[i] || []; });
+        var blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "halalzur-istifadeci-" + row.id + "-" + new Date().toISOString().slice(0, 10) + ".json";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        logAudit("export_user_data", "users", row.id, row.name || row.email);
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
   }
 
   function editReferralCode(row, card, btn) {
