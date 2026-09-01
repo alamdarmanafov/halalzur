@@ -3632,7 +3632,12 @@
           '</div>' +
           '<div class="field" style="flex:1 1 200px; margin:0;">' +
             '<label>Şəkil linki</label>' +
-            '<input type="text" data-role="edit-image" placeholder="Şəkil linki" />' +
+            '<div style="display:flex; gap:6px;">' +
+              '<input type="text" data-role="edit-image" placeholder="Şəkil linki" style="flex:1; min-width:0;" />' +
+              (row.barcode
+                ? '<button type="button" class="btn" data-action="find-off-image" style="white-space:nowrap;">OFF-dan tap</button>'
+                : '') +
+            '</div>' +
           '</div>' +
           '<div class="field" style="flex:1 1 200px; margin:0; position:relative;">' +
             '<label>E-kod əlavə et</label>' +
@@ -3697,7 +3702,46 @@
       if (!target) return;
       removeIngredientFromProduct(row, card, parseInt(target.getAttribute("data-remove-ingredient-index"), 10));
     });
+    var findOffImageBtn = card.querySelector('[data-action="find-off-image"]');
+    if (findOffImageBtn) {
+      findOffImageBtn.addEventListener("click", function (e) {
+        findOffImage(row, card, e.target);
+      });
+    }
     return card;
+  }
+
+  // Open Food Facts' product-lookup endpoint sends permissive CORS
+  // headers (it's built for direct browser/app fetches), so this calls it
+  // straight from the client — same barcode-keyed lookup
+  // scripts/sync/openFoodFacts.ts already trusts for the bulk import, just
+  // one product at a time. Only fills the input; the admin still has to
+  // click "Yadda saxla" to actually apply it, same as typing a URL by hand.
+  function findOffImage(row, card, btn) {
+    var original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Axtarılır…";
+    fetch("https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(row.barcode) + ".json?fields=image_front_url")
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.statusText);
+        return res.json();
+      })
+      .then(function (data) {
+        var url = data && data.product && data.product.image_front_url;
+        if (!url) {
+          toast("Open Food Facts-da bu barkod üçün şəkil tapılmadı");
+          return;
+        }
+        card.querySelector('[data-role="edit-image"]').value = url;
+        toast("Şəkil tapıldı — yadda saxlamağı unutmayın");
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
   }
 
   function addEcodeToProduct(row, card, input) {
