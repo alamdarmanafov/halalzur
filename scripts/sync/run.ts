@@ -126,12 +126,13 @@ async function syncCertifier(certifierId: string, entries: SyncedEntry[]) {
  */
 async function syncOpenFoodFacts(maxEntries: number) {
   console.log(`\n[openfoodfacts] fetching up to ${maxEntries} products (this can take a while)…`);
-  const entries = await fetchOpenFoodFactsEntries(maxEntries);
-  console.log(`[openfoodfacts] fetched ${entries.length} candidate products`);
+  const { entries, skipped } = await fetchOpenFoodFactsEntries(maxEntries);
+  const skipSummary = `skipped: ${skipped.noCode} no barcode, ${skipped.noName} no name, ${skipped.duplicate} duplicate`;
+  console.log(`[openfoodfacts] fetched ${entries.length} candidate products (${skipSummary})`);
 
   if (entries.length === 0) {
     console.log('[openfoodfacts] nothing to sync, skipping');
-    await logSync('openfoodfacts', 'success', 0, 'nothing to sync');
+    await logSync('openfoodfacts', 'success', 0, `nothing to sync — ${skipSummary}`);
     return;
   }
 
@@ -155,7 +156,12 @@ async function syncOpenFoodFacts(maxEntries: number) {
     }
 
     console.log(`[openfoodfacts] wrote ${written} new products (${entries.length - written} already existed)`);
-    await logSync('openfoodfacts', 'success', written, `${entries.length - written} already existed`);
+    await logSync(
+      'openfoodfacts',
+      'success',
+      written,
+      `${entries.length - written} already existed; ${skipSummary}`
+    );
   } catch (err: any) {
     await logSync('openfoodfacts', 'error', null, err.message ?? String(err));
     throw err;

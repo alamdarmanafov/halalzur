@@ -122,8 +122,13 @@ async function fetchCategoryPage(
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function fetchOpenFoodFactsEntries(maxEntries: number): Promise<SyncedEntry[]> {
+export type OffSkipCounts = { noCode: number; noName: number; duplicate: number };
+
+export type OffFetchResult = { entries: SyncedEntry[]; skipped: OffSkipCounts };
+
+export async function fetchOpenFoodFactsEntries(maxEntries: number): Promise<OffFetchResult> {
   const seen = new Map<string, SyncedEntry>();
+  const skipped: OffSkipCounts = { noCode: 0, noName: 0, duplicate: 0 };
 
   outer: for (const country of COUNTRIES) {
     for (const category of CATEGORIES) {
@@ -138,7 +143,18 @@ export async function fetchOpenFoodFactsEntries(maxEntries: number): Promise<Syn
 
         for (const p of data.products) {
           if (seen.size >= maxEntries) break;
-          if (!p.code || !p.product_name || seen.has(p.code)) continue;
+          if (!p.code) {
+            skipped.noCode++;
+            continue;
+          }
+          if (!p.product_name) {
+            skipped.noName++;
+            continue;
+          }
+          if (seen.has(p.code)) {
+            skipped.duplicate++;
+            continue;
+          }
           seen.set(p.code, {
             entry_type: 'product',
             barcode: p.code,
@@ -161,5 +177,5 @@ export async function fetchOpenFoodFactsEntries(maxEntries: number): Promise<Syn
     }
   }
 
-  return Array.from(seen.values());
+  return { entries: Array.from(seen.values()), skipped };
 }

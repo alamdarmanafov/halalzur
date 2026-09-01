@@ -399,6 +399,15 @@
     <div id="topRecommendedPlacesList"></div>
 
     <div class="panel-head" style="margin-top: 32px;">
+      <h2>Yenidən yoxlanmalı ola bilər</h2>
+      <button type="button" class="btn" id="expiringCertsRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+        Yenilə
+      </button>
+    </div>
+    <p class="hint">180 gündən əvvəl sertifikatlaşdırılmış/yoxlanmış (verified_at) məhsullar — yenidən yoxlamaq lazım ola bilər.</p>
+    <div id="expiringCertsList"></div>
+
+    <div class="panel-head" style="margin-top: 32px;">
       <h2>Xal lideri</h2>
     </div>
     <div id="leaderboardList"></div>
@@ -551,6 +560,9 @@
       <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
         <input type="text" id="productBulkImageInput" placeholder="Şəkil linki (boş = şəkli sil)" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; flex: 1; min-width: 200px;" />
         <button type="button" class="btn" id="productBulkSetImageBtn" disabled>Seçilənlərin şəklini dəyiş</button>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+        <button type="button" class="btn" id="productBulkRenewDateBtn" disabled>Seçilənlərin yoxlama tarixini bu günə yenilə</button>
       </div>
     </div>
 
@@ -856,6 +868,7 @@
         <span style="color: var(--ink-muted); font-size: 13px;">və ya</span>
         <input type="datetime-local" id="annScheduleAt" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px;" />
         <button type="button" class="btn" id="annScheduleBtn">Planla</button>
+        <button type="button" class="btn" id="annDraftBtn">Qaralama kimi saxla</button>
       </div>
       <div class="gate-error" id="announcementFormError"></div>
     </form>
@@ -975,6 +988,10 @@
       <h2>Sertifikatorlar</h2>
       <span id="certifiersCountLabel"></span>
     </div>
+    <div style="margin-bottom: 16px;">
+      <button type="button" class="btn" id="checkCertifierLinksBtn">Sayt linklərini yoxla</button>
+      <div id="certifierLinkCheckResults" style="margin-top: 10px;"></div>
+    </div>
     <form class="place-form" id="certifierForm">
       <div class="field-grid">
         <div class="field">
@@ -1022,6 +1039,9 @@
       <h2>Fəaliyyət qeydi</h2>
       <button type="button" class="btn" id="auditRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
         Yenilə
+      </button>
+      <button type="button" class="btn" data-csv-export="audit" style="padding: 4px 10px; font-size: 12.5px;">
+        CSV yüklə
       </button>
     </div>
     <p class="hint">
@@ -1180,6 +1200,7 @@
       loadTopConfirmed();
       loadTopRecommended();
       loadTopRecommendedPlaces();
+      loadExpiringCerts();
       loadLeaderboard();
       loadSyncLog();
       loadVersions();
@@ -1583,6 +1604,65 @@
   }
   document.getElementById("topRecommendedPlacesRefreshBtn").addEventListener("click", loadTopRecommendedPlaces);
 
+  function loadExpiringCerts() {
+    var wrap = document.getElementById("expiringCertsList");
+    wrap.textContent = "Yüklənir…";
+    var cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 180);
+    sb(
+      "certified_entries?select=id,product_name,brand,verified_at,status&entry_type=eq.product&deleted_at=is.null&status=neq.unknown&or=(verified_at.lt." +
+        cutoff.toISOString().slice(0, 10) + ",verified_at.is.null)&order=verified_at.asc.nullsfirst&limit=20"
+    )
+      .then(function (rows) {
+        wrap.innerHTML = "";
+        if (!rows || !rows.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Yenidən yoxlanmalı məhsul yoxdur.";
+          wrap.appendChild(empty);
+          return;
+        }
+        rows.forEach(function (row) {
+          var item = document.createElement("div");
+          item.className = "place-card";
+          item.style.marginBottom = "8px";
+          item.innerHTML =
+            '<div>' +
+              '<div class="pc-title">' + esc(row.product_name || row.brand) + '</div>' +
+              '<div class="pc-sub">' + (STATUS_LABEL[row.status] || row.status) + ' · Son yoxlama: ' +
+                (row.verified_at ? new Date(row.verified_at).toLocaleDateString("az-AZ") : "heç vaxt") + '</div>' +
+            '</div>' +
+            '<button type="button" class="place-delete-btn" data-action="renew" style="background:var(--ok-bg); color:var(--ok);">Bu gün kimi qeyd et</button>';
+          item.querySelector('[data-action="renew"]').addEventListener("click", function (e) {
+            e.target.disabled = true;
+            sb("certified_entries?id=eq." + row.id, {
+              method: "PATCH",
+              headers: { "Prefer": "return=minimal" },
+              body: { verified_at: new Date().toISOString().slice(0, 10) },
+            })
+              .then(function () {
+                toast("Yeniləndi: " + (row.product_name || row.brand));
+                logAudit("renew_cert_date", "certified_entries", row.id, row.product_name || row.brand);
+                item.remove();
+              })
+              .catch(function (err) {
+                toast("Xəta: " + err.message);
+                e.target.disabled = false;
+              });
+          });
+          wrap.appendChild(item);
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Yüklənmədi: " + err.message;
+        wrap.appendChild(errEl);
+      });
+  }
+  document.getElementById("expiringCertsRefreshBtn").addEventListener("click", loadExpiringCerts);
+
   // ---- points leaderboard ----
   function loadLeaderboard() {
     var wrap = document.getElementById("leaderboardList");
@@ -1660,6 +1740,10 @@
     users: {
       path: "users?select=id,name,email,plan,language,banned,created_at&limit=100000",
       name: "halalzur-istifadeciler.csv",
+    },
+    audit: {
+      path: "audit_log?select=actor,action,entity_table,entity_id,details,created_at&order=created_at.desc&limit=100000",
+      name: "halalzur-audit-log.csv",
     },
   };
 
@@ -1934,6 +2018,42 @@
       });
   });
 
+  document.getElementById("checkCertifierLinksBtn").addEventListener("click", function () {
+    var btn = this;
+    var wrap = document.getElementById("certifierLinkCheckResults");
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Yoxlanılır…";
+    wrap.textContent = "Yoxlanılır (bir neçə saniyə çəkə bilər)…";
+    fetch("/api/check-certifier-links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-app-key": SUPABASE_ANON_KEY },
+    })
+      .then(function (res) {
+        if (!res.ok) return res.json().then(function (d) { throw new Error(d.error || res.statusText); });
+        return res.json();
+      })
+      .then(function (data) {
+        wrap.innerHTML = "";
+        (data.results || []).forEach(function (r) {
+          var row = document.createElement("div");
+          row.className = "pc-sub";
+          row.style.marginBottom = "4px";
+          row.innerHTML =
+            (r.ok ? "🟢" : "🔴") + " " + esc(r.short_name) + " — " +
+            (r.ok ? "OK (" + r.status + ")" : "Problem" + (r.status ? " (" + r.status + ")" : "") + (r.error ? ": " + esc(r.error) : ""));
+          wrap.appendChild(row);
+        });
+      })
+      .catch(function (err) {
+        wrap.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
+
   // ---- trash ----
   function loadTrash() {
     var wrap = document.getElementById("trashCards");
@@ -2068,6 +2188,7 @@
     loadTopConfirmed();
     loadTopRecommended();
     loadTopRecommendedPlaces();
+    loadExpiringCerts();
     loadLeaderboard();
     loadSyncLog();
     loadVersions();
@@ -2346,6 +2467,7 @@
         "&or=(" +
         "product_name.ilike.%" + safe + "%," +
         "brand.ilike.%" + safe + "%," +
+        "admin_note.ilike.%" + safe + "%," +
         barcodeCondition +
         ")";
     }
@@ -2652,6 +2774,7 @@
         "&or=(" +
         "product_name.ilike.%" + safe + "%," +
         "brand.ilike.%" + safe + "%," +
+        "admin_note.ilike.%" + safe + "%," +
         barcodeCondition +
         ")";
     }
@@ -2718,6 +2841,7 @@
     document.getElementById("productBulkDeleteBtn").disabled = count === 0;
     document.getElementById("productBulkAddEcodeBtn").disabled = count === 0;
     document.getElementById("productBulkSetImageBtn").disabled = count === 0;
+    document.getElementById("productBulkRenewDateBtn").disabled = count === 0;
     document.getElementById("productBulkSetStatusBtn").disabled = count === 0;
     document.getElementById("productBulkSetCategoryBtn").disabled = count === 0;
   }
@@ -2872,6 +2996,34 @@
       .then(function () {
         toast("Şəkil yeniləndi: " + ids.length + " məhsul");
         document.getElementById("productBulkImageInput").value = "";
+        loadProducts();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
+
+  document.getElementById("productBulkRenewDateBtn").addEventListener("click", function () {
+    var ids = Object.keys(selectedProductIds);
+    if (!ids.length) return;
+    if (!window.confirm(ids.length + " məhsulun yoxlama tarixi bu günə yenilənsin?")) return;
+
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Yenilənir…";
+    sb("certified_entries?id=in.(" + ids.join(",") + ")", {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { verified_at: new Date().toISOString().slice(0, 10), updated_at: new Date().toISOString() },
+    })
+      .then(function () {
+        toast("Yoxlama tarixi yeniləndi: " + ids.length + " məhsul");
+        logAudit("bulk_renew_cert_date", "certified_entries", null, ids.length + " məhsul");
         loadProducts();
       })
       .catch(function (err) {
@@ -4536,6 +4688,49 @@
       });
   });
 
+  document.getElementById("annDraftBtn").addEventListener("click", function () {
+    var errorEl = document.getElementById("announcementFormError");
+    errorEl.textContent = "";
+    var title = document.getElementById("annTitle").value.trim();
+    var body = document.getElementById("annBody").value.trim();
+    var ctaLabel = document.getElementById("annCtaLabel").value.trim();
+    var ctaRoute = document.getElementById("annCtaRoute").value;
+
+    if (!title || !body) {
+      errorEl.textContent = "Başlıq və mətn tələb olunur.";
+      return;
+    }
+
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Saxlanılır…";
+    sb("announcements", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: {
+        title: title,
+        body: body,
+        cta_label: ctaLabel || null,
+        cta_route: ctaLabel ? ctaRoute || null : null,
+        active: false,
+        publish_at: null,
+      },
+    })
+      .then(function () {
+        toast("Qaralama saxlanıldı — aşağıdakı siyahıda \"Aktiv et\" ilə istənilən vaxt dərc edə bilərsiniz");
+        document.getElementById("announcementForm").reset();
+        loadAnnouncements();
+      })
+      .catch(function (err) {
+        errorEl.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
+
   // ---- users ----
   function loadUsers() {
     sb("users?order=updated_at.desc&select=*")
@@ -4783,6 +4978,7 @@
     var existingReplyHtml = row.admin_reply
       ? '<div class="pc-note" style="margin-top:8px;"><b>Cavabınız:</b> ' + esc(row.admin_reply) + '</div>'
       : '';
+    var FEEDBACK_STATUS_LABEL = { open: "🟡 Açıq", in_progress: "🔵 Baxılır", resolved: "🟢 Həll olundu" };
     card.innerHTML =
       '<div style="flex:1; display:flex; flex-direction:column; gap:8px;">' +
         '<div>' +
@@ -4793,17 +4989,29 @@
           existingReplyHtml +
           '<div class="pc-sub" style="margin-top:6px;">' + new Date(row.created_at).toLocaleString("az-AZ") + '</div>' +
         '</div>' +
+        '<div class="field" style="margin:0; max-width:200px;">' +
+          '<label>Status</label>' +
+          '<select data-role="feedback-status">' +
+            '<option value="open">' + FEEDBACK_STATUS_LABEL.open + '</option>' +
+            '<option value="in_progress">' + FEEDBACK_STATUS_LABEL.in_progress + '</option>' +
+            '<option value="resolved">' + FEEDBACK_STATUS_LABEL.resolved + '</option>' +
+          '</select>' +
+        '</div>' +
         '<div class="field" style="margin:0;">' +
           '<label>Cavab yaz (istəyə bağlı)</label>' +
           '<textarea data-role="admin-reply" rows="2" placeholder="İstifadəçiyə cavabınız"></textarea>' +
         '</div>' +
         '<div style="display:flex; gap:8px; flex-wrap:wrap;">' +
           '<button type="button" class="btn btn-approve" data-action="save-reply">Cavabı yadda saxla</button>' +
-          '<button type="button" class="place-delete-btn" data-action="delete-feedback">Həll oldu (sil)</button>' +
+          '<button type="button" class="place-delete-btn" data-action="delete-feedback">Sil</button>' +
         '</div>' +
       '</div>';
 
     card.querySelector('[data-role="admin-reply"]').value = row.admin_reply || "";
+    card.querySelector('[data-role="feedback-status"]').value = row.status || "open";
+    card.querySelector('[data-role="feedback-status"]').addEventListener("change", function (e) {
+      saveFeedbackStatus(row, e.target);
+    });
     card.querySelector('[data-action="save-reply"]').addEventListener("click", function (e) {
       saveAdminReply(row, card, e.target);
     });
@@ -4811,6 +5019,27 @@
       deleteFeedback(row, card, e.target);
     });
     return card;
+  }
+
+  function saveFeedbackStatus(row, selectEl) {
+    var newStatus = selectEl.value;
+    selectEl.disabled = true;
+    sb("feedback_reports?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { status: newStatus },
+    })
+      .then(function () {
+        row.status = newStatus;
+        toast("Status yeniləndi");
+        logAudit("status_change", "feedback_reports", row.id, newStatus);
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        selectEl.disabled = false;
+      });
   }
 
   function saveAdminReply(row, card, btn) {
