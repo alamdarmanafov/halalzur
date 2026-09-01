@@ -32,6 +32,25 @@ export async function syncUser(user: User): Promise<void> {
   );
 }
 
+/**
+ * Fire-and-forget — lets the admin panel's broadcast push target by
+ * language (supabase/schema.sql's users.language). Called from the
+ * language switcher (app/(tabs)/profile.tsx), not from syncUser(), so a
+ * language change takes effect immediately rather than waiting for the
+ * next sign-in/plan sync.
+ */
+export function syncUserLanguage(userId: string, language: 'az' | 'en'): void {
+  if (!isSupabaseConfigured || !supabase) return;
+  if (!isSyncableUserId(userId)) return;
+  supabase
+    .from('users')
+    .update({ language, updated_at: new Date().toISOString() })
+    .eq('id', userId)
+    .then(({ error }) => {
+      if (error) console.warn('syncUserLanguage failed:', error.message);
+    });
+}
+
 export type RemoteAccountState = {
   plan: User['plan'];
   premiumExpiresAt: string | null;

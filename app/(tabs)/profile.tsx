@@ -9,6 +9,7 @@ import { useHistory } from '../../lib/history-context';
 import { useFavorites } from '../../lib/favorites-context';
 import { useLanguage } from '../../lib/i18n-context';
 import { registerForPushNotifications } from '../../lib/notifications';
+import { syncUserLanguage } from '../../lib/userSync';
 import { isAdmin } from '../../lib/admin';
 import { getPoints, fetchPendingSubmissions } from '../../lib/submissions';
 import { deleteAccount } from '../../lib/deleteAccount';
@@ -102,8 +103,20 @@ export default function ProfileScreen() {
       label: `${t('profileLanguage')}: ${language === 'az' ? t('profileLanguageAz') : t('profileLanguageEn')}`,
       onPress: () =>
         Alert.alert(t('profileLanguageTitle'), undefined, [
-          { text: t('profileLanguageAz'), onPress: () => setLanguage('az') },
-          { text: t('profileLanguageEn'), onPress: () => setLanguage('en') },
+          {
+            text: t('profileLanguageAz'),
+            onPress: () => {
+              setLanguage('az');
+              if (user) syncUserLanguage(user.id, 'az');
+            },
+          },
+          {
+            text: t('profileLanguageEn'),
+            onPress: () => {
+              setLanguage('en');
+              if (user) syncUserLanguage(user.id, 'en');
+            },
+          },
         ]),
     },
     {

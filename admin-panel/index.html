@@ -440,6 +440,20 @@
       </div>
     </div>
 
+    <div class="place-form" id="duplicatesWrap" style="margin-bottom: 16px;">
+      <div class="panel-head" style="margin-bottom: 8px;">
+        <h3 style="margin: 0; font-size: 15px;">Mümkün dublikatlar</h3>
+        <button type="button" class="btn" id="findDuplicatesBtn" style="padding: 4px 10px; font-size: 12.5px;">
+          Dublikatları tap
+        </button>
+      </div>
+      <p class="hint">
+        Fərqli barkodlu, amma ad və marka baxımından çox oxşar məhsulları tapır (məs. eyni məhsul iki dəfə
+        müxtəlif mənbələrdən əlavə olunubsa). Bazanın ölçüsündən asılı olaraq bir neçə saniyə çəkə bilər.
+      </p>
+      <div id="duplicatesList"></div>
+    </div>
+
     <div class="place-form" id="unclassifiedWrap" style="margin-bottom: 16px;">
       <div class="panel-head" style="margin-bottom: 8px;">
         <h3 style="margin: 0; font-size: 15px;">Ən çox axtarılan naməlum məhsullar</h3>
@@ -703,11 +717,12 @@
 
     <div class="place-form" style="margin-top: 28px;">
       <div class="panel-head" style="margin-bottom: 8px;">
-        <h3 style="margin: 0; font-size: 15px;">📱 Push bildirişi (bütün istifadəçilərə)</h3>
+        <h3 style="margin: 0; font-size: 15px;">📱 Push bildirişi</h3>
       </div>
       <p class="hint">
-        Bu, yuxarıdakı popup-dan fərqli olaraq real OS push bildirişidir — hər cihaza dərhal göndərilir. Firebase
-        konfiqurasiyası (FIREBASE_* environment variable-ları) Vercel-də qurulmalıdır.
+        Bu, yuxarıdakı popup-dan fərqli olaraq real OS push bildirişidir. Firebase konfiqurasiyası (FIREBASE_*
+        environment variable-ları) Vercel-də qurulmalıdır. Planlanmış bildirişlər hər ~10 dəqiqədən bir yoxlanılıb
+        göndərilir (GitHub Actions).
       </p>
       <div class="field">
         <label for="broadcastTitle">Başlıq</label>
@@ -717,8 +732,45 @@
         <label for="broadcastBody">Mətn</label>
         <textarea id="broadcastBody" rows="2" placeholder="Məs. Halalzur-a Məkanlar bölməsi əlavə olundu."></textarea>
       </div>
-      <button type="button" class="btn btn-approve" id="broadcastSendBtn" style="margin-top: 8px;">Göndər</button>
+      <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+        <div class="field" style="min-width: 160px; margin-bottom: 0;">
+          <label for="broadcastAudiencePlan">Kimlərə</label>
+          <select id="broadcastAudiencePlan">
+            <option value="all">Hamısı</option>
+            <option value="free">Yalnız Free</option>
+            <option value="premium">Yalnız Premium</option>
+          </select>
+        </div>
+        <div class="field" style="min-width: 160px; margin-bottom: 0;">
+          <label for="broadcastAudienceLanguage">Dil</label>
+          <select id="broadcastAudienceLanguage">
+            <option value="all">Hamısı</option>
+            <option value="az">Yalnız Azərbaycan dili</option>
+            <option value="en">Yalnız English</option>
+          </select>
+        </div>
+      </div>
+      <p class="hint" style="margin-top: 10px;">
+        Qeyd: "Hamısı" + "Hamısı" seçilsə, bildiriş HƏR cihaza (hətta sinxronlaşmayan hesablara da) çatır. Kimlərə/dil
+        üzrə filtr seçilsə, yalnız `users` cədvəlində uyğun sətri olan hesablara çatır.
+      </p>
+      <div style="display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; align-items: center;">
+        <button type="button" class="btn btn-approve" id="broadcastSendBtn">İndi göndər</button>
+        <span style="color: var(--ink-muted); font-size: 13px;">və ya</span>
+        <input type="datetime-local" id="broadcastScheduleAt" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px;" />
+        <button type="button" class="btn" id="broadcastScheduleBtn">Planla</button>
+      </div>
       <div class="gate-error" id="broadcastError"></div>
+    </div>
+
+    <div class="place-form" style="margin-top: 16px;">
+      <div class="panel-head" style="margin-bottom: 8px;">
+        <h3 style="margin: 0; font-size: 15px;">Planlanmış bildirişlər</h3>
+        <button type="button" class="btn" id="scheduledBroadcastsRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+          Yenilə
+        </button>
+      </div>
+      <div id="scheduledBroadcastsList"></div>
     </div>
     </section>
 
@@ -877,7 +929,10 @@
       loadPlaces();
       loadCategoryIcons();
     },
-    announcements: loadAnnouncements,
+    announcements: function () {
+      loadAnnouncements();
+      loadScheduledBroadcasts();
+    },
     users: function () {
       loadUsers();
       loadReferralReport();
@@ -1098,6 +1153,7 @@
     loadPlaces();
     loadCategoryIcons();
     loadAnnouncements();
+    loadScheduledBroadcasts();
     loadUsers();
     loadReferralReport();
     loadFeedback();
@@ -1404,6 +1460,183 @@
         });
     }
     return next(0);
+  }
+
+  // ---- fuzzy duplicate detection ----
+  function normalizeForDup(s) {
+    return (s || "")
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function bigrams(s) {
+    var grams = [];
+    for (var i = 0; i < s.length - 1; i++) grams.push(s.substr(i, 2));
+    return grams;
+  }
+
+  // Dice coefficient over character bigrams — cheap, no library, and
+  // tolerant of small spelling/spacing differences (unlike an exact or
+  // substring match), e.g. "Fındıq Kreması" vs "Fındık Kreması".
+  function diceSimilarity(a, b) {
+    if (!a || !b) return 0;
+    if (a === b) return 1;
+    var ga = bigrams(a);
+    var gb = bigrams(b);
+    if (!ga.length || !gb.length) return 0;
+    var gbRemaining = gb.slice();
+    var matches = 0;
+    for (var i = 0; i < ga.length; i++) {
+      var idx = gbRemaining.indexOf(ga[i]);
+      if (idx !== -1) {
+        matches++;
+        gbRemaining.splice(idx, 1);
+      }
+    }
+    return (2 * matches) / (ga.length + gb.length);
+  }
+
+  function fetchAllProductsForDupScan() {
+    var CHUNK = 1000;
+    var all = [];
+    function next(offset) {
+      return fetch(
+        SUPABASE_URL + "/rest/v1/certified_entries?select=id,barcode,product_name,brand,status&entry_type=eq.product",
+        {
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: "Bearer " + SUPABASE_ANON_KEY,
+            Range: offset + "-" + (offset + CHUNK - 1),
+          },
+        }
+      )
+        .then(function (res) {
+          if (!res.ok) return res.text().then(function (t) { throw new Error(t || res.statusText); });
+          return res.json();
+        })
+        .then(function (rows) {
+          all = all.concat(rows);
+          if (rows.length === CHUNK) return next(offset + CHUNK);
+          return all;
+        });
+    }
+    return next(0);
+  }
+
+  document.getElementById("findDuplicatesBtn").addEventListener("click", function () {
+    var listEl = document.getElementById("duplicatesList");
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Axtarılır…";
+    listEl.textContent = "Yüklənir…";
+
+    fetchAllProductsForDupScan()
+      .then(function (rows) {
+        // Bucket by the first word of the normalized brand — keeps
+        // comparisons to same/near-same-brand products instead of an
+        // O(n²) scan across the whole catalog, while still catching
+        // "Gilan" vs "Gilan MMC" style near-matches.
+        var buckets = {};
+        rows.forEach(function (row) {
+          var normBrand = normalizeForDup(row.brand);
+          var normName = normalizeForDup(row.product_name);
+          if (!normName) return;
+          var key = (normBrand.split(" ")[0] || normBrand) || "(markasız)";
+          row._normBrand = normBrand;
+          row._normName = normName;
+          if (!buckets[key]) buckets[key] = [];
+          buckets[key].push(row);
+        });
+
+        var pairs = [];
+        Object.keys(buckets).forEach(function (key) {
+          var bucket = buckets[key];
+          for (var i = 0; i < bucket.length; i++) {
+            for (var j = i + 1; j < bucket.length; j++) {
+              var a = bucket[i], b = bucket[j];
+              var nameSim = diceSimilarity(a._normName, b._normName);
+              var brandSim = diceSimilarity(a._normBrand, b._normBrand);
+              var score = 0.65 * nameSim + 0.35 * brandSim;
+              if (score >= 0.72) pairs.push({ a: a, b: b, score: score });
+            }
+          }
+        });
+        pairs.sort(function (x, y) { return y.score - x.score; });
+
+        listEl.innerHTML = "";
+        if (!pairs.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Mümkün dublikat tapılmadı.";
+          listEl.appendChild(empty);
+          return;
+        }
+        pairs.slice(0, 60).forEach(function (pair) {
+          listEl.appendChild(buildDuplicatePairCard(pair));
+        });
+        if (pairs.length > 60) {
+          var more = document.createElement("p");
+          more.className = "hint";
+          more.textContent = "+ daha " + (pairs.length - 60) + " cüt (yalnız ilk 60 göstərilir).";
+          listEl.appendChild(more);
+        }
+      })
+      .catch(function (err) {
+        listEl.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Xəta: " + err.message;
+        listEl.appendChild(errEl);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
+
+  function buildDuplicatePairCard(pair) {
+    var card = document.createElement("div");
+    card.className = "place-card";
+    card.style.flexDirection = "column";
+    card.style.alignItems = "stretch";
+    function sideHtml(row, side) {
+      return (
+        '<div style="flex:1; min-width:0;">' +
+          '<div class="pc-title">' + esc(row.product_name || row.brand) + '</div>' +
+          '<div class="pc-sub">' + esc(row.brand) + ' · ' + (STATUS_LABEL[row.status] || row.status) + '</div>' +
+          '<div class="pc-sub">Barkod: ' + esc(row.barcode || "—") + '</div>' +
+          '<button type="button" class="place-delete-btn" data-action="delete-side" data-side="' + side + '" style="margin-top:8px;">Bunu sil</button>' +
+        '</div>'
+      );
+    }
+    card.innerHTML =
+      '<div class="pc-sub" style="margin-bottom:8px;">Oxşarlıq: ' + Math.round(pair.score * 100) + '%</div>' +
+      '<div style="display:flex; gap:16px; flex-wrap:wrap;">' +
+        sideHtml(pair.a, "a") +
+        sideHtml(pair.b, "b") +
+      '</div>';
+
+    card.querySelectorAll('[data-action="delete-side"]').forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var row = btn.getAttribute("data-side") === "a" ? pair.a : pair.b;
+        if (!window.confirm('"' + (row.product_name || row.brand) + '" silinsin?')) return;
+        btn.disabled = true;
+        sb("certified_entries?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+          .then(function () {
+            toast("Silindi: " + (row.product_name || row.brand));
+            card.remove();
+            loadProducts();
+          })
+          .catch(function (err) {
+            toast("Xəta: " + err.message);
+            btn.disabled = false;
+          });
+      });
+    });
+    return card;
   }
 
   function updateProductPageControls() {
@@ -2818,6 +3051,13 @@
     wrap.hidden = false;
   });
 
+  function broadcastAudience() {
+    return {
+      audiencePlan: document.getElementById("broadcastAudiencePlan").value,
+      audienceLanguage: document.getElementById("broadcastAudienceLanguage").value,
+    };
+  }
+
   document.getElementById("broadcastSendBtn").addEventListener("click", function () {
     var errorEl = document.getElementById("broadcastError");
     errorEl.textContent = "";
@@ -2827,22 +3067,28 @@
       errorEl.textContent = "Başlıq və mətn tələb olunur.";
       return;
     }
-    if (!window.confirm("Bu bildiriş DƏRHAL bütün istifadəçilərin telefonuna göndəriləcək. Davam edilsin?")) return;
+    if (!window.confirm("Bu bildiriş DƏRHAL göndəriləcək. Davam edilsin?")) return;
 
     var btn = this;
     btn.disabled = true;
+    var original = btn.textContent;
     btn.textContent = "Göndərilir…";
+    var payload = Object.assign({ title: title, body: body }, broadcastAudience());
     fetch("/api/send-broadcast", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-app-key": SUPABASE_ANON_KEY },
-      body: JSON.stringify({ title: title, body: body }),
+      body: JSON.stringify(payload),
     })
       .then(function (res) {
-        if (!res.ok) return res.json().then(function (d) { throw new Error(d.error || res.statusText); });
+        if (!res.ok) return res.json().then(function (d) { throw new Error((d.reason || d.error) || res.statusText); });
         return res.json();
       })
-      .then(function () {
-        toast("Push bildirişi göndərildi");
+      .then(function (result) {
+        toast(
+          result.mode === "topic"
+            ? "Push bildirişi göndərildi (hamıya)"
+            : "Push bildirişi göndərildi (" + result.sent + " / " + result.total + " cihaza)"
+        );
         document.getElementById("broadcastTitle").value = "";
         document.getElementById("broadcastBody").value = "";
       })
@@ -2851,9 +3097,128 @@
       })
       .finally(function () {
         btn.disabled = false;
-        btn.textContent = "Göndər";
+        btn.textContent = original;
       });
   });
+
+  document.getElementById("broadcastScheduleBtn").addEventListener("click", function () {
+    var errorEl = document.getElementById("broadcastError");
+    errorEl.textContent = "";
+    var title = document.getElementById("broadcastTitle").value.trim();
+    var body = document.getElementById("broadcastBody").value.trim();
+    var sendAtLocal = document.getElementById("broadcastScheduleAt").value;
+    if (!title || !body) {
+      errorEl.textContent = "Başlıq və mətn tələb olunur.";
+      return;
+    }
+    if (!sendAtLocal) {
+      errorEl.textContent = "Göndərmə vaxtını seçin.";
+      return;
+    }
+    var sendAt = new Date(sendAtLocal);
+    if (isNaN(sendAt.getTime()) || sendAt.getTime() <= Date.now()) {
+      errorEl.textContent = "Göndərmə vaxtı gələcəkdə olmalıdır.";
+      return;
+    }
+
+    var audience = broadcastAudience();
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Planlanır…";
+    sb("scheduled_broadcasts", {
+      method: "POST",
+      headers: { "Prefer": "return=minimal" },
+      body: {
+        title: title,
+        body: body,
+        audience_plan: audience.audiencePlan,
+        audience_language: audience.audienceLanguage,
+        send_at: sendAt.toISOString(),
+      },
+    })
+      .then(function () {
+        toast("Bildiriş planlandı: " + sendAt.toLocaleString("az-AZ"));
+        document.getElementById("broadcastTitle").value = "";
+        document.getElementById("broadcastBody").value = "";
+        document.getElementById("broadcastScheduleAt").value = "";
+        loadScheduledBroadcasts();
+      })
+      .catch(function (err) {
+        errorEl.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
+
+  function loadScheduledBroadcasts() {
+    var wrap = document.getElementById("scheduledBroadcastsList");
+    wrap.textContent = "Yüklənir…";
+    sb("scheduled_broadcasts?order=send_at.asc&limit=50&select=*")
+      .then(function (rows) {
+        wrap.innerHTML = "";
+        if (!rows || !rows.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Planlanmış bildiriş yoxdur.";
+          wrap.appendChild(empty);
+          return;
+        }
+        var AUDIENCE_PLAN_LABEL = { all: "Hamısı", free: "Free", premium: "Premium" };
+        var AUDIENCE_LANG_LABEL = { all: "Hamısı", az: "AZ", en: "EN" };
+        var STATUS_LABEL_SB = { pending: "⏳ Gözləyir", sent: "✓ Göndərildi", failed: "✗ Xəta", canceled: "Ləğv edilib" };
+        rows.forEach(function (row) {
+          var item = document.createElement("div");
+          item.className = "place-card";
+          item.style.marginBottom = "8px";
+          item.innerHTML =
+            '<div>' +
+              '<div class="pc-title">' + esc(row.title) + '</div>' +
+              '<div class="pc-sub" style="margin-top:6px; white-space:pre-wrap;">' + esc(row.body) + '</div>' +
+              '<div class="pc-sub" style="margin-top:6px;">' +
+                (STATUS_LABEL_SB[row.status] || row.status) + ' · ' +
+                (AUDIENCE_PLAN_LABEL[row.audience_plan] || row.audience_plan) + ' · ' +
+                (AUDIENCE_LANG_LABEL[row.audience_language] || row.audience_language) + ' · ' +
+                new Date(row.send_at).toLocaleString("az-AZ") +
+              '</div>' +
+              (row.error ? '<div class="pc-note">Xəta: ' + esc(row.error) + '</div>' : '') +
+            '</div>' +
+            (row.status === "pending"
+              ? '<button type="button" class="place-delete-btn" data-action="cancel-scheduled">Ləğv et</button>'
+              : '');
+          var cancelBtn = item.querySelector('[data-action="cancel-scheduled"]');
+          if (cancelBtn) {
+            cancelBtn.addEventListener("click", function () {
+              cancelBtn.disabled = true;
+              sb("scheduled_broadcasts?id=eq." + row.id, {
+                method: "PATCH",
+                headers: { "Prefer": "return=minimal" },
+                body: { status: "canceled" },
+              })
+                .then(function () {
+                  toast("Ləğv edildi");
+                  loadScheduledBroadcasts();
+                })
+                .catch(function (err) {
+                  toast("Xəta: " + err.message);
+                  cancelBtn.disabled = false;
+                });
+            });
+          }
+          wrap.appendChild(item);
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Yüklənmədi: " + err.message;
+        wrap.appendChild(errEl);
+      });
+  }
+  document.getElementById("scheduledBroadcastsRefreshBtn").addEventListener("click", loadScheduledBroadcasts);
 
   document.getElementById("announcementForm").addEventListener("submit", function (e) {
     e.preventDefault();

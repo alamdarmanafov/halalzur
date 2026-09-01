@@ -562,3 +562,39 @@ create policy "Public insert" on app_versions
 
 create policy "Public delete" on app_versions
   for delete using (true);
+
+-- Synced from the in-app language switcher (app/(tabs)/profile.tsx) so
+-- the admin panel's broadcast push can target by language — nothing
+-- server-side knew a user's language before this, it only ever lived in
+-- local AsyncStorage.
+alter table users add column language text not null default 'az' check (language in ('az', 'en'));
+
+-- A broadcast push queued for a future send time. The admin panel inserts
+-- these directly (same anon-key + RLS-gated pattern as everything else
+-- here); a separate scheduled job (admin-panel/api/process-scheduled-
+-- broadcasts.js, fired by .github/workflows/send-scheduled-broadcasts.yml)
+-- is the only thing that ever flips one from 'pending' to 'sent'/'failed'.
+create table scheduled_broadcasts (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  body text not null,
+  audience_plan text not null default 'all' check (audience_plan in ('all', 'free', 'premium')),
+  audience_language text not null default 'all' check (audience_language in ('all', 'az', 'en')),
+  send_at timestamptz not null,
+  status text not null default 'pending' check (status in ('pending', 'sent', 'failed', 'canceled')),
+  sent_count integer,
+  error text,
+  created_at timestamptz not null default now(),
+  sent_at timestamptz
+);
+
+alter table scheduled_broadcasts enable row level security;
+
+create policy "Public read" on scheduled_broadcasts
+  for select using (true);
+
+create policy "Public insert" on scheduled_broadcasts
+  for insert with check (true);
+
+create policy "Public update" on scheduled_broadcasts
+  for update using (true) with check (true);
