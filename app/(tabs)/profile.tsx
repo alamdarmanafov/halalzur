@@ -12,6 +12,7 @@ import { registerForPushNotifications } from '../../lib/notifications';
 import { syncUserLanguage } from '../../lib/userSync';
 import { isAdmin } from '../../lib/admin';
 import { getPoints, fetchPendingSubmissions } from '../../lib/submissions';
+import { POINTS_PER_PREMIUM_DAY, MIN_REDEEMABLE_DAYS } from '../../lib/points';
 import { deleteAccount } from '../../lib/deleteAccount';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
@@ -31,7 +32,7 @@ function formatExpiryDate(iso: string, language: 'az' | 'en'): string {
 }
 
 export default function ProfileScreen() {
-  const { user, signOut, refreshPlan } = useAuth();
+  const { user, signOut, refreshPlan, redeemPointsForPremium } = useAuth();
   const { history, clear } = useHistory();
   const { favorites } = useFavorites();
   const { language, setLanguage, t } = useLanguage();
@@ -63,6 +64,36 @@ export default function ProfileScreen() {
     } finally {
       setRefreshing(false);
     }
+  };
+
+  const onRedeemPoints = () => {
+    const days = Math.floor(points / POINTS_PER_PREMIUM_DAY);
+    const minPoints = MIN_REDEEMABLE_DAYS * POINTS_PER_PREMIUM_DAY;
+    if (days < MIN_REDEEMABLE_DAYS) {
+      Alert.alert(t('profileRedeemNotEnoughTitle'), t('profileRedeemNotEnoughBody').replace('{n}', String(minPoints)));
+      return;
+    }
+    Alert.alert(
+      t('profileRedeemConfirmTitle'),
+      t('profileRedeemConfirmBody')
+        .replace('{days}', String(days))
+        .replace('{points}', String(days * POINTS_PER_PREMIUM_DAY)),
+      [
+        { text: t('profileRedeemCancel'), style: 'cancel' },
+        {
+          text: t('profileRedeemConfirmButton'),
+          onPress: async () => {
+            try {
+              const redeemedDays = await redeemPointsForPremium();
+              Alert.alert(t('profileRedeemSuccessTitle'), t('profileRedeemSuccessBody').replace('{days}', String(redeemedDays)));
+              loadProfileData();
+            } catch (err: any) {
+              Alert.alert(t('profileRedeemErrorTitle'), err.message ?? '');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const menuItems: MenuItem[] = [
@@ -214,10 +245,10 @@ export default function ProfileScreen() {
               </Text>
             )}
           </View>
-          <View style={styles.pointsBadge}>
+          <Pressable style={styles.pointsBadge} onPress={onRedeemPoints}>
             <Ionicons name="trophy" size={14} color={colors.primaryDark} />
             <Text style={styles.pointsText}>{points}</Text>
-          </View>
+          </Pressable>
         </View>
 
         {!isPremium && (

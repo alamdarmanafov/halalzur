@@ -6,6 +6,7 @@ import { User } from './types';
 import { supabase } from './supabase';
 import { syncUser, fetchRemoteAccountState, touchLastSeen, ensureReferralCode } from './userSync';
 import { AchievementTier } from './achievements';
+import { redeemPointsForPremium as redeemPoints } from './points';
 
 const STORAGE_KEY = 'halalzur.user';
 
@@ -44,6 +45,8 @@ type AuthContextValue = {
   incrementScanCount: () => Promise<void>;
   refreshPlan: () => Promise<void>;
   grantAchievementPremium: (tier: AchievementTier) => Promise<void>;
+  /** Spends whatever whole days the user's points currently cover; resolves to how many days were redeemed. */
+  redeemPointsForPremium: () => Promise<number>;
   // In-memory only (not persisted) — true for one app session right after
   // first sign-in with a given account, so (tabs)/_layout.tsx's
   // WelcomeModal knows to greet the new account exactly once.
@@ -291,6 +294,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
         };
         await persist(next);
         syncUser(next);
+      },
+      redeemPointsForPremium: async () => {
+        if (!user) return 0;
+        const days = await redeemPoints(user.id);
+        const base =
+          user.plan === 'premium' && user.premiumExpiresAt && new Date(user.premiumExpiresAt).getTime() > Date.now()
+            ? new Date(user.premiumExpiresAt).getTime()
+            : Date.now();
+        const premiumExpiresAt = new Date(base + days * 86400000).toISOString();
+        const next: User = { ...user, plan: 'premium', premiumExpiresAt };
+        await persist(next);
+        syncUser(next);
+        return days;
       },
       justRegistered,
       clearJustRegistered: () => setJustRegistered(false),
