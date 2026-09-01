@@ -17,7 +17,8 @@ create table certifiers (
   short_name text not null,
   country text not null,
   source_url text,
-  last_synced_at timestamptz
+  last_synced_at timestamptz,
+  logo_url text                     -- Supabase Storage public URL (certifier-logos bucket), admin-uploaded
 );
 
 create table certified_entries (

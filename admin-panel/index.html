@@ -1219,6 +1219,10 @@
           <label for="certifierSourceUrl">Sayt (istəyə bağlı)</label>
           <input type="text" id="certifierSourceUrl" placeholder="https://..." />
         </div>
+        <div class="field">
+          <label for="certifierLogoFile">Loqo (istəyə bağlı, şəkil, maks. 2 MB)</label>
+          <input type="file" id="certifierLogoFile" accept="image/*" />
+        </div>
       </div>
       <button type="submit" class="btn btn-approve" style="margin-top: 12px;">Sertifikatoru əlavə et</button>
       <div class="gate-error" id="certifierFormError"></div>
@@ -2881,6 +2885,35 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   });
 
   // ---- certifiers ----
+  var CERTIFIER_LOGO_BUCKET = "certifier-logos";
+  var CERTIFIER_LOGO_MAX_BYTES = 2 * 1024 * 1024;
+
+  // Uploads straight to Supabase Storage from the browser (no Vercel
+  // function needed — this project is already at Vercel's Hobby-plan
+  // 12-function cap) using the admin's own Supabase Auth token; the
+  // "certifier-logos" bucket's storage policies (supabase/migration_
+  // 2026_09_01_certifier_logos.sql) only allow is_admin() to write there.
+  function uploadCertifierLogo(certifierId, file) {
+    if (file.size > CERTIFIER_LOGO_MAX_BYTES) {
+      return Promise.reject(new Error("Şəkil 2 MB-dan böyükdür"));
+    }
+    var ext = (file.name.split(".").pop() || "png").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+    var path = certifierId + "-" + Date.now() + "." + ext;
+    return fetch(SUPABASE_URL + "/storage/v1/object/" + CERTIFIER_LOGO_BUCKET + "/" + path, {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: "Bearer " + (adminSession.accessToken || SUPABASE_ANON_KEY),
+        "Content-Type": file.type || "application/octet-stream",
+        "x-upsert": "true",
+      },
+      body: file,
+    }).then(function (res) {
+      if (!res.ok) return res.text().then(function (t) { throw new Error(t || res.statusText); });
+      return SUPABASE_URL + "/storage/v1/object/public/" + CERTIFIER_LOGO_BUCKET + "/" + path;
+    });
+  }
+
   function loadCertifiers() {
     sb("certifiers?order=name.asc&select=*")
       .then(function (rows) {
@@ -2898,16 +2931,52 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     list.forEach(function (row) {
       var card = document.createElement("div");
       card.className = "place-card";
+      var logoImg = row.logo_url
+        ? '<img src="' + esc(row.logo_url) + '" alt="" style="width:40px; height:40px; border-radius:8px; object-fit:contain; background:var(--surface-2); flex-shrink:0;" />'
+        : '<div style="width:40px; height:40px; border-radius:8px; background:var(--surface-2); flex-shrink:0;"></div>';
       card.innerHTML =
-        '<div>' +
-          '<div class="pc-title">' + esc(row.short_name) + ' <span class="pc-sub" style="font-weight:400;">(' + esc(row.id) + ')</span></div>' +
-          '<div class="pc-sub">' + esc(row.name) + '</div>' +
-          '<div class="pc-sub">' + esc(row.country) +
-            (row.source_url ? ' · <a href="' + esc(row.source_url) + '" target="_blank" rel="noopener">' + esc(row.source_url) + '</a>' : '') +
+        '<div style="display:flex; gap:12px; align-items:flex-start; min-width:0;">' +
+          logoImg +
+          '<div style="min-width:0;">' +
+            '<div class="pc-title">' + esc(row.short_name) + ' <span class="pc-sub" style="font-weight:400;">(' + esc(row.id) + ')</span></div>' +
+            '<div class="pc-sub">' + esc(row.name) + '</div>' +
+            '<div class="pc-sub">' + esc(row.country) +
+              (row.source_url ? ' · <a href="' + esc(row.source_url) + '" target="_blank" rel="noopener">' + esc(row.source_url) + '</a>' : '') +
+            '</div>' +
+            (row.last_synced_at ? '<div class="pc-sub">Son sync: ' + new Date(row.last_synced_at).toLocaleString("az-AZ") + '</div>' : '') +
           '</div>' +
-          (row.last_synced_at ? '<div class="pc-sub">Son sync: ' + new Date(row.last_synced_at).toLocaleString("az-AZ") + '</div>' : '') +
         '</div>' +
-        '<button type="button" class="place-delete-btn" data-action="delete-certifier">Sil</button>';
+        '<div style="display:flex; flex-direction:column; gap:6px; flex-shrink:0;">' +
+          '<label class="btn" style="text-align:center; cursor:pointer;">' +
+            (row.logo_url ? "Loqonu dəyiş" : "Loqo yüklə") +
+            '<input type="file" accept="image/*" data-action="upload-logo" style="display:none;" />' +
+          '</label>' +
+          '<button type="button" class="place-delete-btn" data-action="delete-certifier">Sil</button>' +
+        '</div>';
+      card.querySelector('[data-action="upload-logo"]').addEventListener("change", function (e) {
+        var file = e.target.files && e.target.files[0];
+        if (!file) return;
+        var label = e.target.closest("label");
+        var original = label.firstChild.textContent;
+        label.firstChild.textContent = "Yüklənir…";
+        uploadCertifierLogo(row.id, file)
+          .then(function (logoUrl) {
+            return sb("certifiers?id=eq." + row.id, {
+              method: "PATCH",
+              headers: { "Prefer": "return=minimal" },
+              body: { logo_url: logoUrl },
+            });
+          })
+          .then(function () {
+            toast("Loqo yükləndi: " + row.short_name);
+            logAudit("update", "certifiers", row.id, "logo_url");
+            loadCertifiers();
+          })
+          .catch(function (err) {
+            toast("Xəta: " + err.message);
+            label.firstChild.textContent = original;
+          });
+      });
       card.querySelector('[data-action="delete-certifier"]').addEventListener("click", function (e) {
         deleteCertifier(row, card, e.target);
       });
@@ -2940,17 +3009,21 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     var name = document.getElementById("certifierName").value.trim();
     var country = document.getElementById("certifierCountry").value.trim();
     var sourceUrl = document.getElementById("certifierSourceUrl").value.trim();
+    var logoFile = document.getElementById("certifierLogoFile").files[0] || null;
     if (!id || !shortName || !name || !country) {
       errorEl.textContent = "ID, qısa ad, tam ad və ölkə tələb olunur.";
       return;
     }
     var submitBtn = e.target.querySelector('button[type="submit"]');
     submitBtn.disabled = true;
-    sb("certifiers", {
-      method: "POST",
-      headers: { "Prefer": "return=minimal" },
-      body: { id: id, short_name: shortName, name: name, country: country, source_url: sourceUrl || null },
-    })
+    (logoFile ? uploadCertifierLogo(id, logoFile) : Promise.resolve(null))
+      .then(function (logoUrl) {
+        return sb("certifiers", {
+          method: "POST",
+          headers: { "Prefer": "return=minimal" },
+          body: { id: id, short_name: shortName, name: name, country: country, source_url: sourceUrl || null, logo_url: logoUrl },
+        });
+      })
       .then(function () {
         toast("Sertifikator əlavə edildi: " + shortName);
         logAudit("create", "certifiers", id, shortName);
