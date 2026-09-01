@@ -657,7 +657,8 @@
         </div>
         <div class="field">
           <label for="productStatus">Status</label>
-          <select id="productStatus">
+          <select id="productStatus" required>
+            <option value="">— Status seçin —</option>
             <option value="halal">Halal</option>
             <option value="mushbooh">Şübhəli</option>
             <option value="haram">Tövsiyə edilmir</option>
@@ -4049,6 +4050,10 @@
 
     if (!barcode || !name || !brand) {
       errorEl.textContent = "Barkod, məhsulun adı və marka tələb olunur.";
+      return;
+    }
+    if (!status) {
+      errorEl.textContent = "Status seçin.";
       return;
     }
 
