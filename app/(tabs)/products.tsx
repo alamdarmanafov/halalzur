@@ -26,6 +26,7 @@ import {
 import { PRODUCT_CATEGORIES, getProductCategories } from '../../lib/categories';
 import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
+import { HolidayBanner } from '../../components/HolidayBanner';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 const CATEGORY_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -200,6 +201,7 @@ export default function ProductsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Text style={styles.title}>{t('productsTitle')}</Text>
+      <HolidayBanner />
       <View style={{ position: 'relative', zIndex: 10 }}>
         <View style={styles.searchWrap}>
           <Ionicons name="search" size={18} color={colors.gray} />
