@@ -181,6 +181,21 @@ export default function ProductsScreen() {
     ]);
   };
 
+  const [refreshingBarcode, setRefreshingBarcode] = useState<string | null>(null);
+  // A single history row's on-demand refresh — the [history]-effect above
+  // already re-checks every history barcode on mount, but this lets a user
+  // force one specific row right after they know an admin just changed it,
+  // without waiting for a remount.
+  const recheckBarcode = async (barcode: string) => {
+    setRefreshingBarcode(barcode);
+    try {
+      const map = await getManyByBarcode([barcode]);
+      if (map[barcode]) setLiveHistory((prev) => ({ ...prev, [barcode]: map[barcode] }));
+    } finally {
+      setRefreshingBarcode(null);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Text style={styles.title}>{t('productsTitle')}</Text>
@@ -301,9 +316,22 @@ export default function ProductsScreen() {
               </View>
             </View>
             {isHistoryView ? (
-              <Pressable hitSlop={8} onPress={() => confirmDelete(item)}>
-                <Ionicons name="trash-outline" size={18} color={colors.grayLight} />
-              </Pressable>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => recheckBarcode(item.barcode)}
+                  disabled={refreshingBarcode === item.barcode}
+                >
+                  {refreshingBarcode === item.barcode ? (
+                    <ActivityIndicator size="small" color={colors.grayLight} />
+                  ) : (
+                    <Ionicons name="refresh-outline" size={18} color={colors.grayLight} />
+                  )}
+                </Pressable>
+                <Pressable hitSlop={8} onPress={() => confirmDelete(item)}>
+                  <Ionicons name="trash-outline" size={18} color={colors.grayLight} />
+                </Pressable>
+              </View>
             ) : (
               <Ionicons name="chevron-forward" size={20} color={colors.grayLight} />
             )}

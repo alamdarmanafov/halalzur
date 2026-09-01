@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Linking,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -329,6 +330,20 @@ export default function ProductDetailScreen() {
   const tint = STATUS_TINT[product.status];
   const isInHistory = history.some((h) => h.barcode === product.barcode);
 
+  // Web link works for anyone (shows a preview + "open in app" button on
+  // website/product.html); someone who already has the app installed gets
+  // routed straight in via the app.json "halalzur" scheme instead — expo-
+  // router maps halalzur://product/<id> to this exact screen automatically.
+  const onShareProduct = async () => {
+    try {
+      await Share.share({
+        message: `${product.productName} (${product.brand}) — ${t('productShareMessage')}\nhttps://halalzur.com/product.html?barcode=${product.barcode}`,
+      });
+    } catch {
+      // user cancelled the share sheet — nothing to do
+    }
+  };
+
   const handleDeleteFromHistory = () => {
     Alert.alert(
       t('productDeleteFromHistoryTitle'),
@@ -359,6 +374,9 @@ export default function ProductDetailScreen() {
               <Ionicons name="trash-outline" size={20} color={colors.danger} />
             </Pressable>
           )}
+          <Pressable onPress={onShareProduct} style={styles.backBtn}>
+            <Ionicons name="share-outline" size={22} color={colors.black} />
+          </Pressable>
           <Pressable onPress={() => toggleFavorite(product)} style={styles.backBtn}>
             <Ionicons
               name={isFavorite(product.barcode) ? 'heart' : 'heart-outline'}
