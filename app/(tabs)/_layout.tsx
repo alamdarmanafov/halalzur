@@ -11,6 +11,7 @@ import { captureAppScreenshot } from '../../lib/screenshot';
 import { useLanguage } from '../../lib/i18n-context';
 import { AnnouncementModal } from '../../components/AnnouncementModal';
 import { WelcomeModal } from '../../components/WelcomeModal';
+import { WhatsNewModal } from '../../components/WhatsNewModal';
 import { colors, radius } from '../../constants/theme';
 
 const TAB_ICON_SIZE = 24;
@@ -88,6 +89,7 @@ export default function TabsLayout() {
     <Fragment>
       <WelcomeModal />
       <AnnouncementModal />
+      <WhatsNewModal />
       <Tabs
         initialRouteName="products"
         screenOptions={{
