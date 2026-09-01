@@ -972,3 +972,20 @@ create policy "Public read/insert/update" on product_ratings for all using (true
 -- user after its own cooldown has passed.
 alter table users add column if not exists last_winback_sent_at timestamptz;
 alter table users add column if not exists last_recommend_sent_at timestamptz;
+
+-- In-app "Halal guide" articles (app/guide.tsx), admin-authored via the
+-- admin panel. Azerbaijani-only content, like product names/categories
+-- elsewhere in this schema — translating admin-written articles into
+-- 3 more languages per edit isn't realistic for a solo admin, so this
+-- follows the same precedent rather than adding per-language columns.
+create table if not exists guide_articles (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  body text not null,
+  order_index integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+alter table guide_articles enable row level security;
+drop policy if exists "Public read/insert/update/delete" on guide_articles;
+create policy "Public read/insert/update/delete" on guide_articles for all using (true) with check (true);

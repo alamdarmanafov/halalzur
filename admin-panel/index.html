@@ -334,6 +334,10 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
           <span>E-kodlar</span>
         </button>
+        <button class="nav-item" type="button" data-section="guide">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span>Bələdçi</span>
+        </button>
         <button class="nav-item" type="button" data-section="trash">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M6 7v13a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7"/><path d="M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/></svg>
           <span>Zibil qutusu</span>
@@ -1157,6 +1161,38 @@
     <div class="empty-state" id="customEcodesEmptyState" hidden>Hələ heç bir əlavə E-kod yoxdur.</div>
     </section>
 
+    <section class="section" id="section-guide" hidden>
+    <div class="panel-head">
+      <h2>Halal bələdçisi</h2>
+      <span id="guideArticlesCountLabel"></span>
+    </div>
+    <p class="hint">
+      Bu məqalələr tətbiqin Profil → Halal bələdçisi bölməsində görünür. Yalnız Azərbaycan dilindədir (digər
+      dillərə tərcümə olunmur).
+    </p>
+    <form class="place-form" id="guideArticleForm">
+      <div class="field-grid">
+        <div class="field field-wide">
+          <label for="guideArticleTitle">Başlıq</label>
+          <input type="text" id="guideArticleTitle" placeholder="Məs. Halal nə deməkdir?" required />
+        </div>
+        <div class="field field-wide">
+          <label for="guideArticleBody">Mətn</label>
+          <textarea id="guideArticleBody" rows="5" placeholder="Məqalənin mətni…" required></textarea>
+        </div>
+        <div class="field">
+          <label for="guideArticleOrder">Sıra (kiçik rəqəm əvvəl göstərilir)</label>
+          <input type="number" id="guideArticleOrder" value="0" />
+        </div>
+      </div>
+      <button type="submit" class="btn btn-approve" style="margin-top: 12px;" id="guideArticleSubmitBtn">Məqalə əlavə et</button>
+      <button type="button" class="btn" id="guideArticleCancelEditBtn" hidden style="margin-top: 12px;">Redaktəni ləğv et</button>
+      <div class="gate-error" id="guideArticleFormError"></div>
+    </form>
+    <div class="cards" id="guideArticleCards" style="margin-top: 20px;"></div>
+    <div class="empty-state" id="guideArticlesEmptyState" hidden>Hələ heç bir məqalə yoxdur.</div>
+    </section>
+
     <section class="section" id="section-trash" hidden>
     <div class="panel-head">
       <h2>Zibil qutusu</h2>
@@ -1334,6 +1370,7 @@
     feedback: document.getElementById("section-feedback"),
     certifiers: document.getElementById("section-certifiers"),
     ecodes: document.getElementById("section-ecodes"),
+    guide: document.getElementById("section-guide"),
     trash: document.getElementById("section-trash"),
     audit: document.getElementById("section-audit"),
   };
@@ -1379,6 +1416,7 @@
     feedback: loadFeedback,
     certifiers: loadCertifiers,
     ecodes: loadCustomEcodes,
+    guide: loadGuideArticles,
     trash: loadTrash,
     audit: loadAuditLog,
   };
@@ -2489,6 +2527,128 @@
         errorEl.textContent = /duplicate key|already exists/i.test(err.message)
           ? "Bu kod artıq əlavə edilib."
           : "Xəta: " + err.message;
+      })
+      .finally(function () {
+        submitBtn.disabled = false;
+      });
+  });
+
+  // ---- Halal bələdçisi (guide_articles) ----
+  // Simple CRUD, admin-authored, Azerbaijani-only content shown in the
+  // app's Profile → Halal bələdçisi screen (app/guide.tsx). Edit reuses
+  // the same form (loads the row into it) rather than a separate modal.
+  var editingGuideArticleId = null;
+
+  function loadGuideArticles() {
+    sb("guide_articles?order=order_index.asc&select=*")
+      .then(function (rows) {
+        renderGuideArticleCards(rows || []);
+      })
+      .catch(function (err) {
+        toast("Bələdçi məqalələri yüklənmədi: " + err.message);
+      });
+  }
+
+  function renderGuideArticleCards(list) {
+    var container = document.getElementById("guideArticleCards");
+    var empty = document.getElementById("guideArticlesEmptyState");
+    document.getElementById("guideArticlesCountLabel").textContent = list.length + " məqalə";
+    container.innerHTML = "";
+    if (!list.length) {
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = true;
+    list.forEach(function (row) {
+      var card = document.createElement("div");
+      card.className = "place-card";
+      card.innerHTML =
+        '<div>' +
+          '<div class="pc-title">' + esc(row.title) + '</div>' +
+          '<div class="pc-sub">Sıra: ' + row.order_index + '</div>' +
+          '<div class="pc-note">' + esc(row.body) + '</div>' +
+        '</div>' +
+        '<div style="display:flex; flex-direction:column; gap:6px;">' +
+          '<button class="btn" data-action="edit-guide-article">Redaktə et</button>' +
+          '<button class="place-delete-btn" data-action="delete-guide-article">Sil</button>' +
+        '</div>';
+      card.querySelector('[data-action="edit-guide-article"]').addEventListener("click", function () {
+        editingGuideArticleId = row.id;
+        document.getElementById("guideArticleTitle").value = row.title;
+        document.getElementById("guideArticleBody").value = row.body;
+        document.getElementById("guideArticleOrder").value = row.order_index;
+        document.getElementById("guideArticleSubmitBtn").textContent = "Yadda saxla";
+        document.getElementById("guideArticleCancelEditBtn").hidden = false;
+        document.getElementById("guideArticleTitle").scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+      card.querySelector('[data-action="delete-guide-article"]').addEventListener("click", function (e) {
+        deleteGuideArticle(row, card, e.target);
+      });
+      container.appendChild(card);
+    });
+  }
+
+  function resetGuideArticleForm() {
+    editingGuideArticleId = null;
+    document.getElementById("guideArticleForm").reset();
+    document.getElementById("guideArticleOrder").value = "0";
+    document.getElementById("guideArticleSubmitBtn").textContent = "Məqalə əlavə et";
+    document.getElementById("guideArticleCancelEditBtn").hidden = true;
+  }
+
+  document.getElementById("guideArticleCancelEditBtn").addEventListener("click", resetGuideArticleForm);
+
+  function deleteGuideArticle(row, card, btn) {
+    if (!window.confirm('"' + row.title + '" silinsin?')) return;
+    btn.disabled = true;
+    sb("guide_articles?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+      .then(function () {
+        toast("Silindi: " + row.title);
+        logAudit("delete", "guide_articles", row.id, row.title);
+        card.remove();
+        if (editingGuideArticleId === row.id) resetGuideArticleForm();
+        loadGuideArticles();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+      });
+  }
+
+  document.getElementById("guideArticleForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var errorEl = document.getElementById("guideArticleFormError");
+    errorEl.textContent = "";
+    var title = document.getElementById("guideArticleTitle").value.trim();
+    var body = document.getElementById("guideArticleBody").value.trim();
+    var orderIndex = parseInt(document.getElementById("guideArticleOrder").value, 10) || 0;
+
+    if (!title || !body) {
+      errorEl.textContent = "Başlıq və mətn tələb olunur.";
+      return;
+    }
+
+    var submitBtn = e.target.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    var payload = { title: title, body: body, order_index: orderIndex, updated_at: new Date().toISOString() };
+    var isEdit = !!editingGuideArticleId;
+    var request = isEdit
+      ? sb("guide_articles?id=eq." + editingGuideArticleId, {
+          method: "PATCH",
+          headers: { "Prefer": "return=minimal" },
+          body: payload,
+        })
+      : sb("guide_articles", { method: "POST", headers: { "Prefer": "return=minimal" }, body: payload });
+
+    request
+      .then(function () {
+        toast(isEdit ? "Yeniləndi: " + title : "Məqalə əlavə edildi: " + title);
+        logAudit(isEdit ? "update" : "create", "guide_articles", editingGuideArticleId || title, title);
+        resetGuideArticleForm();
+        loadGuideArticles();
+      })
+      .catch(function (err) {
+        errorEl.textContent = "Xəta: " + err.message;
       })
       .finally(function () {
         submitBtn.disabled = false;

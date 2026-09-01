@@ -175,9 +175,14 @@ export default function ProfileScreen() {
         ),
     },
     {
+      icon: 'book-outline',
+      label: t('profileGuide'),
+      onPress: () => router.push('/guide'),
+    },
+    {
       icon: 'shield-checkmark-outline',
       label: t('profileCertifiers'),
-      onPress: () => Alert.alert(t('profileCertifiersTitle'), t('profileCertifiersBody')),
+      onPress: () => router.push('/certifiers'),
     },
     {
       icon: 'gift-outline',
