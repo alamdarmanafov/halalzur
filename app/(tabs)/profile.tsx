@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, RefreshControl, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ import { isAdmin } from '../../lib/admin';
 import { getPoints, fetchPendingSubmissions } from '../../lib/submissions';
 import { POINTS_PER_PREMIUM_DAY, MIN_REDEEMABLE_DAYS } from '../../lib/points';
 import { computeBadges, BADGE_ICON, BADGE_LABEL_KEY } from '../../lib/badges';
+import { useLiteMode } from '../../lib/liteMode-context';
 import { deleteAccount } from '../../lib/deleteAccount';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
@@ -34,6 +35,7 @@ function formatExpiryDate(iso: string, language: 'az' | 'en'): string {
 
 export default function ProfileScreen() {
   const { user, signOut, refreshPlan, redeemPointsForPremium } = useAuth();
+  const { liteMode, setLiteMode } = useLiteMode();
   const { history, clear } = useHistory();
   const { favorites } = useFavorites();
   const { language, setLanguage, t } = useLanguage();
@@ -312,6 +314,19 @@ export default function ProfileScreen() {
           ))}
         </View>
 
+        <View style={styles.liteModeRow}>
+          <Ionicons name="cellular-outline" size={20} color={colors.primaryDark} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.liteModeLabel}>{t('profileLiteMode')}</Text>
+            <Text style={styles.liteModeSub}>{t('profileLiteModeSub')}</Text>
+          </View>
+          <Switch
+            value={liteMode}
+            onValueChange={setLiteMode}
+            trackColor={{ false: colors.grayLight, true: colors.primary }}
+          />
+        </View>
+
         <Text style={styles.version}>Halalzur v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
@@ -395,5 +410,16 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(10,77,46,0.08)',
   },
   menuLabel: { flex: 1, ...typography.body, color: colors.black, fontWeight: '600' },
+  liteModeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginTop: spacing.md,
+  },
+  liteModeLabel: { ...typography.body, color: colors.black, fontWeight: '700' },
+  liteModeSub: { ...typography.small, color: colors.gray, marginTop: 2 },
   version: { textAlign: 'center', color: colors.grayLight, marginTop: spacing.lg, fontSize: typography.small.fontSize },
 });

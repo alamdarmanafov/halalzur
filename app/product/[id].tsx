@@ -34,6 +34,7 @@ import { submitProduct, hasSubmittedProduct } from '../../lib/submissions';
 import { getRecommendCount, hasRecommended, toggleRecommend } from '../../lib/recommendations';
 import { getRatingSummary, getMyRating, setRating, RatingSummary } from '../../lib/ratings';
 import { isFollowingBrand, followBrand, unfollowBrand } from '../../lib/brandFollows';
+import { useLiteMode } from '../../lib/liteMode-context';
 import { sendPushNotification } from '../../lib/pushNotify';
 import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
@@ -53,6 +54,7 @@ export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
   const { t, language } = useLanguage();
+  const { liteMode } = useLiteMode();
   const isPremium = user?.plan === 'premium';
   const { isFavorite, toggleFavorite } = useFavorites();
   const { history, removeScan } = useHistory();
@@ -460,7 +462,7 @@ export default function ProductDetailScreen() {
         automaticallyAdjustKeyboardInsets
       >
         <View style={styles.hero}>
-          {product.imageUrl ? (
+          {product.imageUrl && !liteMode ? (
             <Image source={{ uri: product.imageUrl }} style={styles.productImage} resizeMode="contain" />
           ) : (
             <Text style={styles.emoji}>{product.imageEmoji}</Text>
