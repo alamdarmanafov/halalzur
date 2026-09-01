@@ -2722,12 +2722,16 @@
     clearTimeout(productFilterDebounce);
     productFilterDebounce = setTimeout(function () {
       // A barcode/name/brand search should find the product regardless of
-      // whatever status happens to be selected — without this, searching
-      // while "Naməlum" (or any other status) was still picked from an
-      // earlier browse silently returned nothing for a match under a
-      // different status.
+      // whatever other filters happen to still be set — without this,
+      // searching while "Naməlum" (or any status), "Yalnız tövsiyə
+      // olunanlar", or "Şəkli yoxdur" was still picked from earlier
+      // browsing silently returned nothing for a real match that simply
+      // didn't also satisfy that leftover filter.
       if (searchEl.value.trim()) {
         document.getElementById("productStatusFilter").value = "";
+        document.getElementById("productFeaturedFilter").checked = false;
+        document.getElementById("productMissingImageFilter").checked = false;
+        document.getElementById("productEcodeFilter").value = "";
       }
       currentProductPage = 0;
       loadProducts();
