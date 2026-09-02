@@ -116,8 +116,25 @@ function decodeEntities(s: string): string {
     .replace(/&gt;/g, '>');
 }
 
+// Real-world dry-run output showed barcodes truncated mid-digit-string
+// (e.g. "476015893" instead of "4760158930074") on some products — the
+// rendered markup apparently splits the digit run with something
+// (whitespace, an inline element) that a bare \d+ stops at. Capturing
+// everything up to the next tag and stripping non-digits is more
+// tolerant of that; the length check below is the real safety net,
+// rejecting anything that isn't a standard barcode length outright
+// rather than importing a truncated fragment as if it were real.
+const VALID_BARCODE_LENGTHS = new Set([8, 12, 13]); // EAN-8, UPC-A, EAN-13
+
+function extractBarcode(html: string): string | null {
+  const raw = extractField(html, /Məhsulun kodu:\s*([^<]+)/);
+  if (!raw) return null;
+  const digitsOnly = raw.replace(/\D/g, '');
+  return VALID_BARCODE_LENGTHS.has(digitsOnly.length) ? digitsOnly : null;
+}
+
 function parseProductPage(html: string, productUrl: string): Omit<SyncedEntry, 'category'> | null {
-  const barcode = extractField(html, /Məhsulun kodu:\s*(\d+)/);
+  const barcode = extractBarcode(html);
   if (!barcode) return null;
 
   const name = extractField(
@@ -209,8 +226,8 @@ export async function fetchAzexportEntries(maxEntries: number): Promise<Azexport
       const parsed = parseProductPage(html, productUrl);
       if (!parsed) {
         // Distinguish "no barcode" from "no name" for the summary — re-check
-        // which one was actually missing.
-        if (!extractField(html, /Məhsulun kodu:\s*(\d+)/)) skipped.noBarcode++;
+        // which one was actually missing (or invalid-length, for barcode).
+        if (!extractBarcode(html)) skipped.noBarcode++;
         else skipped.noName++;
         continue;
       }
