@@ -410,6 +410,24 @@
     <div id="premiumRevenueByPlan"></div>
 
     <div class="panel-head" style="margin-top: 32px;">
+      <h2>Premium churn</h2>
+      <button type="button" class="btn" id="premiumChurnRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+        Yenilə
+      </button>
+    </div>
+    <p class="hint">
+      Manual verilən/uzadılan/ləğv edilən Premium-lar (audit_log-dan) + hazırda müddəti bitmiş amma hələ
+      Premium kimi qeyd olunan hesablar — bunlar geri qaytarma təklifi üçün ən yaxşı namizədlərdir.
+    </p>
+    <div class="stats-row stats-row-4" id="premiumChurnSummary">
+      <div class="stat-card"><div class="num" id="churnGrantsMonth">–</div><div class="label">Bu ay verilib</div></div>
+      <div class="stat-card"><div class="num" id="churnExtendsMonth">–</div><div class="label">Bu ay uzadılıb</div></div>
+      <div class="stat-card"><div class="num" id="churnRevokesMonth">–</div><div class="label">Bu ay ləğv edilib</div></div>
+      <div class="stat-card"><div class="num" id="churnExpiredCount">–</div><div class="label">Bitib, yenilənməyib</div></div>
+    </div>
+    <div id="premiumChurnExpiredList"></div>
+
+    <div class="panel-head" style="margin-top: 32px;">
       <h2>Qeydiyyat ölkələri</h2>
       <button type="button" class="btn" id="registrationCountriesRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
         Yenilə
@@ -1239,6 +1257,7 @@
         <button type="button" class="btn btn-sm btn-approve" id="userBulkGrantPremiumBtn" disabled>💎 Premium ver</button>
         <button type="button" class="place-delete-btn btn-sm" id="userBulkBanBtn" disabled>🚫 Blokla</button>
         <button type="button" class="btn btn-sm" id="userBulkNotifyBtn" disabled>🔔 Bildiriş göndər</button>
+        <button type="button" class="btn btn-sm" id="userBulkWinBackBtn" disabled>🎁 Geri qaytarma təklifi</button>
       </div>
     </div>
 
@@ -1278,6 +1297,21 @@
 
     <div class="cards" id="userCards"></div>
     <div class="empty-state" id="usersEmptyState" hidden>Hələ heç bir istifadəçi sinxronlaşmayıb.</div>
+
+    <div class="place-form" style="margin-top: 28px;">
+      <div class="panel-head" style="margin-bottom: 8px;">
+        <h3 style="margin: 0; font-size: 15px;">⚠️ Şübhəli fəaliyyət</h3>
+        <button type="button" class="btn" id="suspiciousActivityRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+          Yenilə
+        </button>
+      </div>
+      <p class="hint">
+        Referral hesabatındakı "ömürlük 5+ dəvət" fərqli olaraq, burada QISA MÜDDƏTDƏ (24 saatda 3+ dəvət və ya
+        1 saatda 8+ məhsul təklifi) qeyri-adi sürətli fəaliyyət axtarılır — bot/fırıldaq hesabların tipik izi.
+        Sərt qayda deyil, yalnız gözə çarpdırmaq üçündür.
+      </p>
+      <div id="suspiciousActivityList"></div>
+    </div>
 
     <div class="place-form" style="margin-top: 28px;">
       <div class="panel-head" style="margin-bottom: 8px;">
@@ -1882,6 +1916,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       loadScanTrendChart();
       loadDataHealth();
       loadPremiumRevenue();
+      loadPremiumChurn();
       loadRegistrationCountries();
     },
     reports: function () {
@@ -1912,6 +1947,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       loadUsers();
       loadReferralReport();
       loadTopUserOfMonth();
+      loadSuspiciousActivity();
     },
     feedback: loadFeedback,
     certifiers: loadCertifiers,
@@ -2648,6 +2684,76 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       });
   }
   document.getElementById("premiumRevenueRefreshBtn").addEventListener("click", loadPremiumRevenue);
+
+  // "Churn" here isn't a renewal-rate metric (nothing tracks subscription
+  // periods that cleanly) — it's manual-grant activity from audit_log plus
+  // the one thing that IS reliably knowable: premium_expires_at already
+  // passed but the users row still says plan=premium (client-side auto-
+  // downgrade — lib/auth-context.tsx — hasn't run for that device yet).
+  // That list doubles as the win-back candidate list.
+  function loadPremiumChurn() {
+    Promise.all([
+      sb(
+        "audit_log?action=in.(user_grant_premium,user_extend_premium,user_revoke_premium)" +
+          "&select=action,created_at&order=created_at.desc&limit=1000"
+      ),
+      sb("users?plan=eq.premium&premium_expires_at=not.is.null&select=id,name,email,premium_expires_at"),
+    ])
+      .then(function (results) {
+        var events = results[0] || [];
+        var premiumUsers = results[1] || [];
+        var monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+
+        var grants = 0, extends_ = 0, revokes = 0;
+        events.forEach(function (e) {
+          if (new Date(e.created_at) < monthStart) return;
+          if (e.action === "user_grant_premium") grants++;
+          else if (e.action === "user_extend_premium") extends_++;
+          else if (e.action === "user_revoke_premium") revokes++;
+        });
+        document.getElementById("churnGrantsMonth").textContent = grants;
+        document.getElementById("churnExtendsMonth").textContent = extends_;
+        document.getElementById("churnRevokesMonth").textContent = revokes;
+
+        var expired = premiumUsers
+          .filter(function (u) { return new Date(u.premium_expires_at).getTime() < Date.now(); })
+          .sort(function (a, b) { return new Date(b.premium_expires_at) - new Date(a.premium_expires_at); });
+        document.getElementById("churnExpiredCount").textContent = expired.length;
+
+        var listWrap = document.getElementById("premiumChurnExpiredList");
+        listWrap.innerHTML = "";
+        if (!expired.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Bitmiş, yenilənməmiş Premium yoxdur.";
+          listWrap.appendChild(empty);
+          return;
+        }
+        expired.slice(0, 30).forEach(function (u) {
+          var row = document.createElement("div");
+          row.className = "place-card";
+          row.style.marginBottom = "8px";
+          row.innerHTML =
+            '<div>' +
+              '<div class="pc-title">' + esc(u.name || u.email || u.id) + '</div>' +
+              '<div class="pc-sub">Bitmə tarixi: ' + new Date(u.premium_expires_at).toLocaleDateString("az-AZ") + '</div>' +
+            '</div>' +
+            '<button type="button" class="btn btn-sm" data-role="winback-btn">🎁 Təklif göndər</button>';
+          row.querySelector('[data-role="winback-btn"]').addEventListener("click", function (e) {
+            sendWinBackOffer([u.id], e.target).then(function (sent) {
+              if (sent) loadPremiumChurn();
+            });
+          });
+          listWrap.appendChild(row);
+        });
+      })
+      .catch(function (err) {
+        toast("Churn məlumatı yüklənmədi: " + err.message);
+      });
+  }
+  document.getElementById("premiumChurnRefreshBtn").addEventListener("click", loadPremiumChurn);
 
   // ---- registration countries ----
   // Reads users.country, stamped by admin-panel/api/register-country.js
@@ -7744,6 +7850,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     document.getElementById("userBulkGrantPremiumBtn").disabled = count === 0;
     document.getElementById("userBulkBanBtn").disabled = count === 0;
     document.getElementById("userBulkNotifyBtn").disabled = count === 0;
+    document.getElementById("userBulkWinBackBtn").disabled = count === 0;
   }
 
   document.getElementById("userSelectToggleBtn").addEventListener("click", function () {
@@ -7866,6 +7973,69 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       });
   });
 
+  // Shared by the Users bulk bar and the Dashboard's premium-churn list —
+  // grants a short Premium trial and pushes a win-back notification.
+  // Logged as user_grant_premium (not a separate action) so it shows up
+  // in a user's existing Premium history panel with no extra plumbing.
+  function sendWinBackOffer(ids, btn) {
+    if (!ids.length) return Promise.resolve(false);
+    var daysStr = window.prompt(
+      ids.length + " istifadəçiyə neçə günlük pulsuz Premium təklifi göndərilsin?",
+      "7"
+    );
+    if (daysStr === null) return Promise.resolve(false);
+    var days = parseInt(daysStr.trim(), 10);
+    if (!days || days <= 0) {
+      toast("Gün sayı düzgün deyil");
+      return Promise.resolve(false);
+    }
+    if (!window.confirm(ids.length + " istifadəçiyə " + days + " günlük Premium + bildiriş göndərilsin?")) {
+      return Promise.resolve(false);
+    }
+    var expiresAt = new Date(Date.now() + days * 86400000).toISOString();
+    var title = "Sizi darıxmışıq! 🎁";
+    var body = days + " gün pulsuz Premium hədiyyəmizdir — indi açın!";
+    if (btn) btn.disabled = true;
+    return Promise.all(
+      ids.map(function (id) {
+        return sb("users?id=eq." + id, {
+          method: "PATCH",
+          headers: { "Prefer": "return=minimal" },
+          body: { plan: "premium", premium_expires_at: expiresAt, updated_at: new Date().toISOString() },
+        }).then(function () {
+          logAudit("user_grant_premium", "users", id, "Geri qaytarma təklifi: " + days + " gün");
+          return fetch("/api/send-user-notification", {
+            method: "POST",
+            headers: adminApiHeaders(),
+            body: JSON.stringify({ userId: id, title: title, body: body }),
+          }).catch(function () {});
+        });
+      })
+    )
+      .then(function () {
+        toast(ids.length + " istifadəçiyə təklif göndərildi");
+        return true;
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        return false;
+      })
+      .finally(function () {
+        if (btn) btn.disabled = false;
+      });
+  }
+
+  document.getElementById("userBulkWinBackBtn").addEventListener("click", function () {
+    var ids = Object.keys(selectedUserIds);
+    var btn = this;
+    sendWinBackOffer(ids, btn).then(function (sent) {
+      if (!sent) return;
+      selectedUserIds = {};
+      updateUserBulkBar();
+      loadUsers();
+    });
+  });
+
   var userVirtualList = null;
   var userCardsByRowId = {};
 
@@ -7946,6 +8116,9 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         '<div class="pc-sub" data-role="referral-code-display">Referral kodu: ' + esc(row.referral_code || "—") + '</div>' +
         '<div class="pc-sub">Qeydiyyat metodu: ' + userSignupMethod(row.id) + '</div>' +
         '<div class="pc-sub">Son aktivlik: ' + (row.last_seen_at ? new Date(row.last_seen_at).toLocaleString("az-AZ") : "—") + '</div>' +
+        (row.last_winback_sent_at
+          ? '<div class="pc-sub">Avtomatik xatırlatma: ' + new Date(row.last_winback_sent_at).toLocaleDateString("az-AZ") + '</div>'
+          : '') +
         '<div class="pc-sub">Qeydiyyat: ' + (row.created_at ? new Date(row.created_at).toLocaleDateString("az-AZ") : "—") +
           (row.country ? " · " + esc(row.country) : "") + '</div>' +
         '<div class="pc-sub">🏆 ' + (row.points || 0) + ' xal</div>' +
@@ -8519,6 +8692,98 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         btn.textContent = original;
       });
   });
+
+  // Velocity-based fraud signal, distinct from loadReferralReport's
+  // lifetime-total threshold below: a real user might rack up 5+ referrals
+  // over months, but 3 referrals inside one 24h window (or 8 product
+  // submissions inside one hour) is the shape a referral-farming bot or a
+  // spam-submission script actually leaves, so it's checked separately.
+  function loadSuspiciousActivity() {
+    var wrap = document.getElementById("suspiciousActivityList");
+    wrap.textContent = "Yüklənir…";
+    Promise.all([
+      sb("referrals?select=referrer_id,created_at&order=created_at.asc"),
+      sb("product_submissions?select=submitted_by,created_at&order=created_at.asc"),
+      sb("users?select=id,name,email,banned"),
+    ])
+      .then(function (results) {
+        var referrals = results[0] || [];
+        var submissions = results[1] || [];
+        var usersById = {};
+        (results[2] || []).forEach(function (u) { usersById[u.id] = u; });
+        var flagged = {};
+
+        function flag(id, reason) {
+          if (!id) return;
+          if (!flagged[id]) flagged[id] = [];
+          if (flagged[id].indexOf(reason) === -1) flagged[id].push(reason);
+        }
+
+        // Sliding window over each id's sorted timestamps: if any run of
+        // `threshold` consecutive events spans less than `windowMs`, flag it.
+        function checkVelocity(rows, idKey, windowMs, threshold, reason) {
+          var byId = {};
+          rows.forEach(function (r) {
+            var id = r[idKey];
+            if (!id) return;
+            (byId[id] = byId[id] || []).push(new Date(r.created_at).getTime());
+          });
+          Object.keys(byId).forEach(function (id) {
+            var times = byId[id];
+            for (var i = 0; i + threshold - 1 < times.length; i++) {
+              if (times[i + threshold - 1] - times[i] <= windowMs) {
+                flag(id, reason);
+                break;
+              }
+            }
+          });
+        }
+
+        checkVelocity(referrals, "referrer_id", 24 * 3600000, 3, "24 saatda 3+ dəvət");
+        checkVelocity(submissions, "submitted_by", 3600000, 8, "1 saatda 8+ məhsul təklifi");
+
+        var ids = Object.keys(flagged);
+        wrap.innerHTML = "";
+        if (!ids.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Şübhəli fəaliyyət tapılmadı.";
+          wrap.appendChild(empty);
+          return;
+        }
+        ids.forEach(function (id) {
+          var user = usersById[id];
+          var item = document.createElement("div");
+          item.className = "place-card";
+          item.style.marginBottom = "8px";
+          item.innerHTML =
+            '<div>' +
+              '<div class="pc-title">' + esc(user ? (user.name || user.email || id) : id) + '</div>' +
+              '<div class="pc-sub" style="color:var(--bad);">⚠️ ' + esc(flagged[id].join(" · ")) + '</div>' +
+            '</div>' +
+            (user
+              ? user.banned
+                ? '<span class="status-pill haram">Artıq bloklanıb</span>'
+                : '<button type="button" class="place-delete-btn btn-sm" data-role="ban-btn">Blokla</button>'
+              : "");
+          var banBtn = item.querySelector('[data-role="ban-btn"]');
+          if (banBtn) {
+            banBtn.addEventListener("click", function (e) {
+              toggleUserBan(user, e.target);
+            });
+          }
+          wrap.appendChild(item);
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Yüklənmədi: " + err.message;
+        wrap.appendChild(errEl);
+      });
+  }
+  document.getElementById("suspiciousActivityRefreshBtn").addEventListener("click", loadSuspiciousActivity);
 
   function loadReferralReport() {
     var wrap = document.getElementById("referralReportList");
