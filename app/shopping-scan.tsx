@@ -191,7 +191,7 @@ export default function ShoppingScanScreen() {
           </Pressable>
           <View style={styles.cartBadge}>
             <Ionicons name="cart" size={14} color={colors.white} />
-            <Text style={styles.cartBadgeText}>Shopping Scan · {items.length}</Text>
+            <Text style={styles.cartBadgeText}>{t('subFeatureShoppingScan')} · {items.length}</Text>
           </View>
         </View>
         <Text style={styles.headerSubtitle}>{t('shoppingHeaderSubtitle')}</Text>

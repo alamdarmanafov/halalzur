@@ -136,7 +136,7 @@ export default function ScanScreen() {
               onPress={() => router.push(isPremium ? '/shopping-scan' : '/subscription')}
             >
               <Ionicons name="cart-outline" size={16} color={colors.white} />
-              <Text style={styles.shoppingBtnText}>Shopping Scan</Text>
+              <Text style={styles.shoppingBtnText}>{t('subFeatureShoppingScan')}</Text>
               {!isPremium && <Ionicons name="lock-closed" size={12} color={colors.white} />}
             </Pressable>
           </View>
