@@ -366,8 +366,15 @@ export async function loadCustomECodes(): Promise<void> {
   );
 }
 
+// A custom_ecodes row sharing a code with a built-in entry is an admin's
+// edit of that entry (see the admin panel's "E-kodlar" section — "Redaktə
+// et" on a built-in code creates exactly this kind of row), so it must
+// replace the built-in one here, not just sit alongside it as a duplicate.
 function allECodes(): ECodeEntry[] {
-  return EXTRA_ECODES.length ? [...E_CODES, ...EXTRA_ECODES] : E_CODES;
+  if (!EXTRA_ECODES.length) return E_CODES;
+  const overriddenCodes = new Set(EXTRA_ECODES.map((e) => e.code.toUpperCase()));
+  const notOverridden = E_CODES.filter((e) => !overriddenCodes.has(e.code.toUpperCase()));
+  return [...notOverridden, ...EXTRA_ECODES];
 }
 
 export function findECode(query: string): ECodeEntry | undefined {
