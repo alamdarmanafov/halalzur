@@ -1189,6 +1189,15 @@
           <option value="free">Yalnız Free</option>
         </select>
       </div>
+      <div class="field" style="min-width: 190px; margin-bottom: 0;">
+        <label for="userSortBy">Sırala</label>
+        <select id="userSortBy">
+          <option value="updated_at">Son yenilənmə</option>
+          <option value="last_seen_at">Son aktivlik</option>
+          <option value="points">Ən çox xal</option>
+          <option value="created_at">Qeydiyyat (yeni əvvəl)</option>
+        </select>
+      </div>
       <label style="display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--ink-muted); padding-bottom: 10px;">
         <input type="checkbox" id="userBannedFilter" style="width: 16px; height: 16px;" />
         Yalnız bloklananlar
@@ -7512,9 +7521,17 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   var allUsersList = [];
 
   function loadUsers() {
-    sb("users?order=updated_at.desc&select=*")
-      .then(function (rows) {
-        allUsersList = rows || [];
+    Promise.all([
+      sb("users?order=updated_at.desc&select=*"),
+      sb("user_points?select=user_id,points").catch(function () { return []; }),
+    ])
+      .then(function (results) {
+        var pointsByUserId = {};
+        (results[1] || []).forEach(function (p) { pointsByUserId[p.user_id] = p.points; });
+        allUsersList = (results[0] || []).map(function (u) {
+          u.points = pointsByUserId[u.id] || 0;
+          return u;
+        });
         document.getElementById("statUsersTotal").textContent = allUsersList.length;
         document.getElementById("statUsersPremium").textContent =
           allUsersList.filter(function (u) { return u.plan === "premium"; }).length;
@@ -7527,11 +7544,12 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
 
   // Client-side, over the already-fetched full list — same reasoning as
   // the virtual list itself: the full array is already in memory, so
-  // filtering it locally is instant and needs no extra round-trip.
+  // filtering/sorting it locally is instant and needs no extra round-trip.
   function applyUserFilters() {
     var q = document.getElementById("userSearch").value.trim().toLowerCase();
     var plan = document.getElementById("userPlanFilter").value;
     var bannedOnly = document.getElementById("userBannedFilter").checked;
+    var sortBy = document.getElementById("userSortBy").value;
     var filtered = allUsersList.filter(function (u) {
       if (q) {
         var hay = ((u.name || "") + " " + (u.email || "")).toLowerCase();
@@ -7541,6 +7559,12 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       if (bannedOnly && !u.banned) return false;
       return true;
     });
+    filtered.sort(function (a, b) {
+      if (sortBy === "points") return (b.points || 0) - (a.points || 0);
+      // ISO date strings sort correctly as plain strings; missing dates
+      // (e.g. a user with no last_seen_at yet) sort last.
+      return (b[sortBy] || "").localeCompare(a[sortBy] || "");
+    });
     renderUserCards(filtered);
   }
 
@@ -7549,6 +7573,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     clearTimeout(userSearchDebounce);
     userSearchDebounce = setTimeout(applyUserFilters, 250);
   });
+  document.getElementById("userSortBy").addEventListener("change", applyUserFilters);
   document.getElementById("userPlanFilter").addEventListener("change", applyUserFilters);
   document.getElementById("userBannedFilter").addEventListener("change", applyUserFilters);
 
@@ -7614,6 +7639,9 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         (row.banned && row.ban_reason ? '<div class="pc-note">Səbəb: ' + esc(row.ban_reason) + '</div>' : '') +
         '<div class="pc-sub" data-role="referral-code-display">Referral kodu: ' + esc(row.referral_code || "—") + '</div>' +
         '<div class="pc-sub">Son aktivlik: ' + (row.last_seen_at ? new Date(row.last_seen_at).toLocaleString("az-AZ") : "—") + '</div>' +
+        '<div class="pc-sub">Qeydiyyat: ' + (row.created_at ? new Date(row.created_at).toLocaleDateString("az-AZ") : "—") +
+          (row.country ? " · " + esc(row.country) : "") + '</div>' +
+        '<div class="pc-sub">🏆 ' + (row.points || 0) + ' xal</div>' +
         '<div data-role="user-detail" style="margin-top:8px;"></div>' +
       '</div>' +
       '<div style="display:flex; flex-direction:column; gap:6px;">' +
@@ -7621,6 +7649,9 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         '<button class="place-delete-btn" data-action="toggle-plan" style="background:var(--ok-bg); color:var(--ok);">' +
           (row.plan === "premium" ? "Free et" : "Premium et") +
         '</button>' +
+        (row.plan === "premium"
+          ? '<button class="btn" data-action="extend-plan">🔄 Premium-u uzat</button>'
+          : '') +
         '<button class="place-delete-btn" data-action="toggle-ban">' +
           (row.banned ? "Blokdan çıxar" : "Blokla") +
         '</button>' +
@@ -7632,6 +7663,12 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     card.querySelector('[data-action="toggle-plan"]').addEventListener("click", function (e) {
       toggleUserPlan(row, e.target);
     });
+    var extendBtn = card.querySelector('[data-action="extend-plan"]');
+    if (extendBtn) {
+      extendBtn.addEventListener("click", function (e) {
+        extendUserPremium(row, e.target);
+      });
+    }
     card.querySelector('[data-action="toggle-ban"]').addEventListener("click", function (e) {
       toggleUserBan(row, e.target);
     });
@@ -8079,6 +8116,43 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
           row.id,
           newPlan === "premium" ? (expiresAt ? "bitmə tarixi: " + expiresAt : "müddətsiz") : "free-ə keçirildi"
         );
+        loadUsers();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+      });
+  }
+
+  // Adds N days to an already-Premium user's current expiry (or to now,
+  // if it's already expired/unset) — without needing to demote to Free
+  // and grant again just to change the duration.
+  function extendUserPremium(row, btn) {
+    var daysStr = window.prompt(
+      '"' + (row.name || row.email || "İstifadəçi") + '" hesabına neçə gün əlavə edilsin?',
+      "30"
+    );
+    if (daysStr === null) return;
+    daysStr = daysStr.trim();
+    var days = parseInt(daysStr, 10);
+    if (!days || days <= 0) {
+      toast("Gün sayı düzgün deyil");
+      return;
+    }
+    var base =
+      row.premium_expires_at && new Date(row.premium_expires_at).getTime() > Date.now()
+        ? new Date(row.premium_expires_at).getTime()
+        : Date.now();
+    var expiresAt = new Date(base + days * 86400000).toISOString();
+    btn.disabled = true;
+    sb("users?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { plan: "premium", premium_expires_at: expiresAt, updated_at: new Date().toISOString() },
+    })
+      .then(function () {
+        toast(days + " gün əlavə edildi");
+        logAudit("user_extend_premium", "users", row.id, "yeni bitmə tarixi: " + expiresAt);
         loadUsers();
       })
       .catch(function (err) {
