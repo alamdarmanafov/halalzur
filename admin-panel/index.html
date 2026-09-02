@@ -5258,11 +5258,43 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     btn.disabled = true;
     var original = btn.textContent;
     btn.textContent = "Yenilənir…";
-    sb("certified_entries?id=in.(" + ids.join(",") + ")", {
-      method: "PATCH",
-      headers: { "Prefer": "return=minimal" },
-      body: { status: status, updated_at: new Date().toISOString() },
-    })
+
+    // Same reasoning as updateProduct's justReviewed handling: a still-raw
+    // Open Food Facts import (certifier_id='openfoodfacts') getting a real
+    // status here IS the review — without this, a bulk status change would
+    // leave the same "✓ HALAL next to 'hələ yoxlanılmayıb'" contradiction
+    // on every affected row. rowsById is built from whichever tab's list
+    // (Bax or Redaktə et) actually has these rows loaded, since the bulk
+    // toolbar is shared between both.
+    var rowsById = {};
+    currentProductRows.forEach(function (r) { rowsById[r.id] = r; });
+    currentEditProductRows.forEach(function (r) { rowsById[r.id] = r; });
+    var offIds = status !== "unknown"
+      ? ids.filter(function (id) { return rowsById[id] && rowsById[id].certifier_id === "openfoodfacts"; })
+      : [];
+    var otherIds = ids.filter(function (id) { return offIds.indexOf(id) === -1; });
+
+    var requests = [];
+    if (otherIds.length) {
+      requests.push(
+        sb("certified_entries?id=in.(" + otherIds.join(",") + ")", {
+          method: "PATCH",
+          headers: { "Prefer": "return=minimal" },
+          body: { status: status, updated_at: new Date().toISOString() },
+        })
+      );
+    }
+    if (offIds.length) {
+      requests.push(
+        sb("certified_entries?id=in.(" + offIds.join(",") + ")", {
+          method: "PATCH",
+          headers: { "Prefer": "return=minimal" },
+          body: { status: status, certifier_id: "halalzur", notes: null, updated_at: new Date().toISOString() },
+        })
+      );
+    }
+
+    Promise.all(requests)
       .then(function () {
         toast(ids.length + " məhsulun statusu dəyişdi");
         logAudit("bulk_status_change", "certified_entries", null, ids.length + " məhsul → " + status);
@@ -6466,18 +6498,35 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     var originalText = btn.textContent;
     btn.textContent = "Yadda saxlanır…";
     var prevLabel = row.product_name || row.brand;
+
+    var body = {
+      product_name: productName || null,
+      brand: brand,
+      status: status,
+      category: category || null,
+      image_url: imageUrl || null,
+      admin_note: adminNote || null,
+      updated_at: new Date().toISOString(),
+    };
+    // A product still carrying the raw Open Food Facts import's certifier
+    // + notes ("Open Food Facts açıq bazasından idxal edilib — halal
+    // statusu hələ yoxlanılmayıb") while ALSO showing a real status the
+    // admin just set is a genuine contradiction end users see: a green
+    // "✓ HALAL" badge right next to "not yet verified" text. Setting any
+    // real status here IS the review, so reassign it to Halalzur's own
+    // community-review certifier (already seeded in schema.sql for
+    // exactly this — see the 'halalzur' certifiers row) and drop the
+    // stale note instead of leaving both contradicting the new status.
+    var justReviewed = row.certifier_id === "openfoodfacts" && status !== "unknown";
+    if (justReviewed) {
+      body.certifier_id = "halalzur";
+      body.notes = null;
+    }
+
     sb("certified_entries?id=eq." + row.id, {
       method: "PATCH",
       headers: { "Prefer": "return=representation" },
-      body: {
-        product_name: productName || null,
-        brand: brand,
-        status: status,
-        category: category || null,
-        image_url: imageUrl || null,
-        admin_note: adminNote || null,
-        updated_at: new Date().toISOString(),
-      },
+      body: body,
     })
       .then(function (updatedRows) {
         if (!updatedRows || !updatedRows.length) {
@@ -6494,12 +6543,19 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         if (row.product_name !== productName || row.brand !== brand) {
           logAudit("edit_product_name", "certified_entries", row.id, prevLabel + " → " + (productName || brand));
         }
+        if (justReviewed) {
+          logAudit("clear_off_import_note", "certified_entries", row.id, (productName || brand) + " → halalzur");
+        }
         row.product_name = productName || null;
         row.brand = brand;
         row.status = status;
         row.category = category || null;
         row.image_url = imageUrl || null;
         row.admin_note = adminNote || null;
+        if (justReviewed) {
+          row.certifier_id = "halalzur";
+          row.notes = null;
+        }
         // Tab-aware (not a hardcoded loadProducts()) — saving from the
         // "Məhsul redaktə" tab must refresh that tab's own list, not
         // silently refresh the hidden Browse tab's list instead.
