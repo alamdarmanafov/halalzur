@@ -83,9 +83,9 @@ const PLAN_SKUS = Object.values(PLANS).map((p) => p.id);
  */
 const FEATURES: { icon: string; label?: string; labelKey?: TranslationKey }[] = [
   { icon: 'infinite-outline', labelKey: 'subFeatureUnlimitedScan' },
-  { icon: 'flask-outline', label: 'Deep Ingredient Check' },
-  { icon: 'leaf-outline', label: 'Halal Alternatives' },
-  { icon: 'cart-outline', label: 'Shopping Scan' },
+  { icon: 'flask-outline', labelKey: 'subFeatureDeepIngredientCheck' },
+  { icon: 'leaf-outline', labelKey: 'subFeatureHalalAlternatives' },
+  { icon: 'cart-outline', labelKey: 'subFeatureShoppingScan' },
 ];
 
 export default function SubscriptionScreen() {
