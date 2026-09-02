@@ -21,7 +21,10 @@ import {
   getOrCreateReferralCode,
   hasRedeemedReferral,
   redeemReferralCode,
+  getMyReferrals,
   REFERRAL_BONUS_POINTS,
+  REFERRAL_MILESTONES,
+  ReferralEntry,
 } from '../lib/referrals';
 import { Button } from '../components/Button';
 import { colors, radius, spacing, typography } from '../constants/theme';
@@ -34,17 +37,21 @@ export default function ReferralsScreen() {
   const [redeemed, setRedeemed] = useState(false);
   const [inputCode, setInputCode] = useState('');
   const [redeeming, setRedeeming] = useState(false);
+  const [myReferrals, setMyReferrals] = useState<ReferralEntry[]>([]);
 
   useEffect(() => {
     if (!user) return;
-    Promise.all([getOrCreateReferralCode(user.id), hasRedeemedReferral(user.id)])
-      .then(([c, r]) => {
+    Promise.all([getOrCreateReferralCode(user.id), hasRedeemedReferral(user.id), getMyReferrals(user.id)])
+      .then(([c, r, invites]) => {
         setCode(c);
         setRedeemed(r);
+        setMyReferrals(invites);
       })
       .catch((err) => Alert.alert(t('referralsErrorTitle'), err.message ?? t('referralsErrorBody')))
       .finally(() => setLoading(false));
   }, [user]);
+
+  const nextMilestone = REFERRAL_MILESTONES.find((m) => m.count > myReferrals.length);
 
   const onShare = async () => {
     if (!code) return;
@@ -101,6 +108,38 @@ export default function ReferralsScreen() {
             <Text style={styles.codeValue}>{code}</Text>
           </View>
           <Button title={t('referralsShare')} onPress={onShare} style={{ marginTop: spacing.md }} />
+
+          {nextMilestone && (
+            <Text style={styles.milestoneHint}>
+              {t('referralsMilestoneHint')
+                .replace('{count}', String(nextMilestone.count))
+                .replace('{days}', String(nextMilestone.premiumDays))}
+            </Text>
+          )}
+
+          <View style={styles.myInvitesBox}>
+            <Text style={styles.sectionTitle}>{t('referralsMyInvitesTitle')}</Text>
+            {myReferrals.length > 0 && (
+              <Text style={styles.myInvitesCount}>
+                {t('referralsMyInvitesCount').replace('{n}', String(myReferrals.length))}
+              </Text>
+            )}
+            {myReferrals.length === 0 ? (
+              <Text style={styles.myInvitesEmpty}>{t('referralsMyInvitesEmpty')}</Text>
+            ) : (
+              myReferrals.map((entry) => (
+                <View key={entry.id} style={styles.myInviteRow}>
+                  <Ionicons name="person-circle-outline" size={20} color={colors.primary} />
+                  <Text style={styles.myInviteName} numberOfLines={1}>
+                    {entry.name || t('referralsMyInvitesUnnamed')}
+                  </Text>
+                  <Text style={styles.myInviteDate}>
+                    {new Date(entry.createdAt).toLocaleDateString()}
+                  </Text>
+                </View>
+              ))
+            )}
+          </View>
 
           <View style={styles.divider} />
 
@@ -172,6 +211,26 @@ const styles = StyleSheet.create({
   },
   divider: { height: 1, backgroundColor: colors.grayLight, marginVertical: spacing.xl, opacity: 0.5 },
   sectionTitle: { ...typography.h3, color: colors.black, marginBottom: spacing.sm },
+  milestoneHint: {
+    ...typography.small,
+    color: colors.primaryDark,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: spacing.md,
+  },
+  myInvitesBox: { marginTop: spacing.xl },
+  myInvitesCount: { ...typography.small, color: colors.gray, marginTop: -spacing.xs, marginBottom: spacing.sm },
+  myInvitesEmpty: { ...typography.small, color: colors.gray },
+  myInviteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.grayLight,
+  },
+  myInviteName: { ...typography.body, color: colors.black, flex: 1 },
+  myInviteDate: { ...typography.caption, color: colors.gray },
   input: {
     height: 52,
     borderRadius: radius.md,

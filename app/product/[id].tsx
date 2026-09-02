@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { captureRef } from 'react-native-view-shot';
 import { lookupBarcode, STATUS_DESC_KEY, getHalalAlternatives, getDistinctBrands } from '../../lib/certification';
 import { PRODUCT_CATEGORIES, getProductCategories } from '../../lib/categories';
 import { extractECodesFromText, searchECodes, ECODE_STATUS_LABEL_KEY } from '../../lib/eCodes';
@@ -41,6 +42,7 @@ import { sendPushNotification } from '../../lib/pushNotify';
 import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
 import { ECodeCard } from '../../components/ECodeCard';
+import { ShareResultCard } from '../../components/ShareResultCard';
 import { Button } from '../../components/Button';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
@@ -84,6 +86,8 @@ export default function ProductDetailScreen() {
   const [followingBrand, setFollowingBrand] = useState(false);
   const [ratingSummary, setRatingSummary] = useState<RatingSummary>({ average: 0, count: 0 });
   const [myRating, setMyRating] = useState(0);
+  const [sharingCard, setSharingCard] = useState(false);
+  const shareCardRef = useRef<View>(null);
 
   useEffect(() => {
     getDistinctBrands()
@@ -449,6 +453,26 @@ export default function ProductDetailScreen() {
     }
   };
 
+  // The card being captured (ShareResultCard below, in the JSX) is
+  // rendered off-screen at all times rather than only while sharing — a
+  // view that's never actually laid out has nothing for captureRef to
+  // read, and mounting it just-in-time races the layout pass.
+  const onShareResultCard = async () => {
+    if (!shareCardRef.current || sharingCard) return;
+    setSharingCard(true);
+    try {
+      const uri = await captureRef(shareCardRef, { format: 'png', quality: 0.95 });
+      await Share.share({ url: uri, message: `${t('shareCardMessage')} ${product?.productName}` });
+    } catch (err) {
+      // user cancelled the share sheet, or capture failed — either way
+      // there's nothing actionable to show; captureAppScreenshot follows
+      // the same best-effort convention (lib/screenshot.ts).
+      console.warn('onShareResultCard failed:', err);
+    } finally {
+      setSharingCard(false);
+    }
+  };
+
   const handleDeleteFromHistory = () => {
     Alert.alert(
       t('productDeleteFromHistoryTitle'),
@@ -521,6 +545,14 @@ export default function ProductDetailScreen() {
             <StatusBadge status={product.status} />
           </View>
           <Text style={styles.statusDesc}>{t(STATUS_DESC_KEY[product.status])}</Text>
+          <Pressable onPress={onShareResultCard} disabled={sharingCard} style={styles.shareCardLink} hitSlop={6}>
+            {sharingCard ? (
+              <ActivityIndicator size="small" color={colors.primaryDark} />
+            ) : (
+              <Ionicons name="image-outline" size={15} color={colors.primaryDark} />
+            )}
+            <Text style={styles.shareCardLinkText}>{t('shareCardAction')}</Text>
+          </Pressable>
           <Pressable
             onPress={onToggleRecommend}
             disabled={recommending}
@@ -916,6 +948,14 @@ export default function ProductDetailScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Off-screen at a fixed position (not display:none — captureRef
+          needs a real layout pass) so it's always ready when the share
+          link above is pressed, rather than mounting it just-in-time and
+          racing the first frame. */}
+      <View style={styles.offscreenCapture} pointerEvents="none">
+        <ShareResultCard ref={shareCardRef} productName={product.productName} brand={product.brand} status={product.status} />
+      </View>
     </SafeAreaView>
   );
 }
@@ -954,6 +994,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     lineHeight: 18,
   },
+  offscreenCapture: {
+    position: 'absolute',
+    top: 0,
+    left: -3000,
+  },
+  shareCardLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: spacing.sm,
+  },
+  shareCardLinkText: { ...typography.small, color: colors.primaryDark, fontWeight: '600' },
   recommendPill: {
     flexDirection: 'row',
     alignItems: 'center',
