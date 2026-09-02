@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { Redirect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../lib/auth-context';
 import { hasSeenOnboarding } from '../lib/onboarding';
 import { Logo } from '../components/Logo';
-import { colors } from '../constants/theme';
+import { colors, spacing, typography } from '../constants/theme';
 
 export default function Index() {
   const { user, isLoading } = useAuth();
@@ -18,8 +18,9 @@ export default function Index() {
   if (isLoading || seenOnboarding === null) {
     return (
       <LinearGradient colors={[colors.primaryDark, colors.primary]} style={styles.splash}>
-        <Logo size={96} variant="mark" />
-        <ActivityIndicator color={colors.white} style={{ marginTop: 24 }} />
+        <Logo size={128} variant="mark" />
+        <Text style={styles.splashWordmark}>Halalzur</Text>
+        <ActivityIndicator color={colors.white} style={{ marginTop: 32 }} />
       </LinearGradient>
     );
   }
@@ -38,4 +39,10 @@ export default function Index() {
 
 const styles = StyleSheet.create({
   splash: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  splashWordmark: {
+    ...typography.h2,
+    color: colors.white,
+    marginTop: spacing.md,
+    letterSpacing: 1,
+  },
 });
