@@ -81,7 +81,7 @@ export const translations: Record<Language, Dict> = {
     profilePremiumExpiryLine: 'Nailiyyət mükafatı — {date} tarixinə qədər',
 
     productsTitle: 'Məhsullar',
-    productsSearchPlaceholder: 'Məhsul, marka və ya kateqoriya axtar',
+    productsSearchPlaceholder: 'Məhsul, marka, kateqoriya və ya barkod axtar',
     productsCategoryAll: 'Hamısı',
     productsDeleteTitle: 'Tarixçədən sil',
     productsDeleteBody: 'səhv skan edilibsə, tarixçədən silə bilərsiniz.',
@@ -494,7 +494,7 @@ export const translations: Record<Language, Dict> = {
     profilePremiumExpiryLine: 'Achievement reward — until {date}',
 
     productsTitle: 'Products',
-    productsSearchPlaceholder: 'Search product, brand, or category',
+    productsSearchPlaceholder: 'Search product, brand, category, or barcode',
     productsCategoryAll: 'All',
     productsDeleteTitle: 'Remove from history',
     productsDeleteBody: 'If this was scanned by mistake, you can remove it from your history.',
@@ -907,7 +907,7 @@ export const translations: Record<Language, Dict> = {
     profilePremiumExpiryLine: 'Награда за достижение — до {date}',
 
     productsTitle: 'Товары',
-    productsSearchPlaceholder: 'Поиск товара, бренда или категории',
+    productsSearchPlaceholder: 'Поиск товара, бренда, категории или штрихкода',
     productsCategoryAll: 'Все',
     productsDeleteTitle: 'Удалить из истории',
     productsDeleteBody: 'Если это было отсканировано по ошибке, вы можете удалить его из истории.',
@@ -1320,7 +1320,7 @@ export const translations: Record<Language, Dict> = {
     profilePremiumExpiryLine: 'Başarı ödülü — {date} tarihine kadar',
 
     productsTitle: 'Ürünler',
-    productsSearchPlaceholder: 'Ürün, marka veya kategori ara',
+    productsSearchPlaceholder: 'Ürün, marka, kategori veya barkod ara',
     productsCategoryAll: 'Hepsi',
     productsDeleteTitle: 'Geçmişten sil',
     productsDeleteBody: 'Yanlışlıkla tarandıysa geçmişinizden silebilirsiniz.',

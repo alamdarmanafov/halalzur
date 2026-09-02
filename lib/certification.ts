@@ -188,8 +188,13 @@ export async function searchProducts(query: string): Promise<CertificationResult
 
     if (q) {
       const safe = q.replace(/[,()%]/g, '');
+      // A purely numeric query is a barcode — match it exactly rather than
+      // as a substring, so e.g. "3279425019752" doesn't also pull in other
+      // products whose barcode merely contains that digit sequence (same
+      // convention as the admin panel's own product search).
+      const barcodeCondition = /^\d+$/.test(safe) ? `barcode.eq.${safe}` : `barcode.ilike.%${safe}%`;
       request = request.or(
-        `brand.ilike.%${safe}%,product_name.ilike.%${safe}%,category.ilike.%${safe}%`
+        `brand.ilike.%${safe}%,product_name.ilike.%${safe}%,category.ilike.%${safe}%,${barcodeCondition}`
       );
     }
 
@@ -214,7 +219,8 @@ export async function searchProducts(query: string): Promise<CertificationResult
     (p) =>
       p.productName.toLowerCase().includes(lower) ||
       p.brand.toLowerCase().includes(lower) ||
-      p.category.toLowerCase().includes(lower)
+      p.category.toLowerCase().includes(lower) ||
+      p.barcode.includes(lower)
   );
 }
 
