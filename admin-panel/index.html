@@ -1176,6 +1176,25 @@
       Auth ilə işləyir). Premium statusu cihazdan öz-özünə bildirilir, heç bir metodda server tərəfində yoxlanılmır.
     </p>
 
+    <div class="place-form" style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
+      <div class="field" style="flex: 1; min-width: 200px; margin-bottom: 0;">
+        <label for="userSearch">Axtar (ad, email)</label>
+        <input type="text" id="userSearch" placeholder="Məs. Əli, ya da eli@gmail.com" />
+      </div>
+      <div class="field" style="min-width: 160px; margin-bottom: 0;">
+        <label for="userPlanFilter">Plan</label>
+        <select id="userPlanFilter">
+          <option value="">Hamısı</option>
+          <option value="premium">Yalnız Premium</option>
+          <option value="free">Yalnız Free</option>
+        </select>
+      </div>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--ink-muted); padding-bottom: 10px;">
+        <input type="checkbox" id="userBannedFilter" style="width: 16px; height: 16px;" />
+        Yalnız bloklananlar
+      </label>
+    </div>
+
     <div class="place-form" style="margin-bottom: 24px;">
       <div class="panel-head" style="margin-bottom: 8px;">
         <h3 style="margin: 0; font-size: 15px;">🔗 Dublikat hesabları birləşdir</h3>
@@ -7490,15 +7509,48 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   }
 
   // ---- users ----
+  var allUsersList = [];
+
   function loadUsers() {
     sb("users?order=updated_at.desc&select=*")
       .then(function (rows) {
-        renderUserCards(rows || []);
+        allUsersList = rows || [];
+        document.getElementById("statUsersTotal").textContent = allUsersList.length;
+        document.getElementById("statUsersPremium").textContent =
+          allUsersList.filter(function (u) { return u.plan === "premium"; }).length;
+        applyUserFilters();
       })
       .catch(function (err) {
         toast("İstifadəçilər yüklənmədi: " + err.message);
       });
   }
+
+  // Client-side, over the already-fetched full list — same reasoning as
+  // the virtual list itself: the full array is already in memory, so
+  // filtering it locally is instant and needs no extra round-trip.
+  function applyUserFilters() {
+    var q = document.getElementById("userSearch").value.trim().toLowerCase();
+    var plan = document.getElementById("userPlanFilter").value;
+    var bannedOnly = document.getElementById("userBannedFilter").checked;
+    var filtered = allUsersList.filter(function (u) {
+      if (q) {
+        var hay = ((u.name || "") + " " + (u.email || "")).toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      if (plan && u.plan !== plan) return false;
+      if (bannedOnly && !u.banned) return false;
+      return true;
+    });
+    renderUserCards(filtered);
+  }
+
+  var userSearchDebounce;
+  document.getElementById("userSearch").addEventListener("input", function () {
+    clearTimeout(userSearchDebounce);
+    userSearchDebounce = setTimeout(applyUserFilters, 250);
+  });
+  document.getElementById("userPlanFilter").addEventListener("change", applyUserFilters);
+  document.getElementById("userBannedFilter").addEventListener("change", applyUserFilters);
 
   var userVirtualList = null;
   var userCardsByRowId = {};
@@ -7506,10 +7558,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   function renderUserCards(list) {
     var container = document.getElementById("userCards");
     var empty = document.getElementById("usersEmptyState");
-    var premiumCount = list.filter(function (u) { return u.plan === "premium"; }).length;
     document.getElementById("usersCountLabel").textContent = list.length + " istifadəçi";
-    document.getElementById("statUsersTotal").textContent = list.length;
-    document.getElementById("statUsersPremium").textContent = premiumCount;
     if (!list.length) {
       empty.hidden = false;
       container.innerHTML = "";
@@ -7545,11 +7594,23 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       ? '<span class="status-pill halal">💎 Premium</span>'
       : '<span class="status-pill mushbooh">Free</span>';
     var banPill = row.banned ? '<span class="status-pill haram" style="margin-left:6px;">🚫 Bloklanıb</span>' : "";
+    var premiumExpiryLine = "";
+    if (row.plan === "premium" && row.premium_expires_at) {
+      var expired = new Date(row.premium_expires_at).getTime() < Date.now();
+      premiumExpiryLine =
+        '<div class="pc-sub" style="' + (expired ? 'color:var(--bad);' : '') + '">' +
+          (expired ? "Premium müddəti bitib: " : "Premium bitmə tarixi: ") +
+          new Date(row.premium_expires_at).toLocaleDateString("az-AZ") +
+        '</div>';
+    } else if (row.plan === "premium") {
+      premiumExpiryLine = '<div class="pc-sub">Premium: müddətsiz</div>';
+    }
     card.innerHTML =
       '<div>' +
         '<div class="pc-title">' + esc(row.name || "Adsız") + '</div>' +
         '<div class="pc-sub">' + esc(row.email || "—") + '</div>' +
         '<div class="pc-sub" style="margin-top:6px;">' + planPill + banPill + '</div>' +
+        premiumExpiryLine +
         (row.banned && row.ban_reason ? '<div class="pc-note">Səbəb: ' + esc(row.ban_reason) + '</div>' : '') +
         '<div class="pc-sub" data-role="referral-code-display">Referral kodu: ' + esc(row.referral_code || "—") + '</div>' +
         '<div class="pc-sub">Son aktivlik: ' + (row.last_seen_at ? new Date(row.last_seen_at).toLocaleString("az-AZ") : "—") + '</div>' +
@@ -7986,14 +8047,38 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   document.getElementById("referralReportRefreshBtn").addEventListener("click", loadReferralReport);
 
   function toggleUserPlan(row, btn) {
-    btn.disabled = true;
     var newPlan = row.plan === "premium" ? "free" : "premium";
+    var expiresAt = null;
+    if (newPlan === "premium") {
+      var daysStr = window.prompt(
+        '"' + (row.name || row.email || "İstifadəçi") +
+          '" üçün neçə günlük Premium verilsin? (Boş buraxsanız müddətsiz olacaq)',
+        "30"
+      );
+      if (daysStr === null) return; // ləğv edildi
+      daysStr = daysStr.trim();
+      if (daysStr) {
+        var days = parseInt(daysStr, 10);
+        if (!days || days <= 0) {
+          toast("Gün sayı düzgün deyil");
+          return;
+        }
+        expiresAt = new Date(Date.now() + days * 86400000).toISOString();
+      }
+    }
+    btn.disabled = true;
     sb("users?id=eq." + row.id, {
       method: "PATCH",
       headers: { "Prefer": "return=minimal" },
-      body: { plan: newPlan, updated_at: new Date().toISOString() },
+      body: { plan: newPlan, premium_expires_at: expiresAt, updated_at: new Date().toISOString() },
     })
       .then(function () {
+        logAudit(
+          newPlan === "premium" ? "user_grant_premium" : "user_revoke_premium",
+          "users",
+          row.id,
+          newPlan === "premium" ? (expiresAt ? "bitmə tarixi: " + expiresAt : "müddətsiz") : "free-ə keçirildi"
+        );
         loadUsers();
       })
       .catch(function (err) {
