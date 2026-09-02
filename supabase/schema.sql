@@ -1242,3 +1242,11 @@ insert into winback_templates (days_inactive, title, body) values
   (90, '3 aydır sizi gözləyirik', 'Halal seçimlərini asanlaşdırmaq üçün buradayıq — Halalzur-a qayıdıb yenidən skan etməyə başlayın 🔍'),
   (180, 'Uzun müddətdir görüşmürük 💚', 'Halalzur hələ də yanınızdadır — geri qayıdın, sizin üçün nə dəyişib görün.')
 on conflict (days_inactive) do nothing;
+
+-- Not a certifier — same placeholder role as 'openfoodfacts' above, for
+-- scripts/sync/azexport.ts's bulk import from azexport.az (AZPROMO's
+-- export directory). Every row synced under this id is status='unknown':
+-- it's real Azerbaijani-market barcode/product data, not a halal claim.
+insert into certifiers (id, name, short_name, country, source_url) values
+  ('azexport', 'AzExport.az (açıq baza, hələ yoxlanılmayıb)', 'AzExport', 'Azərbaycan', 'https://azexport.az/')
+on conflict (id) do nothing;

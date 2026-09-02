@@ -2,12 +2,16 @@ import { supabaseAdmin } from './supabaseAdmin';
 import { fetchGimdesEntries } from './gimdes';
 import { fetchJakimEntries } from './jakim';
 import { fetchOpenFoodFactsEntries } from './openFoodFacts';
+import { fetchAzexportEntries } from './azexport';
 import { SyncedEntry } from './types';
 
 const isDryRun = process.argv.includes('--dry-run');
 const skipOpenFoodFacts = process.argv.includes('--skip-off');
 const offLimitArg = process.argv.find((a: string) => a.startsWith('--off-limit='));
 const offLimit = offLimitArg ? parseInt(offLimitArg.split('=')[1], 10) : 12000;
+const skipAzexport = process.argv.includes('--skip-azexport');
+const azexportLimitArg = process.argv.find((a: string) => a.startsWith('--azexport-limit='));
+const azexportLimit = azexportLimitArg ? parseInt(azexportLimitArg.split('=')[1], 10) : 2000;
 
 // Fails in seconds instead of after a 20-40 minute Open Food Facts fetch —
 // syncOpenFoodFacts's upsert needs a unique index on certified_entries
@@ -168,10 +172,57 @@ async function syncOpenFoodFacts(maxEntries: number) {
   }
 }
 
+/**
+ * Same additive upsert pattern as syncOpenFoodFacts (see that function's
+ * comment) — azexport.az isn't a certifier either, and must never
+ * overwrite a real certification or an earlier import for a barcode
+ * that's already in the table.
+ */
+async function syncAzexport(maxEntries: number) {
+  console.log(`\n[azexport] fetching up to ${maxEntries} products (this can take a while)…`);
+  const { entries, skipped } = await fetchAzexportEntries(maxEntries);
+  const skipSummary =
+    `skipped: ${skipped.noBarcode} no barcode, ${skipped.noName} no name, ` +
+    `${skipped.duplicate} duplicate, ${skipped.fetchFailed} fetch failed`;
+  console.log(`[azexport] fetched ${entries.length} candidate products (${skipSummary})`);
+
+  if (entries.length === 0) {
+    console.log('[azexport] nothing to sync, skipping');
+    await logSync('azexport', 'success', 0, `nothing to sync — ${skipSummary}`);
+    return;
+  }
+
+  if (isDryRun) {
+    console.log('[azexport] --dry-run: first 10 parsed entries —');
+    console.table(entries.slice(0, 10).map((e) => ({ barcode: e.barcode, brand: e.brand, name: e.product_name })));
+    console.log('[azexport] --dry-run: not writing to Supabase.');
+    return;
+  }
+
+  try {
+    const BATCH_SIZE = 500;
+    let written = 0;
+    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+      const batch = entries.slice(i, i + BATCH_SIZE);
+      const { error, count } = await supabaseAdmin
+        .from('certified_entries')
+        .upsert(batch, { onConflict: 'barcode', ignoreDuplicates: true, count: 'exact' });
+      if (error) throw new Error(`[azexport] upsert failed: ${error.message}`);
+      written += count ?? 0;
+    }
+
+    console.log(`[azexport] wrote ${written} new products (${entries.length - written} already existed)`);
+    await logSync('azexport', 'success', written, `${entries.length - written} already existed; ${skipSummary}`);
+  } catch (err: any) {
+    await logSync('azexport', 'error', null, err.message ?? String(err));
+    throw err;
+  }
+}
+
 async function main() {
   if (isDryRun) console.log('Running in --dry-run mode: parsing only, no writes.\n');
 
-  if (!skipOpenFoodFacts && !isDryRun) {
+  if ((!skipOpenFoodFacts || !skipAzexport) && !isDryRun) {
     await checkBarcodeUniqueConstraint();
   }
 
@@ -183,6 +234,10 @@ async function main() {
 
   if (!skipOpenFoodFacts) {
     await syncOpenFoodFacts(offLimit);
+  }
+
+  if (!skipAzexport) {
+    await syncAzexport(azexportLimit);
   }
 
   console.log('\nDone.');
