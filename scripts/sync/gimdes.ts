@@ -21,6 +21,7 @@ const NOISE_PATTERNS = [
   /^www\./i,
   /^https?:\/\//i,
   /^\d{1,2}[./]\d{1,2}[./]\d{2,4}$/, // a lone date
+  /^--\s*\d+\s*of\s*\d+\s*--$/i, // pdf-parse's own inter-page separator ("-- 1 of 22 --")
 ];
 
 function looksLikeNoise(line: string): boolean {
