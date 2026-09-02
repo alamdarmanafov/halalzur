@@ -32,9 +32,15 @@
 //   OPENAI_API_KEY — from platform.openai.com → API keys
 //   OPENAI_MODEL   — optional, defaults to "gpt-4o-mini". Override this
 //                     if that model stops supporting the web_search tool.
+//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY  — for verifyAdmin()
 //
-// Auth: same "x-app-key must match the public Supabase anon key"
-// pattern as send-broadcast.js/send-user-notification.js.
+// Auth: verifies the caller's Supabase Auth token belongs to a real admin
+// (admin-panel/lib/verifyAdmin.js) — see that file for why this replaced
+// the old "x-app-key must match the public Supabase anon key" pattern.
+// Worth keeping tight here specifically since this endpoint burns paid
+// OpenAI API calls per request.
+import { verifyAdmin } from '../lib/verifyAdmin.js';
+
 const ECODE_PATTERN = /E\s?\d{3,4}[a-z]?/gi;
 
 function extractECodes(text) {
@@ -67,7 +73,8 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'method_not_allowed' });
     return;
   }
-  if (!process.env.SUPABASE_ANON_KEY || req.headers['x-app-key'] !== process.env.SUPABASE_ANON_KEY) {
+  const admin = await verifyAdmin(req);
+  if (!admin) {
     res.status(401).json({ error: 'unauthorized' });
     return;
   }

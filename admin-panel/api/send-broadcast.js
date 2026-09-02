@@ -4,17 +4,12 @@
 // scheduled_broadcasts instead of calling this endpoint — see
 // process-scheduled-broadcasts.js.
 //
-// Auth: same low-security "x-app-key must match the public Supabase anon
-// key" pattern already used by github-issue.js's close action — the admin
-// panel has no server-verified session (see that file's header comment
-// for the accepted-risk rationale). "unauthorized" almost always means
-// SUPABASE_ANON_KEY isn't set on this Vercel project (or doesn't match
-// admin-panel/index.html's SUPABASE_ANON_KEY constant exactly) — check
-// Vercel → Settings → Environment Variables.
+// Auth: verifies the caller's Supabase Auth token belongs to a real admin
+// (admin-panel/lib/verifyAdmin.js) — see that file for why this replaced
+// the old "x-app-key must match the public Supabase anon key" pattern.
 //
 // Required Vercel environment variables (same ones send-notification.js
 // already needs — no new setup if that's already configured):
-//   SUPABASE_ANON_KEY             — same public value embedded in admin-panel/index.html
 //   SUPABASE_URL                  — same value as EXPO_PUBLIC_SUPABASE_URL
 //   SUPABASE_SERVICE_ROLE_KEY     — Supabase → Project Settings → API → service_role key
 //   FIREBASE_PROJECT_ID           |  From Firebase Console → Project
@@ -22,6 +17,7 @@
 //   FIREBASE_PRIVATE_KEY          |  "Generate new private key"
 import { sendBroadcast } from '../lib/broadcast.js';
 import { getFirebaseApp } from '../lib/firebaseAdmin.js';
+import { verifyAdmin } from '../lib/verifyAdmin.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -29,14 +25,9 @@ export default async function handler(req, res) {
     return;
   }
 
-  if (!process.env.SUPABASE_ANON_KEY) {
-    console.error('send-broadcast: SUPABASE_ANON_KEY is not set on this Vercel project');
-    res.status(401).json({ error: 'unauthorized', reason: 'SUPABASE_ANON_KEY not configured on server' });
-    return;
-  }
-  if (req.headers['x-app-key'] !== process.env.SUPABASE_ANON_KEY) {
-    console.error('send-broadcast: x-app-key did not match SUPABASE_ANON_KEY');
-    res.status(401).json({ error: 'unauthorized', reason: 'x-app-key mismatch' });
+  const admin = await verifyAdmin(req);
+  if (!admin) {
+    res.status(401).json({ error: 'unauthorized' });
     return;
   }
 

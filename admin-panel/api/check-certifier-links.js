@@ -7,16 +7,24 @@
 // Required Vercel environment variables:
 //   SUPABASE_ANON_KEY   — same public value embedded in admin-panel/index.html
 //   SUPABASE_URL        — same value as EXPO_PUBLIC_SUPABASE_URL
+//   SUPABASE_SERVICE_ROLE_KEY  — for verifyAdmin()
+//
+// Auth: verifies the caller's Supabase Auth token belongs to a real admin
+// (admin-panel/lib/verifyAdmin.js) — see that file for why this replaced
+// the old "x-app-key must match the public Supabase anon key" pattern.
+import { verifyAdmin } from '../lib/verifyAdmin.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'method_not_allowed' });
     return;
   }
-  if (!process.env.SUPABASE_ANON_KEY || req.headers['x-app-key'] !== process.env.SUPABASE_ANON_KEY) {
+  const admin = await verifyAdmin(req);
+  if (!admin) {
     res.status(401).json({ error: 'unauthorized' });
     return;
   }
-  if (!process.env.SUPABASE_URL) {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
     res.status(500).json({ error: 'supabase_not_configured' });
     return;
   }

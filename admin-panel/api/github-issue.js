@@ -7,18 +7,17 @@
 //     send-notification.js/delete-account.js (the app ships that secret
 //     in its own env, EXPO_PUBLIC_NOTIFY_SECRET).
 //   action: 'close'  — called from the admin panel when a report is
-//     deleted (i.e. marked resolved). The admin panel is a static page
-//     with no server-verified session (same accepted-risk model as every
-//     other admin action here — see delete-account.js's own header
-//     comment) so this is only gated by the Supabase anon key, which is
-//     already public in admin-panel/index.html; that's not real auth, just
-//     a basic "this came from our own app" check.
+//     deleted (i.e. marked resolved). Gated by verifyAdmin() — see that
+//     file for why this replaced the old "Supabase anon key as a shared
+//     secret" pattern (the anon key is public, embedded in admin-panel/
+//     index.html's own page source).
 //
 // Required Vercel environment variables:
 //   NOTIFY_SECRET        (shared with send-notification.js / delete-account.js)
-//   SUPABASE_ANON_KEY    (same public value embedded in admin-panel/index.html)
+//   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY  (for verifyAdmin())
 //   GITHUB_TOKEN         a GitHub personal access token with Issues write access
 //   GITHUB_REPO          "owner/repo", e.g. "alamdarmanafov/halalzur"
+import { verifyAdmin } from '../lib/verifyAdmin.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -80,7 +79,8 @@ export default async function handler(req, res) {
     }
 
     if (action === 'close') {
-      if (!process.env.SUPABASE_ANON_KEY || req.headers['x-app-key'] !== process.env.SUPABASE_ANON_KEY) {
+      const admin = await verifyAdmin(req);
+      if (!admin) {
         res.status(401).json({ error: 'unauthorized' });
         return;
       }

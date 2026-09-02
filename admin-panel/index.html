@@ -1753,6 +1753,17 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     });
   }
 
+  // Headers for calling our own /api/* Vercel functions as this logged-in
+  // admin. NOT SUPABASE_ANON_KEY — that's a public value baked into this
+  // page's own source, readable by anyone who loads this URL without ever
+  // logging in, so comparing against it server-side (the old "x-app-key"
+  // pattern) was never real authentication. The admin's real Supabase Auth
+  // token goes here instead; each endpoint verifies it against
+  // admin_profiles server-side (admin-panel/lib/verifyAdmin.js).
+  function adminApiHeaders() {
+    return { "Content-Type": "application/json", "Authorization": "Bearer " + adminSession.accessToken };
+  }
+
   function periodStart(period) {
     var d = new Date();
     if (period === "day") {
@@ -3096,7 +3107,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     wrap.textContent = "Yoxlanılır (bir neçə saniyə çəkə bilər)…";
     fetch("/api/check-certifier-links", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-app-key": SUPABASE_ANON_KEY },
+      headers: adminApiHeaders(),
     })
       .then(function (res) {
         if (!res.ok) return res.json().then(function (d) { throw new Error(d.error || res.statusText); });
@@ -5718,7 +5729,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         if (offResult) return offResult;
         return fetch("/api/find-ecodes-ai", {
           method: "POST",
-          headers: { "Content-Type": "application/json", "x-app-key": SUPABASE_ANON_KEY },
+          headers: adminApiHeaders(),
           body: JSON.stringify({ productName: row.product_name || row.brand, brand: row.brand }),
         })
           .then(function (res) {
@@ -5863,7 +5874,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         followers.forEach(function (f) {
           fetch("/api/send-user-notification", {
             method: "POST",
-            headers: { "Content-Type": "application/json", "x-app-key": SUPABASE_ANON_KEY },
+            headers: adminApiHeaders(),
             body: JSON.stringify({ userId: f.user_id, title: title, body: body }),
           }).catch(function () {});
         });
@@ -6969,7 +6980,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     var payload = Object.assign({ title: title, body: body, translations: broadcastTranslations() }, broadcastAudience());
     fetch("/api/send-broadcast", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-app-key": SUPABASE_ANON_KEY },
+      headers: adminApiHeaders(),
       body: JSON.stringify(payload),
     })
       .then(function (res) {
@@ -7673,7 +7684,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     btn.textContent = "Göndərilir…";
     fetch("/api/send-user-notification", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-app-key": SUPABASE_ANON_KEY },
+      headers: adminApiHeaders(),
       body: JSON.stringify({ userId: row.id, title: title.trim(), body: body.trim() }),
     })
       .then(function (res) { return res.json().then(function (json) { return { ok: res.ok, json: json }; }); })
@@ -8137,7 +8148,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     // feedback report itself.
     return fetch("/api/github-issue", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-app-key": SUPABASE_ANON_KEY },
+      headers: adminApiHeaders(),
       body: JSON.stringify({ action: "close", issueNumber: issueNumber }),
     }).catch(function () {});
   }
