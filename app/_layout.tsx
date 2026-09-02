@@ -1,6 +1,7 @@
 import { View } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { AuthProvider } from '../lib/auth-context';
 import { HistoryProvider } from '../lib/history-context';
 import { FavoritesProvider } from '../lib/favorites-context';
@@ -11,6 +12,8 @@ import { initSentry, Sentry } from '../lib/sentry';
 import { rootViewRef } from '../lib/screenshotRef';
 import { loadCustomECodes } from '../lib/eCodes';
 import { loadCustomHaramKeywords } from '../lib/haramKeywords';
+
+SplashScreen.preventAutoHideAsync();
 
 initSentry();
 loadCustomECodes();

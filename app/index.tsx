@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { Redirect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as SplashScreen from 'expo-splash-screen';
 import { useAuth } from '../lib/auth-context';
 import { hasSeenOnboarding } from '../lib/onboarding';
 import { Logo } from '../components/Logo';
@@ -13,6 +14,10 @@ export default function Index() {
 
   useEffect(() => {
     hasSeenOnboarding().then(setSeenOnboarding);
+  }, []);
+
+  useEffect(() => {
+    SplashScreen.hideAsync();
   }, []);
 
   if (isLoading || seenOnboarding === null) {

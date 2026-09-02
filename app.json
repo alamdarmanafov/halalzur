@@ -57,6 +57,15 @@
       "@react-native-firebase/messaging",
       "@react-native-google-signin/google-signin",
       [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#0A4D2E"
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "ios": {
