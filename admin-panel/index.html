@@ -203,6 +203,7 @@
   .btn:disabled { opacity: 0.55; cursor: default; }
   .btn-approve { background: var(--brand); color: #fff; }
   .btn-reject { background: var(--bad-bg); color: var(--bad); }
+  .btn-sm { padding: 5px 10px !important; font-size: 12px !important; border-radius: 8px !important; }
 
   .empty-state {
     text-align: center; padding: 56px 20px; color: var(--ink-muted); background: var(--surface);
@@ -1167,6 +1168,9 @@
       <div class="stat-card"><div class="num" id="statUsersTotal">–</div><div class="label">Cəmi istifadəçi</div></div>
       <div class="stat-card"><div class="num" id="statUsersPremium">–</div><div class="label">Premium</div></div>
     </div>
+
+    <div id="topUserOfMonthWrap" hidden style="margin-bottom: 20px;"></div>
+
     <div class="panel-head">
       <h2>İstifadəçilər</h2>
       <span id="usersCountLabel"></span>
@@ -1873,6 +1877,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     users: function () {
       loadUsers();
       loadReferralReport();
+      loadTopUserOfMonth();
     },
     feedback: loadFeedback,
     certifiers: loadCertifiers,
@@ -2737,6 +2742,73 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   }
   document.getElementById("leaderboardAllTimeBtn").addEventListener("click", loadLeaderboard);
   document.getElementById("leaderboardMonthBtn").addEventListener("click", loadMonthlyLeaderboard);
+
+  // ---- "Ayın aktivi" (top user this month) — shown at the top of the
+  // Users section so the admin can reward them without hunting through
+  // the leaderboard. Same points_log aggregation as loadMonthlyLeaderboard,
+  // just keeping only the #1 result and fetching their full users row
+  // (needed for the reward action, which the leaderboard's own {user_id,
+  // user_name, month_points} summary doesn't carry).
+  function loadTopUserOfMonth() {
+    var wrap = document.getElementById("topUserOfMonthWrap");
+    var monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    sb("points_log?select=user_id,user_name,amount&created_at=gte." + monthStart.toISOString())
+      .then(function (rows) {
+        var totals = {};
+        (rows || []).forEach(function (r) {
+          if (!totals[r.user_id]) totals[r.user_id] = { user_id: r.user_id, month_points: 0 };
+          totals[r.user_id].month_points += r.amount;
+        });
+        var ranked = Object.keys(totals)
+          .map(function (id) { return totals[id]; })
+          .sort(function (a, b) { return b.month_points - a.month_points; });
+        if (!ranked.length) {
+          wrap.hidden = true;
+          return null;
+        }
+        var top = ranked[0];
+        return sb("users?id=eq." + encodeURIComponent(top.user_id) + "&select=*").then(function (userRows) {
+          var row = (userRows || [])[0];
+          if (!row) {
+            wrap.hidden = true;
+            return;
+          }
+          renderTopUserOfMonth(row, top.month_points);
+        });
+      })
+      .catch(function () {
+        wrap.hidden = true;
+      });
+  }
+
+  function renderTopUserOfMonth(row, monthPoints) {
+    var wrap = document.getElementById("topUserOfMonthWrap");
+    var monthLabel = new Date().toLocaleDateString("az-AZ", { month: "long", year: "numeric" });
+    wrap.innerHTML =
+      '<div class="place-form" style="background:linear-gradient(135deg, var(--brand-dark), var(--brand)); border:none;">' +
+        '<div style="display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">' +
+          '<div style="min-width:0;">' +
+            '<div style="font-size:11.5px; font-weight:700; color:rgba(255,255,255,0.85); text-transform:uppercase; letter-spacing:0.04em;">' +
+              '🏆 Ayın aktivi — ' + esc(monthLabel) +
+            '</div>' +
+            '<div style="font-family:\'Manrope\', sans-serif; font-weight:800; font-size:19px; color:#fff; margin-top:4px; overflow-wrap:break-word;">' +
+              esc(row.name || row.email || "İstifadəçi") +
+            '</div>' +
+            '<div style="font-size:13px; color:rgba(255,255,255,0.85); margin-top:2px;">' +
+              esc(row.email || "") + ' · Bu ay ' + monthPoints + ' xal qazanıb' +
+            '</div>' +
+          '</div>' +
+          '<button type="button" class="btn" id="topUserOfMonthRewardBtn" style="background:#fff; color:var(--brand-dark); flex-shrink:0;">🎁 Hədiyyə ver (Premium)</button>' +
+        '</div>' +
+      '</div>';
+    wrap.hidden = false;
+    document.getElementById("topUserOfMonthRewardBtn").addEventListener("click", function (e) {
+      if (row.plan === "premium") extendUserPremium(row, e.target);
+      else toggleUserPlan(row, e.target);
+    });
+  }
 
   // ---- CSV export ----
   function toCsv(rows) {
@@ -7644,20 +7716,20 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         '<div class="pc-sub">🏆 ' + (row.points || 0) + ' xal</div>' +
         '<div data-role="user-detail" style="margin-top:8px;"></div>' +
       '</div>' +
-      '<div style="display:flex; flex-direction:column; gap:6px;">' +
-        '<button class="btn" data-action="toggle-detail">Ətraflı</button>' +
-        '<button class="place-delete-btn" data-action="toggle-plan" style="background:var(--ok-bg); color:var(--ok);">' +
+      '<div style="display:flex; flex-direction:row; flex-wrap:wrap; gap:5px; justify-content:flex-end; max-width:150px;">' +
+        '<button class="btn btn-sm" data-action="toggle-detail">Ətraflı</button>' +
+        '<button class="place-delete-btn btn-sm" data-action="toggle-plan" style="background:var(--ok-bg); color:var(--ok);">' +
           (row.plan === "premium" ? "Free et" : "Premium et") +
         '</button>' +
         (row.plan === "premium"
-          ? '<button class="btn" data-action="extend-plan">🔄 Premium-u uzat</button>'
+          ? '<button class="btn btn-sm" data-action="extend-plan">🔄 Uzat</button>'
           : '') +
-        '<button class="place-delete-btn" data-action="toggle-ban">' +
+        '<button class="place-delete-btn btn-sm" data-action="toggle-ban">' +
           (row.banned ? "Blokdan çıxar" : "Blokla") +
         '</button>' +
-        '<button class="btn" data-action="send-notification">🔔 Bildiriş göndər</button>' +
-        '<button class="btn" data-action="edit-referral-code">Referral kodunu dəyiş</button>' +
-        '<button class="btn" data-action="export-user-data">📦 Datasını ixrac et</button>' +
+        '<button class="btn btn-sm" data-action="send-notification">🔔 Bildiriş</button>' +
+        '<button class="btn btn-sm" data-action="edit-referral-code">Referral</button>' +
+        '<button class="btn btn-sm" data-action="export-user-data">📦 İxrac</button>' +
       '</div>';
 
     card.querySelector('[data-action="toggle-plan"]').addEventListener("click", function (e) {
