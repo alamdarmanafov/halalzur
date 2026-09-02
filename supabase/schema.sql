@@ -1179,3 +1179,27 @@ grant execute on function merge_users(text, text) to authenticated;
 -- update policy at all, so that upsert was silently rejected by RLS.
 drop policy if exists "Public update" on custom_ecodes;
 create policy "Public update" on custom_ecodes for update using (true) with check (true);
+
+-- Admin panel product-image upload — same public-read/admin-write Storage
+-- bucket pattern as "certifier-logos" above. The admin panel compresses/
+-- resizes the image client-side before upload.
+insert into storage.buckets (id, name, public)
+values ('product-images', 'product-images', true)
+on conflict (id) do nothing;
+
+drop policy if exists "Public read product images" on storage.objects;
+create policy "Public read product images" on storage.objects for select
+  using (bucket_id = 'product-images');
+
+drop policy if exists "Admin write product images" on storage.objects;
+create policy "Admin write product images" on storage.objects for insert
+  with check (bucket_id = 'product-images' and is_admin());
+
+drop policy if exists "Admin update product images" on storage.objects;
+create policy "Admin update product images" on storage.objects for update
+  using (bucket_id = 'product-images' and is_admin())
+  with check (bucket_id = 'product-images' and is_admin());
+
+drop policy if exists "Admin delete product images" on storage.objects;
+create policy "Admin delete product images" on storage.objects for delete
+  using (bucket_id = 'product-images' and is_admin());

@@ -6024,11 +6024,15 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
           '</div>' +
           '<div class="field" style="flex:1 1 200px; margin:0;">' +
             '<label>Şəkil linki</label>' +
-            '<div style="display:flex; gap:6px;">' +
+            '<div style="display:flex; gap:6px; flex-wrap:wrap;">' +
               '<input type="text" data-role="edit-image" placeholder="Şəkil linki" style="flex:1; min-width:0;" />' +
               (row.barcode
-                ? '<button type="button" class="btn" data-action="find-off-image" style="white-space:nowrap;">OFF-dan tap</button>'
+                ? '<button type="button" class="btn" data-action="find-off-image" style="white-space:nowrap; flex-shrink:0;">OFF-dan tap</button>'
                 : '') +
+              '<label class="btn" style="white-space:nowrap; flex-shrink:0; cursor:pointer; text-align:center;">' +
+                '<span data-role="upload-image-label">📤 Yüklə</span>' +
+                '<input type="file" accept="image/*" data-action="upload-product-image" style="display:none;" />' +
+              '</label>' +
             '</div>' +
           '</div>' +
           '<div class="field" style="flex:1 1 200px; margin:0; position:relative;">' +
@@ -6113,6 +6117,11 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         findOffImage(row, card, e.target);
       });
     }
+    card.querySelector('[data-action="upload-product-image"]').addEventListener("change", function (e) {
+      var file = e.target.files && e.target.files[0];
+      if (!file) return;
+      uploadProductImageFile(row, card, e.target, file);
+    });
     card.querySelector('[data-action="find-ecodes-auto"]').addEventListener("click", function (e) {
       findEcodesAuto(row, card, e.target);
     });
@@ -6125,6 +6134,98 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   // scripts/sync/openFoodFacts.ts already trusts for the bulk import, just
   // one product at a time. Only fills the input; the admin still has to
   // click "Yadda saxla" to actually apply it, same as typing a URL by hand.
+  // ---- product image upload (with automatic client-side compression) ----
+  var PRODUCT_IMAGE_BUCKET = "product-images";
+  var PRODUCT_IMAGE_MAX_DIM = 1000; // long edge, px — plenty for a product card/detail image
+  var PRODUCT_IMAGE_QUALITY = 0.8;
+  var PRODUCT_IMAGE_MAX_BYTES = 2 * 1024 * 1024; // safety cap on the ALREADY-compressed output
+
+  // Downscales to PRODUCT_IMAGE_MAX_DIM and re-encodes as JPEG at
+  // PRODUCT_IMAGE_QUALITY via <canvas> — a phone photo (often 3-5MB) comes
+  // out well under 300KB with no visible quality loss at the sizes this
+  // app ever displays a product image at, cutting Supabase Storage usage
+  // and load time without any paid image-processing service.
+  function compressImageFile(file, maxDim, quality) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        img.onload = function () {
+          var scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+          var w = Math.max(1, Math.round(img.width * scale));
+          var h = Math.max(1, Math.round(img.height * scale));
+          var canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          var ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, w, h);
+          canvas.toBlob(
+            function (blob) {
+              if (!blob) { reject(new Error("Şəkil sıxıla bilmədi")); return; }
+              resolve(blob);
+            },
+            "image/jpeg",
+            quality
+          );
+        };
+        img.onerror = function () { reject(new Error("Şəkil oxuna bilmədi — fayl korlanıb ola bilər")); };
+        img.src = e.target.result;
+      };
+      reader.onerror = function () { reject(new Error("Fayl oxuna bilmədi")); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Same direct-to-Supabase-Storage pattern as uploadCertifierLogo above —
+  // "product-images" bucket's storage policies (see the migration this
+  // shipped with) only allow is_admin() to write there.
+  function uploadProductImage(productId, file) {
+    return compressImageFile(file, PRODUCT_IMAGE_MAX_DIM, PRODUCT_IMAGE_QUALITY).then(function (blob) {
+      if (blob.size > PRODUCT_IMAGE_MAX_BYTES) {
+        throw new Error("Sıxılandan sonra da şəkil 2 MB-dan böyükdür");
+      }
+      var path = productId + "-" + Date.now() + ".jpg";
+      return fetch(SUPABASE_URL + "/storage/v1/object/" + PRODUCT_IMAGE_BUCKET + "/" + path, {
+        method: "POST",
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: "Bearer " + (adminSession.accessToken || SUPABASE_ANON_KEY),
+          "Content-Type": "image/jpeg",
+          "x-upsert": "true",
+        },
+        body: blob,
+      }).then(function (res) {
+        if (!res.ok) return res.text().then(function (t) { throw new Error(t || res.statusText); });
+        return SUPABASE_URL + "/storage/v1/object/public/" + PRODUCT_IMAGE_BUCKET + "/" + path;
+      });
+    });
+  }
+
+  // Only fills the "Şəkil linki" input, same as findOffImage below — the
+  // admin still clicks "Yadda saxla" to actually apply it.
+  function uploadProductImageFile(row, card, fileInput, file) {
+    // The data-role targets the inner <span>, not the <label> wrapper —
+    // the wrapper also holds the (hidden) file input itself, so writing
+    // textContent there would silently delete it.
+    var labelSpan = card.querySelector('[data-role="upload-image-label"]');
+    var original = labelSpan.textContent;
+    labelSpan.textContent = "Sıxılır və yüklənir…";
+    fileInput.disabled = true;
+    uploadProductImage(row.id, file)
+      .then(function (url) {
+        card.querySelector('[data-role="edit-image"]').value = url;
+        toast("Şəkil yükləndi — yadda saxlamağı unutmayın");
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        labelSpan.textContent = original;
+        fileInput.disabled = false;
+        fileInput.value = "";
+      });
+  }
+
   function findOffImage(row, card, btn) {
     var original = btn.textContent;
     btn.disabled = true;
