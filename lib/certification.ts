@@ -188,13 +188,13 @@ export async function searchProducts(query: string): Promise<CertificationResult
 
     if (q) {
       const safe = q.replace(/[,()%]/g, '');
-      // A purely numeric query is a barcode — match it exactly rather than
-      // as a substring, so e.g. "3279425019752" doesn't also pull in other
-      // products whose barcode merely contains that digit sequence (same
-      // convention as the admin panel's own product search).
-      const barcodeCondition = /^\d+$/.test(safe) ? `barcode.eq.${safe}` : `barcode.ilike.%${safe}%`;
+      // Substring match, not exact — an exact barcode.eq. match reports
+      // "not found" whenever the typed/scanned digits and the stored
+      // barcode differ by a leading zero (EAN-13 vs UPC-A — Open Food
+      // Facts normalizes to 13 digits with a leading 0). Substring still
+      // matches "12345678905" against a stored "012345678905".
       request = request.or(
-        `brand.ilike.%${safe}%,product_name.ilike.%${safe}%,category.ilike.%${safe}%,${barcodeCondition}`
+        `brand.ilike.%${safe}%,product_name.ilike.%${safe}%,category.ilike.%${safe}%,barcode.ilike.%${safe}%`
       );
     }
 

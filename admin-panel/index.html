@@ -686,7 +686,10 @@
     <div class="place-form" style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
       <div class="field" style="flex: 1; min-width: 200px; margin-bottom: 0;">
         <label for="productSearch">Axtar (ad, marka, barkod)</label>
-        <input type="text" id="productSearch" placeholder="Məs. Fındıq, ya da 8690..." />
+        <div style="display: flex; gap: 6px;">
+          <input type="text" id="productSearch" placeholder="Məs. Fındıq, ya da 8690..." style="flex: 1;" />
+          <button type="button" class="btn" id="productSearchBtn">🔍 Axtar</button>
+        </div>
       </div>
       <div class="field" style="min-width: 180px; margin-bottom: 0;">
         <label for="productStatusFilter">Status</label>
@@ -863,7 +866,10 @@
       <div class="place-form" style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
         <div class="field" style="flex: 1; min-width: 200px; margin-bottom: 0;">
           <label for="editProductSearch">Axtar (ad, marka, barkod)</label>
-          <input type="text" id="editProductSearch" placeholder="Məs. Fındıq, ya da 8690..." />
+          <div style="display: flex; gap: 6px;">
+            <input type="text" id="editProductSearch" placeholder="Məs. Fındıq, ya da 8690..." style="flex: 1;" />
+            <button type="button" class="btn" id="editProductSearchBtn">🔍 Axtar</button>
+          </div>
         </div>
         <div class="field" style="min-width: 180px; margin-bottom: 0;">
           <label for="editProductCategoryFilter">Kateqoriya</label>
@@ -1201,7 +1207,10 @@
     <div class="place-form" style="margin-bottom: 16px; display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;">
       <div class="field" style="flex: 1; min-width: 200px; margin-bottom: 0;">
         <label for="userSearch">Axtar (ad, email)</label>
-        <input type="text" id="userSearch" placeholder="Məs. Əli, ya da eli@gmail.com" />
+        <div style="display: flex; gap: 6px;">
+          <input type="text" id="userSearch" placeholder="Məs. Əli, ya da eli@gmail.com" style="flex: 1;" />
+          <button type="button" class="btn" id="userSearchBtn">🔍 Axtar</button>
+        </div>
       </div>
       <div class="field" style="min-width: 160px; margin-bottom: 0;">
         <label for="userPlanFilter">Plan</label>
@@ -4396,10 +4405,13 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     else if (category) params += "&category=eq." + encodeURIComponent(category);
     if (search) {
       var safe = search.replace(/[,()%]/g, "");
-      // A purely numeric search is a barcode — match it exactly, not as a
-      // substring, so e.g. "3279425019752" doesn't also pull in other
-      // products whose barcode merely contains that digit sequence.
-      var barcodeCondition = /^\d+$/.test(safe) ? "barcode.eq." + safe : "barcode.ilike.%" + safe + "%";
+      // Substring match, not exact — an exact barcode.eq. match used to
+      // report "not found" for a real product whenever the typed/scanned
+      // digits and the stored barcode differed by a leading zero (EAN-13
+      // vs UPC-A — Open Food Facts normalizes to 13 digits with a leading
+      // 0, but a scanner or a hand-typed search often omits it). Substring
+      // still matches "12345678905" against a stored "012345678905".
+      var barcodeCondition = "barcode.ilike.%" + safe + "%";
       params +=
         "&or=(" +
         "product_name.ilike.%" + safe + "%," +
@@ -4797,7 +4809,10 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     else if (category) params += "&category=eq." + encodeURIComponent(category);
     if (search) {
       var safe = search.replace(/[,()%]/g, "");
-      var barcodeCondition = /^\d+$/.test(safe) ? "barcode.eq." + safe : "barcode.ilike.%" + safe + "%";
+      // Substring, not exact — see productFilterParams' comment on why an
+      // exact barcode.eq. match false-negatives on a leading-zero mismatch
+      // (EAN-13 vs UPC-A).
+      var barcodeCondition = "barcode.ilike.%" + safe + "%";
       params +=
         "&or=(" +
         "product_name.ilike.%" + safe + "%," +
@@ -4846,12 +4861,17 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       });
   }
 
+  function runEditProductSearch() {
+    currentEditProductPage = 0;
+    loadEditProducts();
+  }
   document.getElementById("editProductSearch").addEventListener("input", function () {
     clearTimeout(editProductFilterDebounce);
-    editProductFilterDebounce = setTimeout(function () {
-      currentEditProductPage = 0;
-      loadEditProducts();
-    }, 350);
+    editProductFilterDebounce = setTimeout(runEditProductSearch, 350);
+  });
+  document.getElementById("editProductSearchBtn").addEventListener("click", function () {
+    clearTimeout(editProductFilterDebounce);
+    runEditProductSearch();
   });
   document.getElementById("editProductCategoryFilter").addEventListener("change", function () {
     currentEditProductPage = 0;
@@ -5353,26 +5373,30 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   });
 
   var productFilterDebounce;
+  function runProductSearch() {
+    // A barcode/name/brand search should find the product regardless of
+    // whatever other filters happen to still be set — without this,
+    // searching while "Naməlum" (or any status), "Yalnız tövsiyə
+    // olunanlar", or "Şəkli yoxdur" was still picked from earlier
+    // browsing silently returned nothing for a real match that simply
+    // didn't also satisfy that leftover filter.
+    if (document.getElementById("productSearch").value.trim()) {
+      document.getElementById("productStatusFilter").value = "";
+      document.getElementById("productCategoryFilter").value = "";
+      document.getElementById("productFeaturedFilter").checked = false;
+      document.getElementById("productMissingImageFilter").checked = false;
+      document.getElementById("productEcodeFilter").value = "";
+    }
+    currentProductPage = 0;
+    loadProducts();
+  }
   document.getElementById("productSearch").addEventListener("input", function () {
-    var searchEl = this;
     clearTimeout(productFilterDebounce);
-    productFilterDebounce = setTimeout(function () {
-      // A barcode/name/brand search should find the product regardless of
-      // whatever other filters happen to still be set — without this,
-      // searching while "Naməlum" (or any status), "Yalnız tövsiyə
-      // olunanlar", or "Şəkli yoxdur" was still picked from earlier
-      // browsing silently returned nothing for a real match that simply
-      // didn't also satisfy that leftover filter.
-      if (searchEl.value.trim()) {
-        document.getElementById("productStatusFilter").value = "";
-        document.getElementById("productCategoryFilter").value = "";
-        document.getElementById("productFeaturedFilter").checked = false;
-        document.getElementById("productMissingImageFilter").checked = false;
-        document.getElementById("productEcodeFilter").value = "";
-      }
-      currentProductPage = 0;
-      loadProducts();
-    }, 350);
+    productFilterDebounce = setTimeout(runProductSearch, 350);
+  });
+  document.getElementById("productSearchBtn").addEventListener("click", function () {
+    clearTimeout(productFilterDebounce);
+    runProductSearch();
   });
   document.getElementById("productStatusFilter").addEventListener("change", function () {
     currentProductPage = 0;
@@ -5778,6 +5802,14 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
           '<div data-role="ecode-auto-result" style="margin-top:8px;"></div>' +
         '</div>' +
         '<div style="display:flex; flex-wrap:wrap; gap:12px;">' +
+          '<div class="field" style="flex:1 1 200px; margin:0;">' +
+            '<label>Məhsul adı</label>' +
+            '<input type="text" data-role="edit-product-name" placeholder="Məhsul adı" />' +
+          '</div>' +
+          '<div class="field" style="flex:1 1 160px; margin:0;">' +
+            '<label>Marka</label>' +
+            '<input type="text" data-role="edit-brand" placeholder="Marka" />' +
+          '</div>' +
           '<div class="field" style="flex:1 1 140px; margin:0;">' +
             '<label>Status</label>' +
             '<select data-role="edit-status">' +
@@ -5823,6 +5855,8 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         '</div>' +
       '</div>';
 
+    card.querySelector('[data-role="edit-product-name"]').value = row.product_name || "";
+    card.querySelector('[data-role="edit-brand"]').value = row.brand || "";
     card.querySelector('[data-role="edit-status"]').value = row.status || "unknown";
     card.querySelector('[data-role="edit-category"]').value = row.category || "";
     card.querySelector('[data-role="edit-image"]').value = row.image_url || "";
@@ -5847,11 +5881,17 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       card.querySelector('[data-role="status-suggestion"]').hidden = true;
     });
     card.querySelector('[data-action="save-product"]').addEventListener("click", function (e) {
+      var newProductName = card.querySelector('[data-role="edit-product-name"]').value.trim();
+      var newBrand = card.querySelector('[data-role="edit-brand"]').value.trim();
+      if (!newBrand) {
+        toast("Marka boş ola bilməz");
+        return;
+      }
       var newStatus = card.querySelector('[data-role="edit-status"]').value;
       var newCategory = card.querySelector('[data-role="edit-category"]').value.trim();
       var newImageUrl = card.querySelector('[data-role="edit-image"]').value.trim();
       var newAdminNote = card.querySelector('[data-role="edit-admin-note"]').value.trim();
-      updateProduct(row, card, e.target, newStatus, newCategory, newImageUrl, newAdminNote);
+      updateProduct(row, card, e.target, newStatus, newCategory, newImageUrl, newAdminNote, newProductName, newBrand);
     });
     card.querySelector('[data-action="delete-product"]').addEventListener("click", function (e) {
       deleteProduct(row, card, e.target);
@@ -6122,14 +6162,17 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       .catch(function () {});
   }
 
-  function updateProduct(row, card, btn, status, category, imageUrl, adminNote) {
+  function updateProduct(row, card, btn, status, category, imageUrl, adminNote, productName, brand) {
     btn.disabled = true;
     var originalText = btn.textContent;
     btn.textContent = "Yadda saxlanır…";
+    var prevLabel = row.product_name || row.brand;
     sb("certified_entries?id=eq." + row.id, {
       method: "PATCH",
       headers: { "Prefer": "return=representation" },
       body: {
+        product_name: productName || null,
+        brand: brand,
         status: status,
         category: category || null,
         image_url: imageUrl || null,
@@ -6144,11 +6187,16 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
           btn.textContent = originalText;
           return;
         }
-        toast("Yeniləndi: " + (row.product_name || row.brand));
+        toast("Yeniləndi: " + (productName || brand));
         if (row.status !== status) {
-          logAudit("status_change", "certified_entries", row.id, (row.product_name || row.brand) + " → " + status);
-          if (row.brand) notifyBrandFollowers(row.brand, row.product_name || row.brand, status);
+          logAudit("status_change", "certified_entries", row.id, (productName || brand) + " → " + status);
+          if (brand) notifyBrandFollowers(brand, productName || brand, status);
         }
+        if (row.product_name !== productName || row.brand !== brand) {
+          logAudit("edit_product_name", "certified_entries", row.id, prevLabel + " → " + (productName || brand));
+        }
+        row.product_name = productName || null;
+        row.brand = brand;
         row.status = status;
         row.category = category || null;
         row.image_url = imageUrl || null;
@@ -7799,6 +7847,10 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   document.getElementById("userSearch").addEventListener("input", function () {
     clearTimeout(userSearchDebounce);
     userSearchDebounce = setTimeout(applyUserFilters, 250);
+  });
+  document.getElementById("userSearchBtn").addEventListener("click", function () {
+    clearTimeout(userSearchDebounce);
+    applyUserFilters();
   });
   document.getElementById("userSortBy").addEventListener("change", applyUserFilters);
   document.getElementById("userPlanFilter").addEventListener("change", applyUserFilters);
