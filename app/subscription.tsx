@@ -278,11 +278,11 @@ export default function SubscriptionScreen() {
 
         <Text style={styles.legal}>{t('subLegal')}</Text>
         <View style={styles.legalLinks}>
-          <Pressable onPress={() => Linking.openURL('https://halalzur.app/terms')}>
+          <Pressable onPress={() => Linking.openURL('https://halalzur.com/terms.html')}>
             <Text style={styles.legalLink}>{t('subTerms')}</Text>
           </Pressable>
           <Text style={styles.legalDot}>·</Text>
-          <Pressable onPress={() => Linking.openURL('https://halalzur.app/privacy')}>
+          <Pressable onPress={() => Linking.openURL('https://halalzur.com/privacy.html')}>
             <Text style={styles.legalLink}>{t('subPrivacy')}</Text>
           </Pressable>
         </View>
