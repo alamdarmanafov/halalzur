@@ -361,7 +361,7 @@ export default function ProductsScreen() {
                   )}
                 </Pressable>
                 <Pressable hitSlop={8} onPress={() => confirmDelete(item)}>
-                  <Ionicons name="trash-outline" size={18} color={colors.grayLight} />
+                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
                 </Pressable>
               </View>
             ) : (
