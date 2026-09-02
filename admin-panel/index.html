@@ -4565,20 +4565,31 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     else if (category) params += "&category=eq." + encodeURIComponent(category);
     if (search) {
       var safe = search.replace(/[,()%]/g, "");
-      // Substring match, not exact — an exact barcode.eq. match used to
-      // report "not found" for a real product whenever the typed/scanned
-      // digits and the stored barcode differed by a leading zero (EAN-13
-      // vs UPC-A — Open Food Facts normalizes to 13 digits with a leading
-      // 0, but a scanner or a hand-typed search often omits it). Substring
-      // still matches "12345678905" against a stored "012345678905".
-      var barcodeCondition = "barcode.ilike.%" + safe + "%";
-      params +=
-        "&or=(" +
-        "product_name.ilike.%" + safe + "%," +
-        "brand.ilike.%" + safe + "%," +
-        "admin_note.ilike.%" + safe + "%," +
-        barcodeCondition +
-        ")";
+      if (/^\d+$/.test(safe)) {
+        // A purely numeric query is always a barcode, never a real
+        // product/brand name — search barcode only, as a couple of exact
+        // values (not a %wildcard%) covering the EAN-13/UPC-A leading-zero
+        // mismatch (Open Food Facts normalizes to 13 digits with a
+        // leading 0; a hand-typed or scanned search often omits it).
+        // Also sidesteps a real failure this had: repeating the same long
+        // digit string across 4 ilike.%...% conditions in one URL (the
+        // old code below, still used for text search) got intermittently
+        // rejected — CORS-shaped in the browser, no real error body —
+        // by whatever sits in front of Supabase's REST API; a plain `in.`
+        // filter over 1-2 exact values never hit that.
+        var variants = [safe];
+        if (safe.length === 12) variants.push("0" + safe);
+        else if (safe.length === 13 && safe.charAt(0) === "0") variants.push(safe.slice(1));
+        params += "&barcode=in.(" + variants.join(",") + ")";
+      } else {
+        params +=
+          "&or=(" +
+          "product_name.ilike.%" + safe + "%," +
+          "brand.ilike.%" + safe + "%," +
+          "admin_note.ilike.%" + safe + "%," +
+          "barcode.ilike.%" + safe + "%" +
+          ")";
+      }
     }
     // PostgREST array-contains — finds products whose `ingredients` array
     // holds this exact E-code (e.g. "E471"), not a substring match.
@@ -4969,17 +4980,22 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     else if (category) params += "&category=eq." + encodeURIComponent(category);
     if (search) {
       var safe = search.replace(/[,()%]/g, "");
-      // Substring, not exact — see productFilterParams' comment on why an
-      // exact barcode.eq. match false-negatives on a leading-zero mismatch
-      // (EAN-13 vs UPC-A).
-      var barcodeCondition = "barcode.ilike.%" + safe + "%";
-      params +=
-        "&or=(" +
-        "product_name.ilike.%" + safe + "%," +
-        "brand.ilike.%" + safe + "%," +
-        "admin_note.ilike.%" + safe + "%," +
-        barcodeCondition +
-        ")";
+      // See productFilterParams' matching block for why numeric search
+      // goes through barcode=in.(...) instead of an ilike.%...% or-clause.
+      if (/^\d+$/.test(safe)) {
+        var variants = [safe];
+        if (safe.length === 12) variants.push("0" + safe);
+        else if (safe.length === 13 && safe.charAt(0) === "0") variants.push(safe.slice(1));
+        params += "&barcode=in.(" + variants.join(",") + ")";
+      } else {
+        params +=
+          "&or=(" +
+          "product_name.ilike.%" + safe + "%," +
+          "brand.ilike.%" + safe + "%," +
+          "admin_note.ilike.%" + safe + "%," +
+          "barcode.ilike.%" + safe + "%" +
+          ")";
+      }
     }
     return params;
   }

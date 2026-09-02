@@ -188,14 +188,26 @@ export async function searchProducts(query: string): Promise<CertificationResult
 
     if (q) {
       const safe = q.replace(/[,()%]/g, '');
-      // Substring match, not exact — an exact barcode.eq. match reports
-      // "not found" whenever the typed/scanned digits and the stored
-      // barcode differ by a leading zero (EAN-13 vs UPC-A — Open Food
-      // Facts normalizes to 13 digits with a leading 0). Substring still
-      // matches "12345678905" against a stored "012345678905".
-      request = request.or(
-        `brand.ilike.%${safe}%,product_name.ilike.%${safe}%,category.ilike.%${safe}%,barcode.ilike.%${safe}%`
-      );
+      if (/^\d+$/.test(safe)) {
+        // A purely numeric query is always a barcode, never a real
+        // product/brand/category name — search barcode only, as exact
+        // values (not a %wildcard%) covering the EAN-13/UPC-A leading-
+        // zero mismatch (Open Food Facts normalizes to 13 digits with a
+        // leading 0; a hand-typed or scanned search often omits it).
+        // Also avoids repeating one long digit string across 3
+        // ilike.%...% conditions in one request, which the admin panel's
+        // matching search hit real (CORS-shaped) failures on — whatever
+        // sits in front of Supabase's REST API intermittently rejected
+        // that shape of query.
+        const variants = [safe];
+        if (safe.length === 12) variants.push(`0${safe}`);
+        else if (safe.length === 13 && safe.startsWith('0')) variants.push(safe.slice(1));
+        request = request.in('barcode', variants);
+      } else {
+        request = request.or(
+          `brand.ilike.%${safe}%,product_name.ilike.%${safe}%,category.ilike.%${safe}%`
+        );
+      }
     }
 
     const { data, error } = await request.returns<CertifiedEntryRow[]>();
