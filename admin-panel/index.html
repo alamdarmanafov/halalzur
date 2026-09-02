@@ -679,6 +679,13 @@
           <option value="unknown">Naməlum</option>
         </select>
       </div>
+      <div class="field" style="min-width: 180px; margin-bottom: 0;">
+        <label for="productCategoryFilter">Kateqoriya</label>
+        <select id="productCategoryFilter">
+          <option value="">Hamısı</option>
+          <option value="__none__">Kateqoriyası yoxdur</option>
+        </select>
+      </div>
       <div class="field" style="min-width: 140px; margin-bottom: 0;">
         <label for="productEcodeFilter">Tərkibdə E-kod</label>
         <input type="text" id="productEcodeFilter" placeholder="Məs. E471" />
@@ -839,8 +846,15 @@
           <label for="editProductSearch">Axtar (ad, marka, barkod)</label>
           <input type="text" id="editProductSearch" placeholder="Məs. Fındıq, ya da 8690..." />
         </div>
+        <div class="field" style="min-width: 180px; margin-bottom: 0;">
+          <label for="editProductCategoryFilter">Kateqoriya</label>
+          <select id="editProductCategoryFilter">
+            <option value="">Hamısı</option>
+            <option value="__none__">Kateqoriyası yoxdur</option>
+          </select>
+        </div>
       </div>
-      <p class="hint">Yalnız artıq statusu təyin olunmuş (naməlum olmayan) məhsullar — son yenilənənlər əvvəldə.</p>
+      <p class="hint">Yalnız artıq statusu təyin olunmuş (naməlum olmayan) məhsullar — son yenilənənlər əvvəldə. Hər gün bir kateqoriya seçib yalnız o kateqoriyanı yoxlamaq üçün yuxarıdakı filtri istifadə edin.</p>
       <div class="cards" id="editProductCards" style="margin-top: 8px;"></div>
       <div class="empty-state" id="editProductsEmptyState" hidden>Nəticə tapılmadı.</div>
       <div style="display: flex; gap: 12px; align-items: center; justify-content: center; margin-top: 16px;">
@@ -3775,6 +3789,10 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     // the "E-kodlar" section.
     loadCustomEcodes();
     loadHaramKeywords();
+    // Same reasoning — the Products tab's "Kateqoriya" filter needs this
+    // populated as soon as Products opens, not only after a visit to the
+    // "Kateqoriyalar" sub-tab.
+    loadCategories();
   }
 
   function showAdminIdentity() {
@@ -4116,12 +4134,15 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
 
   function productFilterParams() {
     var status = document.getElementById("productStatusFilter").value;
+    var category = document.getElementById("productCategoryFilter").value;
     var search = document.getElementById("productSearch").value.trim();
     var ecode = document.getElementById("productEcodeFilter").value.trim().toUpperCase().replace(/\s+/g, "");
     var featuredOnly = document.getElementById("productFeaturedFilter").checked;
     var missingImageOnly = document.getElementById("productMissingImageFilter").checked;
     var params = "&deleted_at=is.null";
     if (status) params += "&status=eq." + encodeURIComponent(status);
+    if (category === "__none__") params += "&category=is.null";
+    else if (category) params += "&category=eq." + encodeURIComponent(category);
     if (search) {
       var safe = search.replace(/[,()%]/g, "");
       // A purely numeric search is a barcode — match it exactly, not as a
@@ -4141,7 +4162,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     if (ecode) params += "&ingredients=cs.%7B" + encodeURIComponent(ecode) + "%7D";
     if (featuredOnly) params += "&featured=eq.true";
     if (missingImageOnly) params += "&image_url=is.null";
-    return { params: params, filtered: !!status || !!search || !!ecode || featuredOnly || missingImageOnly };
+    return { params: params, filtered: !!status || !!category || !!search || !!ecode || featuredOnly || missingImageOnly };
   }
 
   // Fetches every id matching the current filter, across all pages — used
@@ -4519,7 +4540,10 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
 
   function editProductFilterParams() {
     var search = document.getElementById("editProductSearch").value.trim();
+    var category = document.getElementById("editProductCategoryFilter").value;
     var params = "&deleted_at=is.null&status=neq.unknown";
+    if (category === "__none__") params += "&category=is.null";
+    else if (category) params += "&category=eq." + encodeURIComponent(category);
     if (search) {
       var safe = search.replace(/[,()%]/g, "");
       var barcodeCondition = /^\d+$/.test(safe) ? "barcode.eq." + safe : "barcode.ilike.%" + safe + "%";
@@ -4578,6 +4602,10 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       loadEditProducts();
     }, 350);
   });
+  document.getElementById("editProductCategoryFilter").addEventListener("change", function () {
+    currentEditProductPage = 0;
+    loadEditProducts();
+  });
   document.getElementById("editProductPrevPageBtn").addEventListener("click", function () {
     if (currentEditProductPage <= 0) return;
     currentEditProductPage -= 1;
@@ -4597,10 +4625,12 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   function loadCategories() {
     sb("product_categories?select=*&order=sort_order.asc")
       .then(function (rows) {
+        rows = rows || [];
+        populateProductCategoryFilters(rows);
         var container = document.getElementById("categoryCards");
         var empty = document.getElementById("categoriesEmptyState");
         container.innerHTML = "";
-        if (!rows || !rows.length) {
+        if (!rows.length) {
           empty.hidden = false;
           return;
         }
@@ -4612,6 +4642,28 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       .catch(function (err) {
         toast("Kateqoriyalar yüklənmədi: " + err.message);
       });
+  }
+
+  // Fills the "Kateqoriya" filter on both the Browse and Redaktə tabs —
+  // lets the admin pick one category and work through only that day's
+  // batch, instead of paging through every product mixed together.
+  // Re-populating (e.g. after adding/renaming a category) keeps whatever
+  // was already selected if it still exists.
+  function populateProductCategoryFilters(categories) {
+    ["productCategoryFilter", "editProductCategoryFilter"].forEach(function (id) {
+      var select = document.getElementById(id);
+      var previous = select.value;
+      select.innerHTML = '<option value="">Hamısı</option><option value="__none__">Kateqoriyası yoxdur</option>';
+      categories.forEach(function (row) {
+        var opt = document.createElement("option");
+        opt.value = row.label;
+        opt.textContent = row.label;
+        select.appendChild(opt);
+      });
+      if ([].slice.call(select.options).some(function (o) { return o.value === previous; })) {
+        select.value = previous;
+      }
+    });
   }
 
   function buildCategoryCard(row) {
@@ -5062,6 +5114,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       // didn't also satisfy that leftover filter.
       if (searchEl.value.trim()) {
         document.getElementById("productStatusFilter").value = "";
+        document.getElementById("productCategoryFilter").value = "";
         document.getElementById("productFeaturedFilter").checked = false;
         document.getElementById("productMissingImageFilter").checked = false;
         document.getElementById("productEcodeFilter").value = "";
@@ -5071,6 +5124,10 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     }, 350);
   });
   document.getElementById("productStatusFilter").addEventListener("change", function () {
+    currentProductPage = 0;
+    loadProducts();
+  });
+  document.getElementById("productCategoryFilter").addEventListener("change", function () {
     currentProductPage = 0;
     loadProducts();
   });
