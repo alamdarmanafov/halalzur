@@ -80,22 +80,37 @@ async function runWeeklyDigest(res) {
   }
 }
 
-// Nudges users who haven't opened the app in 7+ days, at most once
-// every 14 days per user (users.last_winback_sent_at tracks that).
-// Fired daily by .github/workflows/win-back-push.yml.
+// Nudges users at escalating inactivity tiers (7/30/90/180 days by
+// default — editable via the admin panel's winback_templates table).
+// Each tier fires exactly once per user: users.last_winback_tier_sent
+// tracks the highest tier already sent, so a user who's crossed a new
+// threshold since the last run gets that tier's copy, never a repeat
+// of one already sent and never more than one tier per run. Fired
+// daily by .github/workflows/win-back-push.yml.
 async function runWinBackPush(res) {
   if (!checkConfigured(res)) return;
   try {
     const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-    const inactiveSince = new Date(Date.now() - 7 * 86400000).toISOString();
-    const resendAfter = new Date(Date.now() - 14 * 86400000).toISOString();
+
+    const { data: templates, error: templatesError } = await supabase
+      .from('winback_templates')
+      .select('days_inactive, title, body')
+      .order('days_inactive', { ascending: true });
+    if (templatesError) throw templatesError;
+    if (!templates || !templates.length) {
+      res.status(200).json({ notified: 0 });
+      return;
+    }
+    const lowestTier = templates[0].days_inactive;
+    const highestTier = templates[templates.length - 1].days_inactive;
+    const inactiveSince = new Date(Date.now() - lowestTier * 86400000).toISOString();
 
     const { data: candidates, error } = await supabase
       .from('users')
-      .select('id, last_winback_sent_at')
+      .select('id, last_seen_at, last_winback_tier_sent')
       .not('last_seen_at', 'is', null)
       .lt('last_seen_at', inactiveSince)
-      .or(`last_winback_sent_at.is.null,last_winback_sent_at.lt.${resendAfter}`)
+      .or(`last_winback_tier_sent.is.null,last_winback_tier_sent.lt.${highestTier}`)
       .limit(200);
     if (error) throw error;
     if (!candidates || !candidates.length) {
@@ -104,24 +119,32 @@ async function runWinBackPush(res) {
     }
 
     const messaging = getMessaging(getFirebaseApp());
-    const title = 'Sizi darıxdıq!';
-    const body = 'Yeni halal məhsulları yoxlamaq üçün Halalzur-a qayıdın 🍏';
     let notified = 0;
 
     for (const user of candidates) {
+      const daysInactive = Math.floor((Date.now() - new Date(user.last_seen_at).getTime()) / 86400000);
+      // Highest tier this user has now crossed that they haven't already received.
+      const template = [...templates]
+        .reverse()
+        .find((t) => daysInactive >= t.days_inactive && t.days_inactive > (user.last_winback_tier_sent || 0));
+      if (!template) continue;
+
       const { data: tokens } = await supabase.from('device_tokens').select('fcm_token').eq('user_id', user.id);
       if (!tokens || !tokens.length) continue;
       let sentAny = false;
       for (const { fcm_token } of tokens) {
         try {
-          await messaging.send({ token: fcm_token, notification: { title, body } });
+          await messaging.send({ token: fcm_token, notification: { title: template.title, body: template.body } });
           sentAny = true;
         } catch (err) {
           console.error('cron-jobs[win-back]: FCM send failed', err.code, err.message);
         }
       }
       if (sentAny) {
-        await supabase.from('users').update({ last_winback_sent_at: new Date().toISOString() }).eq('id', user.id);
+        await supabase
+          .from('users')
+          .update({ last_winback_sent_at: new Date().toISOString(), last_winback_tier_sent: template.days_inactive })
+          .eq('id', user.id);
         notified++;
       }
     }

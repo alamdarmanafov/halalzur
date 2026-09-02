@@ -1185,6 +1185,17 @@
       </div>
       <div id="scheduledBroadcastsList"></div>
     </div>
+
+    <div class="place-form" style="margin-top: 16px;">
+      <div class="panel-head" style="margin-bottom: 8px;">
+        <h3 style="margin: 0; font-size: 15px;">🎯 Geri qaytarma push mərhələləri</h3>
+      </div>
+      <p class="hint">
+        İstifadəçi tətbiqi bu qədər gün açmayanda avtomatik push göndərilir (GitHub Actions, hər gün yoxlanılır).
+        Hər mərhələ bir istifadəçiyə YALNIZ BİR DƏFƏ göndərilir — sonrakı mərhələyə çatanda yeni mətn gedir.
+      </p>
+      <div id="winbackTemplatesList"></div>
+    </div>
     </section>
 
     <section class="section" id="section-users" hidden>
@@ -1973,6 +1984,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       loadAnnouncements();
       loadScheduledBroadcasts();
       loadNotificationTemplates();
+      loadWinbackTemplates();
     },
     users: function () {
       loadUsers();
@@ -7811,6 +7823,66 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         btn.disabled = false;
       });
   });
+
+  // ---- win-back push tiers ----
+  var WINBACK_TIER_LABEL = { 7: "1 həftə", 30: "1 ay", 90: "3 ay", 180: "6 ay" };
+
+  function loadWinbackTemplates() {
+    var wrap = document.getElementById("winbackTemplatesList");
+    wrap.textContent = "Yüklənir…";
+    sb("winback_templates?select=*&order=days_inactive.asc")
+      .then(function (rows) {
+        wrap.innerHTML = "";
+        (rows || []).forEach(function (row) {
+          var label = WINBACK_TIER_LABEL[row.days_inactive] || row.days_inactive + " gün";
+          var titleId = "winbackTitle" + row.days_inactive;
+          var bodyId = "winbackBody" + row.days_inactive;
+          var card = document.createElement("div");
+          card.className = "place-card";
+          card.style.marginBottom = "10px";
+          card.innerHTML =
+            '<div style="width: 100%;">' +
+              '<div class="pc-title" style="margin-bottom: 8px;">' + label + " aktiv olmayan istifadəçilər</div>" +
+              '<div class="field" style="margin-bottom: 8px;"><input type="text" id="' + titleId + '" value="' + esc(row.title) + '" placeholder="Başlıq" /></div>' +
+              '<div class="field" style="margin-bottom: 8px;"><textarea id="' + bodyId + '" rows="2" placeholder="Mətn">' + esc(row.body) + "</textarea></div>" +
+              '<button type="button" class="btn btn-sm" data-days="' + row.days_inactive + '">Yadda saxla</button>' +
+            "</div>";
+          card.querySelector("button").addEventListener("click", function () {
+            var days = this.getAttribute("data-days");
+            var title = document.getElementById("winbackTitle" + days).value.trim();
+            var body = document.getElementById("winbackBody" + days).value.trim();
+            if (!title || !body) {
+              toast("Başlıq və mətn lazımdır");
+              return;
+            }
+            var btn = this;
+            btn.disabled = true;
+            sb("winback_templates?days_inactive=eq." + days, {
+              method: "PATCH",
+              headers: { "Prefer": "return=minimal" },
+              body: { title: title, body: body },
+            })
+              .then(function () {
+                toast("Saxlanıldı: " + (WINBACK_TIER_LABEL[days] || days + " gün"));
+              })
+              .catch(function (err) {
+                toast("Xəta: " + err.message);
+              })
+              .finally(function () {
+                btn.disabled = false;
+              });
+          });
+          wrap.appendChild(card);
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Yüklənmədi: " + err.message;
+        wrap.appendChild(errEl);
+      });
+  }
 
   function loadScheduledBroadcasts() {
     var wrap = document.getElementById("scheduledBroadcastsList");
