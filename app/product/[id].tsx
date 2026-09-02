@@ -461,7 +461,11 @@ export default function ProductDetailScreen() {
     if (!shareCardRef.current || sharingCard) return;
     setSharingCard(true);
     try {
-      const uri = await captureRef(shareCardRef, { format: 'png', quality: 0.95 });
+      // ShareResultCard is laid out at 360x640 (an exact 9:16 story ratio)
+      // — forcing the output to 1080x1920 here scales that up 3x instead
+      // of relying on the device's own pixel ratio, so the shared image is
+      // always full Instagram/TikTok Story resolution regardless of device.
+      const uri = await captureRef(shareCardRef, { format: 'png', quality: 0.95, width: 1080, height: 1920 });
       await Share.share({ url: uri, message: `${t('shareCardMessage')} ${product?.productName}` });
     } catch (err) {
       // user cancelled the share sheet, or capture failed — either way
