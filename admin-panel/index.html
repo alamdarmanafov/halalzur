@@ -1212,11 +1212,21 @@
           <option value="tr">TR</option>
         </select>
       </div>
+      <div class="field" style="min-width: 200px; margin-bottom: 0;">
+        <label for="userInactiveFilter">Aktivlik</label>
+        <select id="userInactiveFilter">
+          <option value="">Hamısı</option>
+          <option value="30">30+ gündür aktiv olmayıb</option>
+          <option value="90">90+ gündür aktiv olmayıb</option>
+          <option value="never">Heç aktiv olmayıb</option>
+        </select>
+      </div>
       <label style="display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--ink-muted); padding-bottom: 10px;">
         <input type="checkbox" id="userBannedFilter" style="width: 16px; height: 16px;" />
         Yalnız bloklananlar
       </label>
       <button type="button" class="btn" id="userSelectToggleBtn" style="padding-bottom: 10px;">Seç</button>
+      <button type="button" class="btn" id="userExportFilteredBtn" style="padding-bottom: 10px;">📦 Filtri ixrac et (CSV)</button>
     </div>
 
     <div class="place-form" id="userBulkBar" hidden style="margin-bottom: 16px; display: flex; flex-direction: column; gap: 10px;">
@@ -7648,6 +7658,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     var plan = document.getElementById("userPlanFilter").value;
     var language = document.getElementById("userLanguageFilter").value;
     var bannedOnly = document.getElementById("userBannedFilter").checked;
+    var inactiveFilter = document.getElementById("userInactiveFilter").value;
     var sortBy = document.getElementById("userSortBy").value;
     var filtered = allUsersList.filter(function (u) {
       if (q) {
@@ -7657,6 +7668,15 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       if (plan && u.plan !== plan) return false;
       if (language && u.language !== language) return false;
       if (bannedOnly && !u.banned) return false;
+      if (inactiveFilter === "never" && u.last_seen_at) return false;
+      if (inactiveFilter !== "" && inactiveFilter !== "never") {
+        if (!u.last_seen_at) {
+          // No activity recorded at all counts as inactive for any N-day threshold.
+        } else {
+          var daysSince = (Date.now() - new Date(u.last_seen_at).getTime()) / 86400000;
+          if (daysSince < parseInt(inactiveFilter, 10)) return false;
+        }
+      }
       return true;
     });
     filtered.sort(function (a, b) {
@@ -7678,6 +7698,41 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   document.getElementById("userPlanFilter").addEventListener("change", applyUserFilters);
   document.getElementById("userLanguageFilter").addEventListener("change", applyUserFilters);
   document.getElementById("userBannedFilter").addEventListener("change", applyUserFilters);
+  document.getElementById("userInactiveFilter").addEventListener("change", applyUserFilters);
+
+  // Exports exactly what's currently on screen: the selected users if
+  // selection mode has a non-empty selection, otherwise everything the
+  // active search/plan/language/banned/inactivity filters currently match
+  // — deliberately not CSV_EXPORT_TABLES.users (the toolbar's "all users"
+  // export), since the whole point here is a targeted subset.
+  document.getElementById("userExportFilteredBtn").addEventListener("click", function () {
+    var ids = Object.keys(selectedUserIds);
+    var rows = ids.length
+      ? allUsersList.filter(function (u) { return selectedUserIds[u.id]; })
+      : currentFilteredUsers;
+    if (!rows.length) {
+      toast("İxrac ediləcək istifadəçi yoxdur");
+      return;
+    }
+    var exportRows = rows.map(function (u) {
+      return {
+        id: u.id,
+        name: u.name,
+        email: u.email,
+        plan: u.plan,
+        language: u.language,
+        banned: u.banned,
+        points: u.points,
+        signup_method: userSignupMethod(u.id),
+        last_seen_at: u.last_seen_at,
+        created_at: u.created_at,
+        country: u.country,
+      };
+    });
+    downloadCsv("halalzur-istifadeciler-filtr-" + new Date().toISOString().slice(0, 10) + ".csv", toCsv(exportRows));
+    logAudit("export_users_filtered", "users", null, exportRows.length + " istifadəçi");
+    toast(exportRows.length + " istifadəçi CSV-ə ixrac edildi");
+  });
 
   // ---- bulk select ----
   var userSelectionMode = false;
@@ -7846,6 +7901,17 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     if (entry && userVirtualList) userVirtualList.remeasure(entry.index);
   }
 
+  // Derived from the apple-/google-/email- id prefix set at sign-up
+  // (lib/auth-context.tsx) — there's no separate "provider" column, the
+  // id prefix is the only record of how the account was created.
+  function userSignupMethod(id) {
+    if (!id) return "Naməlum";
+    if (id.indexOf("apple-") === 0) return " Apple";
+    if (id.indexOf("google-") === 0) return "Google";
+    if (id.indexOf("email-") === 0) return "Email/şifrə";
+    return "Naməlum";
+  }
+
   function buildUserCard(row) {
     var card = document.createElement("div");
     card.className = "place-card";
@@ -7878,6 +7944,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         premiumExpiryLine +
         (row.banned && row.ban_reason ? '<div class="pc-note">Səbəb: ' + esc(row.ban_reason) + '</div>' : '') +
         '<div class="pc-sub" data-role="referral-code-display">Referral kodu: ' + esc(row.referral_code || "—") + '</div>' +
+        '<div class="pc-sub">Qeydiyyat metodu: ' + userSignupMethod(row.id) + '</div>' +
         '<div class="pc-sub">Son aktivlik: ' + (row.last_seen_at ? new Date(row.last_seen_at).toLocaleString("az-AZ") : "—") + '</div>' +
         '<div class="pc-sub">Qeydiyyat: ' + (row.created_at ? new Date(row.created_at).toLocaleDateString("az-AZ") : "—") +
           (row.country ? " · " + esc(row.country) : "") + '</div>' +
@@ -7897,6 +7964,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         '</button>' +
         '<button class="btn btn-sm" data-action="send-notification">🔔 Bildiriş</button>' +
         '<button class="btn btn-sm" data-action="edit-referral-code">Referral</button>' +
+        '<button class="btn btn-sm" data-action="edit-user-info">✏️ Ad/email</button>' +
         '<button class="btn btn-sm" data-action="export-user-data">📦 İxrac</button>' +
       '</div>';
 
@@ -7920,6 +7988,9 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     });
     card.querySelector('[data-action="edit-referral-code"]').addEventListener("click", function (e) {
       editReferralCode(row, card, e.target);
+    });
+    card.querySelector('[data-action="edit-user-info"]').addEventListener("click", function (e) {
+      editUserInfo(row, e.target);
     });
     card.querySelector('[data-action="export-user-data"]').addEventListener("click", function (e) {
       exportUserData(row, e.target);
@@ -8024,6 +8095,47 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       });
   }
 
+  // Edits the users-table record only — the profile shown across the app
+  // and admin panel. For an 'email-' account (real Supabase Auth) this is
+  // deliberately NOT the same as changing their login email in Auth; that
+  // needs its own separate change (Supabase dashboard or an admin.
+  // updateUserById call) and isn't done here, so the prompt warns about it
+  // explicitly rather than silently doing something the admin didn't ask for.
+  function editUserInfo(row, btn) {
+    var newName = window.prompt(
+      '"' + (row.name || row.email || "İstifadəçi") + '" üçün ad:',
+      row.name || ""
+    );
+    if (newName === null) return;
+    var emailPrompt = "Email:";
+    if (row.id.indexOf("email-") === 0) {
+      emailPrompt +=
+        "\n\nDİQQƏT: Bu hesab email/şifrə ilə (real Supabase Auth) qeydiyyatdan keçib. " +
+        "Burada dəyişmək yalnız admin paneldə görünən email-i dəyişir — istifadəçinin " +
+        "GİRİŞ email-i DƏYİŞMİR. Giriş email-i dəyişmək lazımdırsa, bunu Supabase Auth " +
+        "tərəfindən ayrıca etmək lazımdır.";
+    }
+    var newEmail = window.prompt(emailPrompt, row.email || "");
+    if (newEmail === null) return;
+    newName = newName.trim() || null;
+    newEmail = newEmail.trim() || null;
+    btn.disabled = true;
+    sb("users?id=eq." + row.id, {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { name: newName, email: newEmail, updated_at: new Date().toISOString() },
+    })
+      .then(function () {
+        toast("Məlumat yeniləndi");
+        logAudit("edit_user_info", "users", row.id, { name: newName, email: newEmail });
+        loadUsers();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+      });
+  }
+
   function sendUserNotification(row, btn) {
     var title = window.prompt('"' + (row.name || row.email || "İstifadəçi") + '" üçün bildiriş başlığı:', "");
     if (title === null || !title.trim()) return;
@@ -8056,6 +8168,22 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       });
   }
 
+  // Looks a user id up in the already-fully-fetched allUsersList instead
+  // of a network round-trip — used to turn a referrer_id/referred_id into
+  // a display name for the referral-chain panel below.
+  function userLabel(id) {
+    for (var i = 0; i < allUsersList.length; i++) {
+      if (allUsersList[i].id === id) return allUsersList[i].name || allUsersList[i].email || id;
+    }
+    return id;
+  }
+
+  var PREMIUM_HISTORY_LABELS = {
+    user_grant_premium: "💎 Premium verildi",
+    user_extend_premium: "🔄 Premium uzadıldı",
+    user_revoke_premium: "Premium ləğv edildi (Free-ə keçirildi)",
+  };
+
   function loadUserDetail(row, card, btn) {
     var wrap = card.querySelector('[data-role="user-detail"]');
     if (wrap.dataset.loaded === "1") {
@@ -8066,25 +8194,75 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     wrap.textContent = "Yüklənir…";
     wrap.hidden = false;
     btn.disabled = true;
+    var uid = encodeURIComponent(row.id);
     Promise.all([
-      sb("user_points?user_id=eq." + encodeURIComponent(row.id) + "&select=points"),
-      sb("referrals?referrer_id=eq." + encodeURIComponent(row.id) + "&select=id"),
-      sb("favorites?user_id=eq." + encodeURIComponent(row.id) + "&select=id"),
-      sb("product_submissions?submitted_by=eq." + encodeURIComponent(row.id) + "&select=id"),
+      sb("user_points?user_id=eq." + uid + "&select=points"),
+      sb("referrals?referrer_id=eq." + uid + "&select=referred_id,created_at&order=created_at.desc"),
+      sb("favorites?user_id=eq." + uid + "&select=id"),
+      sb("product_submissions?submitted_by=eq." + uid + "&select=id"),
+      sb("referrals?referred_id=eq." + uid + "&select=referrer_id&limit=1"),
+      sb(
+        "audit_log?entity_table=eq.users&entity_id=eq." + uid +
+          "&action=in.(user_grant_premium,user_extend_premium,user_revoke_premium)" +
+          "&order=created_at.desc&limit=20&select=action,details,created_at"
+      ),
     ])
       .then(function (results) {
         var points = (results[0] && results[0][0] && results[0][0].points) || 0;
-        var referrals = (results[1] || []).length;
+        var referredRows = results[1] || [];
         var favorites = (results[2] || []).length;
         var submissions = (results[3] || []).length;
+        var referrerRows = results[4] || [];
+        var historyRows = results[5] || [];
+
+        var referredHtml = referredRows.length
+          ? referredRows
+              .map(function (r) {
+                return (
+                  '<div class="pc-sub">→ ' + esc(userLabel(r.referred_id)) +
+                  ' (' + new Date(r.created_at).toLocaleDateString("az-AZ") + ')</div>'
+                );
+              })
+              .join("")
+          : '<div class="pc-sub">Heç kimi dəvət etməyib</div>';
+        var referrerHtml = referrerRows.length
+          ? '<div class="pc-sub">Onu dəvət edən: ' + esc(userLabel(referrerRows[0].referrer_id)) + '</div>'
+          : "";
+
+        var historyHtml = historyRows.length
+          ? historyRows
+              .map(function (h) {
+                var label = PREMIUM_HISTORY_LABELS[h.action] || h.action;
+                var detailsText = h.details
+                  ? typeof h.details === "string"
+                    ? h.details
+                    : JSON.stringify(h.details)
+                  : "";
+                return (
+                  '<div class="pc-sub">' + label + ' — ' + new Date(h.created_at).toLocaleString("az-AZ") +
+                  (detailsText ? ' (' + esc(detailsText) + ')' : '') + '</div>'
+                );
+              })
+              .join("")
+          : '<div class="pc-sub">Premium tarixçəsi yoxdur</div>';
+
         wrap.innerHTML =
           '<div style="display:flex; gap:16px; flex-wrap:wrap; font-size:13px; color:var(--ink-muted);">' +
             '<span>🏆 ' + points + ' xal</span>' +
-            '<span>👥 ' + referrals + ' dəvət</span>' +
+            '<span>👥 ' + referredRows.length + ' dəvət</span>' +
             '<span>♡ ' + favorites + ' favorit</span>' +
             '<span>📝 ' + submissions + ' təklif</span>' +
           '</div>' +
-          '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">' +
+          '<div style="margin-top:10px;">' +
+            '<b style="font-size:12.5px;">Referral zənciri</b>' +
+            referrerHtml +
+            referredHtml +
+          '</div>' +
+          '<div style="margin-top:10px;">' +
+            '<b style="font-size:12.5px;">Premium tarixçəsi</b>' +
+            historyHtml +
+          '</div>' +
+          '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">' +
             '<button type="button" class="btn btn-sm" data-role="adjust-points-btn">✏️ Xalı dəyiş</button>' +
             '<button type="button" class="place-delete-btn btn-sm" data-role="delete-account-btn">🗑 Hesabı sil</button>' +
           '</div>';
