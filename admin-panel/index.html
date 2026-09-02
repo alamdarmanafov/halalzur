@@ -4150,6 +4150,25 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   }
 
   // ---- audit log ----
+  // details is stored as plain text, but logAudit() is often called with an
+  // object (e.g. { from: ..., to: ... }) — sb() JSON.stringifies the whole
+  // request body, so those rows come back as a raw JSON string. Render that
+  // as readable "key: value" pairs instead of the literal JSON text.
+  function formatAuditDetails(details) {
+    var parsed;
+    try {
+      parsed = JSON.parse(details);
+    } catch (e) {
+      return details;
+    }
+    if (parsed && typeof parsed === "object") {
+      return Object.keys(parsed)
+        .map(function (k) { return k + ": " + parsed[k]; })
+        .join(", ");
+    }
+    return String(parsed);
+  }
+
   function loadAuditLog() {
     var wrap = document.getElementById("auditLogList");
     wrap.textContent = "Yüklənir…";
@@ -4170,7 +4189,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
           item.innerHTML =
             '<div>' +
               '<div class="pc-title">' + esc(row.action) + ' — ' + esc(row.entity_table) + '</div>' +
-              '<div class="pc-sub">' + (row.details ? esc(row.details) + ' · ' : '') +
+              '<div class="pc-sub">' + (row.details ? esc(formatAuditDetails(row.details)) + ' · ' : '') +
                 new Date(row.created_at).toLocaleString("az-AZ") + '</div>' +
             '</div>';
           wrap.appendChild(item);
