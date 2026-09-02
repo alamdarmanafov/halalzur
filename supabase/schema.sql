@@ -735,6 +735,14 @@ drop policy if exists "Public delete" on product_recommendations;
 create policy "Public delete" on product_recommendations
   for delete using (true);
 
+-- The admin panel's "merge duplicate products" reassigns a dropped
+-- product's recommendation rows to the surviving barcode via PATCH
+-- (admin-panel/index.html mergeProducts()) — needs update, not just
+-- select/insert/delete.
+drop policy if exists "Public update" on product_recommendations;
+create policy "Public update" on product_recommendations
+  for update using (true) with check (true);
+
 -- Powers the admin panel's "Ən çox tövsiyə olunan məhsullar" report —
 -- same shape as confirmed_scan_counts, but counting user recommends
 -- instead of scans.
