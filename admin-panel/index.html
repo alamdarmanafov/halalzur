@@ -1399,9 +1399,21 @@
       yazan versiyası) yaradılır; "Defolta qaytar" bunu silib ilkin halına qaytarır. Aşağıdakı forma isə YALNI
       siyahıda ÜMUMİYYƏTLƏ olmayan tamam yeni kod əlavə etmək üçündür.
     </p>
-    <div class="field" style="max-width: 360px; margin-bottom: 16px;">
-      <label for="ecodeSearch">Axtar (kod və ya ad)</label>
-      <input type="text" id="ecodeSearch" placeholder="Məs. E471, ya da Lecithin" />
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px;">
+      <div class="field" style="max-width: 360px; flex: 1; min-width: 200px; margin-bottom: 0;">
+        <label for="ecodeSearch">Axtar (kod və ya ad)</label>
+        <input type="text" id="ecodeSearch" placeholder="Məs. E471, ya da Lecithin" />
+      </div>
+      <div class="field" style="min-width: 180px; margin-bottom: 0;">
+        <label for="ecodeStatusFilter">Status</label>
+        <select id="ecodeStatusFilter">
+          <option value="">Hamısı</option>
+          <option value="halal">Halal</option>
+          <option value="haram">Haram</option>
+          <option value="mushbooh">Şübhəli</option>
+          <option value="depends">Mənbəyindən asılıdır</option>
+        </select>
+      </div>
     </div>
     <div class="cards" id="customEcodeCards" style="margin-bottom: 24px;"></div>
     <div class="empty-state" id="customEcodesEmptyState" hidden>Nəticə tapılmadı.</div>
@@ -3465,14 +3477,17 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
 
   function applyEcodeFilter() {
     var q = document.getElementById("ecodeSearch").value.trim().toLowerCase();
+    var statusFilter = document.getElementById("ecodeStatusFilter").value;
     var all = mergedEcodeList();
-    var filtered = !q
-      ? all
-      : all.filter(function (e) {
-          return e.code.toLowerCase().indexOf(q) !== -1 || e.name.toLowerCase().indexOf(q) !== -1;
-        });
+    var filtered = all.filter(function (e) {
+      if (statusFilter && e.status !== statusFilter) return false;
+      if (q && e.code.toLowerCase().indexOf(q) === -1 && e.name.toLowerCase().indexOf(q) === -1) return false;
+      return true;
+    });
     renderCustomEcodeCards(filtered, all.length);
   }
+
+  document.getElementById("ecodeStatusFilter").addEventListener("change", applyEcodeFilter);
 
   var ecodeSearchDebounce;
   document.getElementById("ecodeSearch").addEventListener("input", function () {
