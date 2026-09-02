@@ -1,3 +1,4 @@
+import { chromium, Page } from 'playwright';
 import { SyncedEntry } from './types';
 
 /**
@@ -8,11 +9,22 @@ import { SyncedEntry } from './types';
  * GTIN/EAN barcodes, so this is the better source for "scan a locally-made
  * product and actually get a match" coverage.
  *
- * The site (Laravel + Aimeos) server-renders product/category pages as
- * plain HTML with the data embedded directly — no JS rendering needed, a
- * plain fetch() gets the same markup a browser would. Parsing is regex-
- * based rather than a full HTML parser (no new dependency) since the
- * markup around each field is stable and distinctive enough.
+ * The site (Laravel + Aimeos backend, Vue/Inertia frontend) renders
+ * category and product pages almost entirely client-side — a plain
+ * fetch() of the URL returns a near-empty shell (confirmed: curl on both
+ * a category and a product page came back with zero occurrences of the
+ * data that's visible in a real browser). So this drives a real headless
+ * browser (Playwright) instead: navigate, give the client-side render a
+ * moment, then parse the resulting DOM's HTML with the same regexes a
+ * plain-fetch version would have used against server-rendered markup.
+ *
+ * NOTE: written and never actually run against the live site — outbound
+ * network access to azexport.az is blocked from the environment this was
+ * written in. The 2s post-navigation wait below is a guess at "long
+ * enough for the client-side render to finish"; if entries come back
+ * empty or truncated when this is actually run, that wait (and/or the
+ * regexes in parseProductPage) is the first thing to adjust based on
+ * what real output looks like.
  *
  * Every entry lands with status 'unknown', same as the Open Food Facts
  * import: azexport.az has no concept of halal certification either. The
@@ -26,6 +38,7 @@ import { SyncedEntry } from './types';
 const BASE = 'https://azexport.az';
 const USER_AGENT = 'Halalzur/1.0 (+https://halalzur.com; contact: alamdarmanafov@gmail.com)';
 const MAX_PAGES_PER_CATEGORY = 60; // covers every category seen so far (worst case ~52 pages)
+const RENDER_WAIT_MS = 2000; // time given to the client-side render after navigation
 
 // Azerbaijani food/drink category ids, taken directly from azexport.az's
 // own "Kənd təsərrüfatı & Ərzaq" mega-menu (Qida və içki, id 36, and its
@@ -69,11 +82,11 @@ const AZEXPORT_FOOD_CATEGORIES: Record<number, string | null> = {
   1229: 'Qəlyanaltılar', // Suxari
 };
 
-async function fetchPage(url: string): Promise<string | null> {
+async function renderPage(page: Page, url: string): Promise<string | null> {
   try {
-    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
-    if (!res.ok) return null;
-    return await res.text();
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.waitForTimeout(RENDER_WAIT_MS);
+    return await page.content();
   } catch {
     return null;
   }
@@ -148,56 +161,68 @@ export async function fetchAzexportEntries(maxEntries: number): Promise<Azexport
   // filed in.
   const productCategory = new Map<number, string | null>();
 
-  outerCategories: for (const [categoryId, categoryLabel] of Object.entries(AZEXPORT_FOOD_CATEGORIES)) {
-    for (let page = 1; page <= MAX_PAGES_PER_CATEGORY; page++) {
-      if (productCategory.size >= maxEntries) break outerCategories;
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({ userAgent: USER_AGENT });
 
-      const url = `${BASE}/kateqoriya/${categoryId}?page=${page}`;
-      const html = await fetchPage(url);
-      await sleep(800); // polite delay — this isn't a documented public API
-      if (!html) break;
+    outerCategories: for (const [categoryId, categoryLabel] of Object.entries(AZEXPORT_FOOD_CATEGORIES)) {
+      for (let p = 1; p <= MAX_PAGES_PER_CATEGORY; p++) {
+        if (productCategory.size >= maxEntries) break outerCategories;
 
-      const ids = collectProductIds(html);
-      if (ids.length === 0) break; // no more pages for this category
+        const url = `${BASE}/kateqoriya/${categoryId}?page=${p}`;
+        console.log(`[azexport] category ${categoryId} page ${p}…`);
+        const html = await renderPage(page, url);
+        await sleep(800); // polite delay — this isn't a documented public API
+        if (!html) break;
 
-      let newOnThisPage = 0;
-      for (const id of ids) {
-        if (!productCategory.has(id)) {
-          productCategory.set(id, categoryLabel);
-          newOnThisPage++;
+        const ids = collectProductIds(html);
+        if (ids.length === 0) break; // no more pages for this category (or ?page=N isn't a real param — see note below)
+
+        let newOnThisPage = 0;
+        for (const id of ids) {
+          if (!productCategory.has(id)) {
+            productCategory.set(id, categoryLabel);
+            newOnThisPage++;
+          }
         }
+        // Category listing pages repeat "similar products" from other
+        // categories too — once a page contributes nothing new, later
+        // pages won't either (products are listed in a stable order).
+        // This also naturally caps things at page 1 if ?page=N turns out
+        // not to actually change the rendered list (untested — see the
+        // file-level note).
+        if (newOnThisPage === 0) break;
       }
-      // Category listing pages repeat "similar products" from other
-      // categories too — once a page contributes nothing new, later pages
-      // won't either (products are listed in a stable, non-random order).
-      if (newOnThisPage === 0) break;
     }
-  }
+    console.log(`[azexport] found ${productCategory.size} unique product ids across all categories`);
 
-  outerProducts: for (const [id, categoryLabel] of productCategory) {
-    if (seen.size >= maxEntries) break outerProducts;
-    const productUrl = `${BASE}/mehsul/${id}`;
-    const html = await fetchPage(productUrl);
-    await sleep(500);
-    if (!html) {
-      skipped.fetchFailed++;
-      continue;
-    }
+    outerProducts: for (const [id, categoryLabel] of productCategory) {
+      if (seen.size >= maxEntries) break outerProducts;
+      const productUrl = `${BASE}/mehsul/${id}`;
+      const html = await renderPage(page, productUrl);
+      await sleep(500);
+      if (!html) {
+        skipped.fetchFailed++;
+        continue;
+      }
 
-    const parsed = parseProductPage(html, productUrl);
-    if (!parsed) {
-      // Distinguish "no barcode" from "no name" for the summary — re-check
-      // which one was actually missing.
-      if (!extractField(html, /Məhsulun kodu:\s*(\d+)/)) skipped.noBarcode++;
-      else skipped.noName++;
-      continue;
-    }
-    if (seen.has(parsed.barcode!)) {
-      skipped.duplicate++;
-      continue;
-    }
+      const parsed = parseProductPage(html, productUrl);
+      if (!parsed) {
+        // Distinguish "no barcode" from "no name" for the summary — re-check
+        // which one was actually missing.
+        if (!extractField(html, /Məhsulun kodu:\s*(\d+)/)) skipped.noBarcode++;
+        else skipped.noName++;
+        continue;
+      }
+      if (seen.has(parsed.barcode!)) {
+        skipped.duplicate++;
+        continue;
+      }
 
-    seen.set(parsed.barcode!, { ...parsed, category: categoryLabel });
+      seen.set(parsed.barcode!, { ...parsed, category: categoryLabel });
+    }
+  } finally {
+    await browser.close();
   }
 
   return { entries: Array.from(seen.values()), skipped };
