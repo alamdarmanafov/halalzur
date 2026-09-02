@@ -18,7 +18,15 @@
 //   NOTIFY_SECRET
 //   SUPABASE_URL
 //   SUPABASE_SERVICE_ROLE_KEY
+//
+// Auth: two independent callers, either is accepted —
+//   1. The app itself, self-service (lib/... "delete my account"),
+//      gated by NOTIFY_SECRET the same as send-notification.js.
+//   2. The admin panel, deleting an account on someone's behalf (e.g. a
+//      support/GDPR request) — verified via verifyAdmin.js, same as
+//      every other admin-panel-only endpoint.
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdmin } from '../lib/verifyAdmin.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -26,8 +34,10 @@ export default async function handler(req, res) {
     return;
   }
 
-  if (!process.env.NOTIFY_SECRET || req.headers['x-notify-secret'] !== process.env.NOTIFY_SECRET) {
-    console.error('delete-account: unauthorized — NOTIFY_SECRET missing or mismatched');
+  const hasNotifySecret = !!process.env.NOTIFY_SECRET && req.headers['x-notify-secret'] === process.env.NOTIFY_SECRET;
+  const admin = hasNotifySecret ? null : await verifyAdmin(req);
+  if (!hasNotifySecret && !admin) {
+    console.error('delete-account: unauthorized — neither NOTIFY_SECRET nor a verified admin token matched');
     res.status(401).json({ error: 'unauthorized' });
     return;
   }

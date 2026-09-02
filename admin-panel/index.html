@@ -1202,10 +1202,34 @@
           <option value="created_at">Qeydiyyat (yeni əvvəl)</option>
         </select>
       </div>
+      <div class="field" style="min-width: 150px; margin-bottom: 0;">
+        <label for="userLanguageFilter">Dil</label>
+        <select id="userLanguageFilter">
+          <option value="">Hamısı</option>
+          <option value="az">AZ</option>
+          <option value="en">EN</option>
+          <option value="ru">RU</option>
+          <option value="tr">TR</option>
+        </select>
+      </div>
       <label style="display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--ink-muted); padding-bottom: 10px;">
         <input type="checkbox" id="userBannedFilter" style="width: 16px; height: 16px;" />
         Yalnız bloklananlar
       </label>
+      <button type="button" class="btn" id="userSelectToggleBtn" style="padding-bottom: 10px;">Seç</button>
+    </div>
+
+    <div class="place-form" id="userBulkBar" hidden style="margin-bottom: 16px; display: flex; flex-direction: column; gap: 10px;">
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <b id="userBulkCount" style="font-size: 13.5px;">0 istifadəçi seçilib</b>
+        <button type="button" class="btn btn-sm" id="userBulkSelectAllBtn">Filterə uyğun hamısını seç</button>
+        <button type="button" class="btn btn-sm" id="userBulkClearBtn">Seçimi təmizlə</button>
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button type="button" class="btn btn-sm btn-approve" id="userBulkGrantPremiumBtn" disabled>💎 Premium ver</button>
+        <button type="button" class="place-delete-btn btn-sm" id="userBulkBanBtn" disabled>🚫 Blokla</button>
+        <button type="button" class="btn btn-sm" id="userBulkNotifyBtn" disabled>🔔 Bildiriş göndər</button>
+      </div>
     </div>
 
     <div class="place-form" style="margin-bottom: 24px;">
@@ -7614,12 +7638,15 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       });
   }
 
+  var currentFilteredUsers = [];
+
   // Client-side, over the already-fetched full list — same reasoning as
   // the virtual list itself: the full array is already in memory, so
   // filtering/sorting it locally is instant and needs no extra round-trip.
   function applyUserFilters() {
     var q = document.getElementById("userSearch").value.trim().toLowerCase();
     var plan = document.getElementById("userPlanFilter").value;
+    var language = document.getElementById("userLanguageFilter").value;
     var bannedOnly = document.getElementById("userBannedFilter").checked;
     var sortBy = document.getElementById("userSortBy").value;
     var filtered = allUsersList.filter(function (u) {
@@ -7628,6 +7655,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         if (hay.indexOf(q) === -1) return false;
       }
       if (plan && u.plan !== plan) return false;
+      if (language && u.language !== language) return false;
       if (bannedOnly && !u.banned) return false;
       return true;
     });
@@ -7637,6 +7665,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       // (e.g. a user with no last_seen_at yet) sort last.
       return (b[sortBy] || "").localeCompare(a[sortBy] || "");
     });
+    currentFilteredUsers = filtered;
     renderUserCards(filtered);
   }
 
@@ -7647,7 +7676,140 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   });
   document.getElementById("userSortBy").addEventListener("change", applyUserFilters);
   document.getElementById("userPlanFilter").addEventListener("change", applyUserFilters);
+  document.getElementById("userLanguageFilter").addEventListener("change", applyUserFilters);
   document.getElementById("userBannedFilter").addEventListener("change", applyUserFilters);
+
+  // ---- bulk select ----
+  var userSelectionMode = false;
+  var selectedUserIds = {};
+
+  function updateUserBulkBar() {
+    var count = Object.keys(selectedUserIds).length;
+    document.getElementById("userBulkCount").textContent = count + " istifadəçi seçilib";
+    document.getElementById("userBulkGrantPremiumBtn").disabled = count === 0;
+    document.getElementById("userBulkBanBtn").disabled = count === 0;
+    document.getElementById("userBulkNotifyBtn").disabled = count === 0;
+  }
+
+  document.getElementById("userSelectToggleBtn").addEventListener("click", function () {
+    userSelectionMode = !userSelectionMode;
+    selectedUserIds = {};
+    document.getElementById("userBulkBar").hidden = !userSelectionMode;
+    document.getElementById("userSelectToggleBtn").textContent = userSelectionMode ? "Seçimi bağla" : "Seç";
+    updateUserBulkBar();
+    applyUserFilters();
+  });
+  document.getElementById("userBulkClearBtn").addEventListener("click", function () {
+    selectedUserIds = {};
+    updateUserBulkBar();
+    applyUserFilters();
+  });
+  document.getElementById("userBulkSelectAllBtn").addEventListener("click", function () {
+    currentFilteredUsers.forEach(function (u) { selectedUserIds[u.id] = true; });
+    updateUserBulkBar();
+    applyUserFilters();
+  });
+
+  document.getElementById("userBulkGrantPremiumBtn").addEventListener("click", function () {
+    var ids = Object.keys(selectedUserIds);
+    if (!ids.length) return;
+    var daysStr = window.prompt(ids.length + " istifadəçiyə neçə günlük Premium verilsin? (Boş = müddətsiz)", "30");
+    if (daysStr === null) return;
+    daysStr = daysStr.trim();
+    var expiresAt = null;
+    if (daysStr) {
+      var days = parseInt(daysStr, 10);
+      if (!days || days <= 0) {
+        toast("Gün sayı düzgün deyil");
+        return;
+      }
+      expiresAt = new Date(Date.now() + days * 86400000).toISOString();
+    }
+    if (!window.confirm(ids.length + " istifadəçiyə Premium verilsin?")) return;
+    var btn = this;
+    btn.disabled = true;
+    Promise.all(
+      ids.map(function (id) {
+        return sb("users?id=eq." + id, {
+          method: "PATCH",
+          headers: { "Prefer": "return=minimal" },
+          body: { plan: "premium", premium_expires_at: expiresAt, updated_at: new Date().toISOString() },
+        });
+      })
+    )
+      .then(function () {
+        toast(ids.length + " istifadəçiyə Premium verildi");
+        logAudit("user_bulk_grant_premium", "users", null, ids.length + " istifadəçi");
+        selectedUserIds = {};
+        updateUserBulkBar();
+        loadUsers();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+      });
+  });
+
+  document.getElementById("userBulkBanBtn").addEventListener("click", function () {
+    var ids = Object.keys(selectedUserIds);
+    if (!ids.length) return;
+    var reason = window.prompt(ids.length + " istifadəçi bloklanacaq. Səbəb (istəyə bağlı):", "");
+    if (reason === null) return;
+    var btn = this;
+    btn.disabled = true;
+    Promise.all(
+      ids.map(function (id) {
+        return sb("users?id=eq." + id, {
+          method: "PATCH",
+          headers: { "Prefer": "return=minimal" },
+          body: { banned: true, ban_reason: reason || null, updated_at: new Date().toISOString() },
+        });
+      })
+    )
+      .then(function () {
+        toast(ids.length + " istifadəçi bloklandı");
+        logAudit("user_bulk_ban", "users", null, ids.length + " istifadəçi");
+        selectedUserIds = {};
+        updateUserBulkBar();
+        loadUsers();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+      });
+  });
+
+  document.getElementById("userBulkNotifyBtn").addEventListener("click", function () {
+    var ids = Object.keys(selectedUserIds);
+    if (!ids.length) return;
+    var title = window.prompt(ids.length + " istifadəçiyə bildiriş başlığı:", "");
+    if (title === null || !title.trim()) return;
+    var body = window.prompt("Bildiriş mətni:", "");
+    if (body === null || !body.trim()) return;
+    var btn = this;
+    btn.disabled = true;
+    Promise.all(
+      ids.map(function (id) {
+        return fetch("/api/send-user-notification", {
+          method: "POST",
+          headers: adminApiHeaders(),
+          body: JSON.stringify({ userId: id, title: title.trim(), body: body.trim() }),
+        }).catch(function () {});
+      })
+    )
+      .then(function () {
+        toast("Bildiriş göndərildi");
+        selectedUserIds = {};
+        updateUserBulkBar();
+      })
+      .finally(function () {
+        btn.disabled = false;
+      });
+  });
 
   var userVirtualList = null;
   var userCardsByRowId = {};
@@ -7704,6 +7866,12 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     }
     card.innerHTML =
       '<div>' +
+        (userSelectionMode
+          ? '<label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:6px;">' +
+              '<input type="checkbox" data-role="select-checkbox" style="width:18px; height:18px;" />' +
+              '<span class="pc-sub" style="margin:0;">Seç</span>' +
+            '</label>'
+          : '') +
         '<div class="pc-title">' + esc(row.name || "Adsız") + '</div>' +
         '<div class="pc-sub">' + esc(row.email || "—") + '</div>' +
         '<div class="pc-sub" style="margin-top:6px;">' + planPill + banPill + '</div>' +
@@ -7756,6 +7924,18 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     card.querySelector('[data-action="export-user-data"]').addEventListener("click", function (e) {
       exportUserData(row, e.target);
     });
+    if (userSelectionMode) {
+      var checkbox = card.querySelector('[data-role="select-checkbox"]');
+      checkbox.checked = !!selectedUserIds[row.id];
+      checkbox.addEventListener("change", function () {
+        if (checkbox.checked) {
+          selectedUserIds[row.id] = true;
+        } else {
+          delete selectedUserIds[row.id];
+        }
+        updateUserBulkBar();
+      });
+    }
     return card;
   }
 
@@ -7903,8 +8083,18 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
             '<span>👥 ' + referrals + ' dəvət</span>' +
             '<span>♡ ' + favorites + ' favorit</span>' +
             '<span>📝 ' + submissions + ' təklif</span>' +
+          '</div>' +
+          '<div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">' +
+            '<button type="button" class="btn btn-sm" data-role="adjust-points-btn">✏️ Xalı dəyiş</button>' +
+            '<button type="button" class="place-delete-btn btn-sm" data-role="delete-account-btn">🗑 Hesabı sil</button>' +
           '</div>';
         wrap.dataset.loaded = "1";
+        wrap.querySelector('[data-role="adjust-points-btn"]').addEventListener("click", function (e) {
+          adjustUserPoints(row, e.target);
+        });
+        wrap.querySelector('[data-role="delete-account-btn"]').addEventListener("click", function (e) {
+          deleteUserAccount(row, e.target);
+        });
         remeasureUserCard(row.id);
       })
       .catch(function (err) {
@@ -7912,6 +8102,83 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         remeasureUserCard(row.id);
       })
       .finally(function () {
+        btn.disabled = false;
+      });
+  }
+
+  // Adjusts (not overwrites) — reads the current total, applies the
+  // delta, and writes both the new total (user_points, upserted since a
+  // user with zero lifetime points has no row yet) and a points_log
+  // entry so it shows up in the monthly leaderboard / "Ayın aktivi" the
+  // same as any automated award.
+  function adjustUserPoints(row, btn) {
+    var deltaStr = window.prompt(
+      '"' + (row.name || row.email || "İstifadəçi") + '" xalına neçə əlavə/çıxarılsın? (məs. 50 və ya -20)',
+      "0"
+    );
+    if (deltaStr === null) return;
+    var delta = parseInt(deltaStr.trim(), 10);
+    if (!delta) {
+      toast("Düzgün rəqəm daxil edin");
+      return;
+    }
+    btn.disabled = true;
+    sb("user_points?user_id=eq." + encodeURIComponent(row.id) + "&select=points")
+      .then(function (rows) {
+        var current = (rows && rows[0] && rows[0].points) || 0;
+        var next = Math.max(0, current + delta);
+        return sb("user_points", {
+          method: "POST",
+          headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
+          body: { user_id: row.id, user_name: row.name || row.email || null, points: next },
+        });
+      })
+      .then(function () {
+        return sb("points_log", {
+          method: "POST",
+          headers: { "Prefer": "return=minimal" },
+          body: { user_id: row.id, user_name: row.name || row.email || null, amount: delta },
+        });
+      })
+      .then(function () {
+        toast((delta > 0 ? "+" : "") + delta + " xal tətbiq edildi");
+        logAudit("user_adjust_points", "users", row.id, (delta > 0 ? "+" : "") + delta + " xal");
+        loadUsers();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+      });
+  }
+
+  // Reuses the app's own delete-account endpoint (already deletes device
+  // tokens, favorites, points, feedback, referrals, pending submissions,
+  // the users row, and the Supabase Auth user for email accounts) —
+  // admin-panel/api/delete-account.js now accepts a verified admin token
+  // as an alternative to the app-only NOTIFY_SECRET.
+  function deleteUserAccount(row, btn) {
+    var label = row.name || row.email || row.id;
+    if (!window.confirm('"' + label + '" hesabı HƏMİŞƏLİK silinsin? Bütün xal, favorit, referral məlumatı siləcək. Geri qaytarıla bilməz.')) return;
+    if (!window.confirm("Əminsiniz?")) return;
+    btn.disabled = true;
+    fetch("/api/delete-account", {
+      method: "POST",
+      headers: adminApiHeaders(),
+      body: JSON.stringify({ userId: row.id }),
+    })
+      .then(function (res) {
+        return res.json().then(function (data) { return { ok: res.ok, data: data }; });
+      })
+      .then(function (r) {
+        if (!r.ok) throw new Error(r.data.error || "unknown_error");
+        toast("Hesab silindi: " + label);
+        logAudit("user_delete_account", "users", row.id, label);
+        loadUsers();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
         btn.disabled = false;
       });
   }
