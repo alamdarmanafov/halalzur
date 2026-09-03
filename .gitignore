@@ -34,9 +34,6 @@ yarn-error.*
 .env
 .env*.local
 
-# Firebase project config (per-environment, fetched from Firebase console)
-google-services.json
-
 # typescript
 *.tsbuildinfo
 

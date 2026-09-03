@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "691486056769",
+    "project_id": "halalzur-app",
+    "storage_bucket": "halalzur-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:691486056769:android:0d630b3701f6432a8581c0",
+        "android_client_info": {
+          "package_name": "com.halalzur.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "691486056769-nueqpidguqrrigbhj87gv9krvomogev3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD8zUWu0XJn6d2s4q1WMMm2yUpZEiyMxHc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "691486056769-nueqpidguqrrigbhj87gv9krvomogev3.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "691486056769-u5t7n8inl2apmi2lv18k29rbchojkmoh.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.halalzur.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
