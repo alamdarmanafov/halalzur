@@ -7352,14 +7352,20 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     submitBtn.textContent = "Yoxlanılır…";
 
     // Same Google Maps link pasted twice parses to the exact same
-    // coordinates — checking that (rather than name/address text, which
-    // can legitimately repeat for different branches of the same chain)
-    // reliably catches an accidental re-add of the same physical place.
+    // coordinates — but coordinates alone aren't enough to call it a
+    // duplicate: a mall/shopping center's Google Maps pin is usually one
+    // single point for the whole building, so several genuinely different
+    // shops (different floors/units, e.g. "Dəniz Mall" 1st and 2nd floor)
+    // legitimately share the same lat/lng. Only block when the name also
+    // matches — that still catches an accidental re-add of the same place.
     sb("places?latitude=eq." + lat + "&longitude=eq." + lng + "&select=id,name")
       .then(function (existing) {
-        if (existing && existing.length) {
+        var sameName = (existing || []).find(function (p) {
+          return (p.name || "").trim().toLowerCase() === name.trim().toLowerCase();
+        });
+        if (sameName) {
           errorEl.textContent =
-            'Bu koordinatlarda məkan artıq var: "' + existing[0].name + '" — dublikat əlavə olunmadı.';
+            'Bu koordinatlarda "' + sameName.name + '" adlı məkan artıq var — dublikat əlavə olunmadı.';
           submitBtn.disabled = false;
           submitBtn.textContent = "Məkanı əlavə et";
           return;
