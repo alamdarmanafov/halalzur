@@ -12,6 +12,7 @@ import { useLanguage } from '../lib/i18n-context';
 import { TranslationKey } from '../lib/i18n';
 import { sendPushNotification } from '../lib/pushNotify';
 import { logPurchaseEvent } from '../lib/purchaseTracking';
+import { verifyApplePurchase } from '../lib/purchaseVerification';
 import { maybeRequestReview } from '../lib/reviewPrompt';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
@@ -31,11 +32,11 @@ import { colors, radius, spacing, typography } from '../constants/theme';
  * NOTE: react-native-iap is native code — it needs an EAS dev-client or
  * TestFlight/production build. It will not work inside plain Expo Go.
  *
- * NOTE: purchases are finished here without server-side receipt
- * verification (no backend exists yet). That's fine for early testing,
- * but before real launch, verify receipts server-side (Apple's App
- * Store Server API, or a service like RevenueCat) — otherwise a
- * tampered/replayed receipt could unlock Premium for free.
+ * Purchases are verified server-side (admin-panel/api/verify-purchase.js
+ * calls Apple's App Store Server API) before Premium is granted — see
+ * that file's header comment. finishTransaction() alone never grants
+ * anything locally; onPurchaseSuccess only shows success and calls
+ * refreshPlan() after the server confirms the transaction.
  */
 const PLANS = {
   monthly: {
@@ -89,7 +90,7 @@ const FEATURES: { icon: string; label?: string; labelKey?: TranslationKey }[] = 
 ];
 
 export default function SubscriptionScreen() {
-  const { user, setPlan } = useAuth();
+  const { user, refreshPlan } = useAuth();
   const { t } = useLanguage();
   const [selected, setSelected] = useState<keyof typeof PLANS>('yearly');
   const [purchasing, setPurchasing] = useState(false);
@@ -109,18 +110,28 @@ export default function SubscriptionScreen() {
     onPurchaseSuccess: async (purchase) => {
       try {
         await finishTransaction({ purchase, isConsumable: false });
-        await setPlan('premium');
-        setShowSuccess(true);
-        if (user) {
-          logPurchaseEvent(user.id, PLANS[selected].id, PLANS[selected].usdAmount);
-          sendPushNotification(
-            user.id,
-            t('subPremiumActivatedPushTitle'),
-            t('subPremiumActivatedPushBody'),
-            { route: '/(tabs)/profile' }
-          );
-          maybeRequestReview();
+        if (!user) return;
+        // finishTransaction() only tells StoreKit the app is done with the
+        // transaction locally — it's not proof of purchase. Premium is
+        // granted server-side only after Apple's own API confirms this
+        // transaction id (see lib/purchaseVerification.ts).
+        const verified = purchase.transactionId
+          ? await verifyApplePurchase(user.id, purchase.transactionId, PLANS[selected].id)
+          : false;
+        if (!verified) {
+          Alert.alert(t('subPurchaseFailedTitle'), t('subVerificationFailedBody'));
+          return;
         }
+        await refreshPlan();
+        setShowSuccess(true);
+        logPurchaseEvent(user.id, PLANS[selected].id, PLANS[selected].usdAmount);
+        sendPushNotification(
+          user.id,
+          t('subPremiumActivatedPushTitle'),
+          t('subPremiumActivatedPushBody'),
+          { route: '/(tabs)/profile' }
+        );
+        maybeRequestReview();
       } finally {
         setPurchasing(false);
       }
@@ -182,8 +193,14 @@ export default function SubscriptionScreen() {
     try {
       await restorePurchasesIAP();
       const active = await getActiveSubscriptions(PLAN_SKUS);
-      if (active.length > 0) {
-        await setPlan('premium');
+      // Same server-verification requirement as a fresh purchase — a
+      // locally-reported "active subscription" isn't granted until Apple's
+      // API confirms that specific transaction (see onPurchaseSuccess).
+      const verified = user && active.length > 0
+        ? await verifyApplePurchase(user.id, active[0].transactionId, active[0].productId)
+        : false;
+      if (verified) {
+        await refreshPlan();
         Alert.alert(t('subRestoredTitle'), t('subRestoredBody'));
         router.back();
       } else {

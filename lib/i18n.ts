@@ -222,6 +222,7 @@ export const translations: Record<Language, Dict> = {
     subStoreKitUnavailableBody:
       'Bu, real cihazda (EAS build və ya TestFlight) işləyir — Expo Go-da native ödəniş modulu yoxdur.',
     subPurchaseFailedTitle: 'Alış tamamlanmadı',
+    subVerificationFailedBody: 'Alış Apple tərəfindən təsdiqlənmədi. Balansınızdan pul tutulubsa, bir neçə dəqiqə sonra "Alışları bərpa et" düyməsini sınayın və ya bizimlə əlaqə saxlayın.',
     subRestoredTitle: 'Bərpa edildi',
     subRestoredBody: 'Premium abunəliyiniz tapıldı və aktivləşdirildi.',
     subNotFoundTitle: 'Tapılmadı',
@@ -639,6 +640,7 @@ export const translations: Record<Language, Dict> = {
     subStoreKitUnavailableBody:
       "This works on a real device (EAS build or TestFlight) — Expo Go has no native payment module.",
     subPurchaseFailedTitle: "Purchase didn't complete",
+    subVerificationFailedBody: "Apple couldn't confirm this purchase. If you were charged, try \"Restore Purchases\" in a few minutes, or contact us.",
     subRestoredTitle: 'Restored',
     subRestoredBody: 'Your Premium subscription was found and activated.',
     subNotFoundTitle: 'Not found',
@@ -1056,6 +1058,7 @@ export const translations: Record<Language, Dict> = {
     subStoreKitUnavailableBody:
       'Это работает на реальном устройстве (сборка EAS или TestFlight) — в Expo Go нет нативного платёжного модуля.',
     subPurchaseFailedTitle: 'Покупка не завершена',
+    subVerificationFailedBody: 'Apple не подтвердил эту покупку. Если с вас списали деньги, попробуйте «Восстановить покупки» через пару минут или свяжитесь с нами.',
     subRestoredTitle: 'Восстановлено',
     subRestoredBody: 'Ваша Premium-подписка найдена и активирована.',
     subNotFoundTitle: 'Не найдено',
@@ -1473,6 +1476,7 @@ export const translations: Record<Language, Dict> = {
     subStoreKitUnavailableBody:
       "Bu, gerçek bir cihazda (EAS build veya TestFlight) çalışır — Expo Go'da yerel ödeme modülü yoktur.",
     subPurchaseFailedTitle: 'Satın alma tamamlanamadı',
+    subVerificationFailedBody: 'Apple bu satın almayı onaylamadı. Ücret alındıysa birkaç dakika sonra "Satın Almaları Geri Yükle" seçeneğini deneyin ya da bizimle iletişime geçin.',
     subRestoredTitle: 'Geri yüklendi',
     subRestoredBody: 'Premium aboneliğiniz bulundu ve etkinleştirildi.',
     subNotFoundTitle: 'Bulunamadı',
