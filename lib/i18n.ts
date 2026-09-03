@@ -78,7 +78,7 @@ export const translations: Record<Language, Dict> = {
     profileRedeemSuccessTitle: 'Premium aktivləşdi!',
     profileRedeemSuccessBody: '{days} gün Premium əlavə edildi.',
     profileRedeemErrorTitle: 'Xəta',
-    profilePremiumExpiryLine: 'Nailiyyət mükafatı — {date} tarixinə qədər',
+    profilePremiumExpiryLine: 'Premium — {date} tarixinə qədər aktivdir',
 
     productsTitle: 'Məhsullar',
     productsSearchPlaceholder: 'Məhsul, marka, kateqoriya və ya barkod axtar',
@@ -496,7 +496,7 @@ export const translations: Record<Language, Dict> = {
     profileRedeemSuccessTitle: 'Premium activated!',
     profileRedeemSuccessBody: '{days} days of Premium added.',
     profileRedeemErrorTitle: 'Error',
-    profilePremiumExpiryLine: 'Achievement reward — until {date}',
+    profilePremiumExpiryLine: 'Premium active until {date}',
 
     productsTitle: 'Products',
     productsSearchPlaceholder: 'Search product, brand, category, or barcode',
@@ -914,7 +914,7 @@ export const translations: Record<Language, Dict> = {
     profileRedeemSuccessTitle: 'Premium активирован!',
     profileRedeemSuccessBody: 'Добавлено {days} дней Premium.',
     profileRedeemErrorTitle: 'Ошибка',
-    profilePremiumExpiryLine: 'Награда за достижение — до {date}',
+    profilePremiumExpiryLine: 'Premium активен до {date}',
 
     productsTitle: 'Товары',
     productsSearchPlaceholder: 'Поиск товара, бренда, категории или штрихкода',
@@ -1332,7 +1332,7 @@ export const translations: Record<Language, Dict> = {
     profileRedeemSuccessTitle: 'Premium etkinleşti!',
     profileRedeemSuccessBody: '{days} gün Premium eklendi.',
     profileRedeemErrorTitle: 'Hata',
-    profilePremiumExpiryLine: 'Başarı ödülü — {date} tarihine kadar',
+    profilePremiumExpiryLine: 'Premium {date} tarihine kadar aktif',
 
     productsTitle: 'Ürünler',
     productsSearchPlaceholder: 'Ürün, marka, kategori veya barkod ara',
