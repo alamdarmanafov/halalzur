@@ -727,6 +727,10 @@
         <input type="checkbox" id="productMissingImageFilter" style="width: 16px; height: 16px;" />
         Şəkli yoxdur
       </label>
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--ink-muted); padding-bottom: 10px;" title="Open Food Facts / AzExport sync-indən gəlib, heç bir admin halal/haram/şübhəli statusu təyin etməyib. Status filtrini nəzərə almır.">
+        <input type="checkbox" id="productUnreviewedImportFilter" style="width: 16px; height: 16px;" />
+        Yalnız idxal — hələ yoxlanılmayıb
+      </label>
     </div>
 
     <div class="place-form" id="duplicatesWrap" style="margin-bottom: 16px;">
@@ -924,6 +928,10 @@
     <div class="panel-head">
       <h2>Məkanlar</h2>
       <span id="placesCountLabel"></span>
+    </div>
+    <div id="placesPendingBar" hidden style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+      <span id="placesPendingCount" class="pc-badge pc-badge-pending"></span>
+      <button type="button" class="btn btn-approve" id="placesApproveAllBtn">Hamısını təsdiqlə</button>
     </div>
 
     <div id="placesMap" style="height: 360px; border-radius: 16px; margin-bottom: 16px; border: 1px solid var(--border);"></div>
@@ -4631,8 +4639,21 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     var ecode = document.getElementById("productEcodeFilter").value.trim().toUpperCase().replace(/\s+/g, "");
     var featuredOnly = document.getElementById("productFeaturedFilter").checked;
     var missingImageOnly = document.getElementById("productMissingImageFilter").checked;
+    var unreviewedImportOnly = document.getElementById("productUnreviewedImportFilter").checked;
     var params = "&deleted_at=is.null";
-    if (status) params += "&status=eq." + encodeURIComponent(status);
+    // Sync-imported (Open Food Facts / azexport) rows land with
+    // status='unknown' the same as a genuinely-reviewed-and-uncertain
+    // product — this filter picks out only the former (still carrying
+    // the placeholder certifier_id) so the flood of unreviewed imports can
+    // be triaged separately from products a human already looked at and
+    // deliberately left as unknown. Overrides the status dropdown rather
+    // than combining with it, since combining a non-unknown status pick
+    // with this would just return nothing.
+    if (unreviewedImportOnly) {
+      params += "&status=eq.unknown&certifier_id=in.(openfoodfacts,azexport)";
+    } else if (status) {
+      params += "&status=eq." + encodeURIComponent(status);
+    }
     if (category === "__none__") params += "&category=is.null";
     else if (category) params += "&category=eq." + encodeURIComponent(category);
     if (search) {
@@ -4668,7 +4689,10 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     if (ecode) params += "&ingredients=cs.%7B" + encodeURIComponent(ecode) + "%7D";
     if (featuredOnly) params += "&featured=eq.true";
     if (missingImageOnly) params += "&image_url=is.null";
-    return { params: params, filtered: !!status || !!category || !!search || !!ecode || featuredOnly || missingImageOnly };
+    return {
+      params: params,
+      filtered: !!status || !!category || !!search || !!ecode || featuredOnly || missingImageOnly || unreviewedImportOnly,
+    };
   }
 
   // Fetches every id matching the current filter, across all pages — used
@@ -5665,6 +5689,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       document.getElementById("productCategoryFilter").value = "";
       document.getElementById("productFeaturedFilter").checked = false;
       document.getElementById("productMissingImageFilter").checked = false;
+      document.getElementById("productUnreviewedImportFilter").checked = false;
       document.getElementById("productEcodeFilter").value = "";
     }
     currentProductPage = 0;
@@ -5691,6 +5716,10 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     loadProducts();
   });
   document.getElementById("productMissingImageFilter").addEventListener("change", function () {
+    currentProductPage = 0;
+    loadProducts();
+  });
+  document.getElementById("productUnreviewedImportFilter").addEventListener("change", function () {
     currentProductPage = 0;
     loadProducts();
   });
@@ -7075,6 +7104,14 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     var container = document.getElementById("placeCards");
     var empty = document.getElementById("placesEmptyState");
     document.getElementById("placesCountLabel").textContent = list.length + " məkan";
+
+    var pendingCount = list.filter(function (row) { return row.approved === false; }).length;
+    var pendingBar = document.getElementById("placesPendingBar");
+    pendingBar.hidden = pendingCount === 0;
+    if (pendingCount > 0) {
+      document.getElementById("placesPendingCount").textContent = "⏳ " + pendingCount + " gözləyir";
+    }
+
     container.innerHTML = "";
     if (!list.length) {
       empty.hidden = false;
@@ -7085,6 +7122,31 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       container.appendChild(buildPlaceCard(row));
     });
   }
+
+  document.getElementById("placesApproveAllBtn").addEventListener("click", function () {
+    var btn = this;
+    if (!window.confirm("Bütün gözləyən məkanlar təsdiqlənsin?")) return;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Təsdiqlənir…";
+    sb("places?approved=eq.false", {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { approved: true, updated_at: new Date().toISOString() },
+    })
+      .then(function () {
+        toast("Gözləyən məkanların hamısı təsdiqləndi");
+        logAudit("bulk_approve", "places", null, "bütün gözləyən məkanlar təsdiqləndi");
+        loadPlaces();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
 
   function buildPlaceCard(row) {
     var card = document.createElement("div");
