@@ -938,6 +938,18 @@
           <label for="iconCoffee">Coffee Shop</label>
           <input type="text" id="iconCoffee" maxlength="4" />
         </div>
+        <div class="field" style="margin: 0; width: 90px;">
+          <label for="iconSirniyyat">Şirniyyat</label>
+          <input type="text" id="iconSirniyyat" maxlength="4" />
+        </div>
+        <div class="field" style="margin: 0; width: 90px;">
+          <label for="iconQessabxana">Qəssabxana</label>
+          <input type="text" id="iconQessabxana" maxlength="4" />
+        </div>
+        <div class="field" style="margin: 0; width: 90px;">
+          <label for="iconMarket">Market</label>
+          <input type="text" id="iconMarket" maxlength="4" />
+        </div>
         <button type="button" class="btn btn-approve" id="saveCategoryIconsBtn">Yadda saxla</button>
       </div>
     </div>
@@ -954,6 +966,9 @@
             <option value="restoran">Restoran</option>
             <option value="kafe">Kafe</option>
             <option value="coffee_shop">Coffee Shop</option>
+            <option value="sirniyyat">Şirniyyat mağazası</option>
+            <option value="qessabxana">Qəssabxana</option>
+            <option value="market">Market / Ərzaq mağazası</option>
           </select>
         </div>
         <div class="field field-wide">
@@ -1006,7 +1021,8 @@
       <p class="hint">
         Hər sətirdə bir məkan, sahələri <code>|</code> işarəsi ilə ayırın:<br />
         <code>ad|kateqoriya|status|ünvan|google maps linki|sertifikat|qeyd</code><br />
-        Kateqoriya: <code>restoran</code>, <code>kafe</code>, <code>coffee_shop</code>. Status:
+        Kateqoriya: <code>restoran</code>, <code>kafe</code>, <code>coffee_shop</code>, <code>sirniyyat</code>,
+        <code>qessabxana</code>, <code>market</code>. Status:
         <code>halal</code>, <code>mushbooh</code>, <code>haram</code>, <code>unknown</code>. Sertifikat və qeyd
         istəyə bağlıdır. Google Maps linki olmayan və ya koordinatı tapılmayan sətirlər keçilir.
       </p>
@@ -6917,8 +6933,22 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   });
 
   // ---- places ----
-  var PLACE_CATEGORY_LABEL = { restoran: "Restoran", kafe: "Kafe", coffee_shop: "Coffee Shop" };
-  var PLACE_CATEGORY_ICON = { restoran: "🍽️", kafe: "☕", coffee_shop: "🥐" };
+  var PLACE_CATEGORY_LABEL = {
+    restoran: "Restoran",
+    kafe: "Kafe",
+    coffee_shop: "Coffee Shop",
+    sirniyyat: "Şirniyyat mağazası",
+    qessabxana: "Qəssabxana",
+    market: "Market / Ərzaq mağazası",
+  };
+  var PLACE_CATEGORY_ICON = {
+    restoran: "🍽️",
+    kafe: "☕",
+    coffee_shop: "🥐",
+    sirniyyat: "🍬",
+    qessabxana: "🥩",
+    market: "🛒",
+  };
   var placesMapInstance = null;
   var placesMapMarkers = [];
 
@@ -6942,6 +6972,9 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         document.getElementById("iconRestoran").value = PLACE_CATEGORY_ICON.restoran;
         document.getElementById("iconKafe").value = PLACE_CATEGORY_ICON.kafe;
         document.getElementById("iconCoffee").value = PLACE_CATEGORY_ICON.coffee_shop;
+        document.getElementById("iconSirniyyat").value = PLACE_CATEGORY_ICON.sirniyyat;
+        document.getElementById("iconQessabxana").value = PLACE_CATEGORY_ICON.qessabxana;
+        document.getElementById("iconMarket").value = PLACE_CATEGORY_ICON.market;
         renderPlacesMap(currentPlacesForMap || []);
       })
       .catch(function () {
@@ -6956,6 +6989,9 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       { category: "restoran", icon: document.getElementById("iconRestoran").value.trim() || "📍" },
       { category: "kafe", icon: document.getElementById("iconKafe").value.trim() || "📍" },
       { category: "coffee_shop", icon: document.getElementById("iconCoffee").value.trim() || "📍" },
+      { category: "sirniyyat", icon: document.getElementById("iconSirniyyat").value.trim() || "📍" },
+      { category: "qessabxana", icon: document.getElementById("iconQessabxana").value.trim() || "📍" },
+      { category: "market", icon: document.getElementById("iconMarket").value.trim() || "📍" },
     ];
     var btn = this;
     btn.disabled = true;
@@ -7083,6 +7119,9 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
               '<option value="restoran">Restoran</option>' +
               '<option value="kafe">Kafe</option>' +
               '<option value="coffee_shop">Coffee Shop</option>' +
+              '<option value="sirniyyat">Şirniyyat mağazası</option>' +
+              '<option value="qessabxana">Qəssabxana</option>' +
+              '<option value="market">Market / Ərzaq mağazası</option>' +
             '</select>' +
           '</div>' +
           '<div class="field" style="flex:1 1 220px; margin:0;">' +
@@ -7366,7 +7405,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     errorEl.textContent = "";
 
     var validStatuses = ["halal", "mushbooh", "haram", "unknown"];
-    var validCategories = ["restoran", "kafe", "coffee_shop"];
+    var validCategories = ["restoran", "kafe", "coffee_shop", "sirniyyat", "qessabxana", "market"];
     var lines = document
       .getElementById("placeBulkAddInput")
       .value.split("\n")

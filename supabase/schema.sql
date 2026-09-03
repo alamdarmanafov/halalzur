@@ -205,7 +205,7 @@ create policy "Public update" on user_points
 create table places (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  category text not null check (category in ('restoran', 'kafe', 'coffee_shop')),
+  category text not null check (category in ('restoran', 'kafe', 'coffee_shop', 'sirniyyat', 'qessabxana', 'market')),
   status halal_status not null default 'halal',
   address text not null,
   latitude double precision,
@@ -502,17 +502,18 @@ create policy "Public insert" on referrals
 alter table certified_entries add column featured boolean not null default false;
 
 -- Per-category emoji shown on the admin panel's places map and (once wired
--- into the app) place markers. Only 3 rows ever exist — one per `places`
--- category check-constraint value — so this is a tiny lookup, not a
--- category management system; adding a genuinely new category still needs
--- a schema change to that check constraint.
+-- into the app) place markers. One row per `places` category
+-- check-constraint value — so this is a tiny lookup, not a category
+-- management system; adding a genuinely new category still needs a
+-- schema change to that check constraint (see places.category above).
 create table place_category_icons (
   category text primary key,
   icon text not null default '📍'
 );
 
 insert into place_category_icons (category, icon) values
-  ('restoran', '🍽️'), ('kafe', '☕'), ('coffee_shop', '🥐')
+  ('restoran', '🍽️'), ('kafe', '☕'), ('coffee_shop', '🥐'),
+  ('sirniyyat', '🍬'), ('qessabxana', '🥩'), ('market', '🛒')
 on conflict (category) do nothing;
 
 alter table place_category_icons enable row level security;

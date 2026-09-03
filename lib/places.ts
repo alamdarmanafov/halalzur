@@ -1,7 +1,7 @@
 import { HalalStatus } from './types';
 import { supabase, isSupabaseConfigured } from './supabase';
 
-export type PlaceCategory = 'restoran' | 'kafe' | 'coffee_shop';
+export type PlaceCategory = 'restoran' | 'kafe' | 'coffee_shop' | 'sirniyyat' | 'qessabxana' | 'market';
 
 export type Place = {
   id: string;
@@ -21,12 +21,18 @@ export const PLACE_CATEGORY_LABEL: Record<PlaceCategory, string> = {
   restoran: 'Restoran',
   kafe: 'Kafe',
   coffee_shop: 'Coffee Shop',
+  sirniyyat: 'Şirniyyat mağazası',
+  qessabxana: 'Qəssabxana',
+  market: 'Market',
 };
 
 export const PLACE_CATEGORY_ICON: Record<PlaceCategory, string> = {
   restoran: 'restaurant',
   kafe: 'cafe',
   coffee_shop: 'cafe-outline',
+  sirniyyat: 'ice-cream-outline',
+  qessabxana: 'storefront-outline',
+  market: 'cart-outline',
 };
 
 /**

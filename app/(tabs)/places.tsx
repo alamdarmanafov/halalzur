@@ -38,12 +38,15 @@ import { sendPushNotification } from '../../lib/pushNotify';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 import { TranslationKey } from '../../lib/i18n';
 
-const SUBMIT_CATEGORIES: PlaceCategory[] = ['restoran', 'kafe', 'coffee_shop'];
+const SUBMIT_CATEGORIES: PlaceCategory[] = ['restoran', 'kafe', 'coffee_shop', 'sirniyyat', 'qessabxana', 'market'];
 
 const CATEGORY_LABEL_KEY: Record<PlaceCategory, TranslationKey> = {
   restoran: 'placeCategoryRestoran',
   kafe: 'placeCategoryKafe',
   coffee_shop: 'placeCategoryCoffeeShop',
+  sirniyyat: 'placeCategorySirniyyat',
+  qessabxana: 'placeCategoryQessabxana',
+  market: 'placeCategoryMarket',
 };
 
 function openInMaps(place: Place, t: (key: TranslationKey) => string) {
@@ -70,6 +73,9 @@ export default function PlacesScreen() {
     { key: 'restoran', label: categoryLabel('restoran'), icon: PLACE_CATEGORY_ICON.restoran as any },
     { key: 'kafe', label: categoryLabel('kafe'), icon: PLACE_CATEGORY_ICON.kafe as any },
     { key: 'coffee_shop', label: categoryLabel('coffee_shop'), icon: PLACE_CATEGORY_ICON.coffee_shop as any },
+    { key: 'sirniyyat', label: categoryLabel('sirniyyat'), icon: PLACE_CATEGORY_ICON.sirniyyat as any },
+    { key: 'qessabxana', label: categoryLabel('qessabxana'), icon: PLACE_CATEGORY_ICON.qessabxana as any },
+    { key: 'market', label: categoryLabel('market'), icon: PLACE_CATEGORY_ICON.market as any },
   ];
   const [filter, setFilter] = useState<PlaceCategory | 'hamısı'>('hamısı');
   const [data, setData] = useState<Place[]>([]);
