@@ -169,9 +169,19 @@ export default function SubscriptionScreen() {
     }
   }, [connected, fetchProducts]);
 
+  // StoreKit's live displayPrice format isn't consistent across products —
+  // e.g. one plan can come back "USD 2.99" (ISO code) while the others load
+  // as "$9.99" (symbol), which read as inconsistent side by side. Normalize
+  // the ISO-code-prefixed USD case to match; anything else (a real non-USD
+  // storefront currency) passes through untouched.
+  const formatPrice = (raw: string) => {
+    const usdMatch = raw.match(/^USD\s*([\d.,]+)$/);
+    return usdMatch ? `$${usdMatch[1]}` : raw;
+  };
+
   const priceFor = (key: keyof typeof PLANS) => {
     const live = subscriptions.find((s) => s.id === skuFor(key));
-    return live?.displayPrice ?? PLANS[key].price;
+    return live?.displayPrice ? formatPrice(live.displayPrice) : PLANS[key].price;
   };
 
   /**
