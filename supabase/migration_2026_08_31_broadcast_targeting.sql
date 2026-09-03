@@ -1,9 +1,10 @@
 -- One-time migration: broadcast push audience targeting + scheduling.
 -- Run this once in Supabase → SQL Editor → New query.
+-- Every statement below is idempotent — safe to run more than once.
 
-alter table users add column language text not null default 'az' check (language in ('az', 'en'));
+alter table users add column if not exists language text not null default 'az' check (language in ('az', 'en'));
 
-create table scheduled_broadcasts (
+create table if not exists scheduled_broadcasts (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   body text not null,
@@ -19,11 +20,14 @@ create table scheduled_broadcasts (
 
 alter table scheduled_broadcasts enable row level security;
 
+drop policy if exists "Public read" on scheduled_broadcasts;
 create policy "Public read" on scheduled_broadcasts
   for select using (true);
 
+drop policy if exists "Public insert" on scheduled_broadcasts;
 create policy "Public insert" on scheduled_broadcasts
   for insert with check (true);
 
+drop policy if exists "Public update" on scheduled_broadcasts;
 create policy "Public update" on scheduled_broadcasts
   for update using (true) with check (true);
