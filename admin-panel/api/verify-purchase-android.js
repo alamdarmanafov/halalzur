@@ -22,10 +22,11 @@ import { JWT } from 'google-auth-library';
 import { createClient } from '@supabase/supabase-js';
 
 const PACKAGE_NAME = 'com.halalzur.app';
-// Must match app/subscription.tsx's PLANS ids (same ids are used for both
-// the App Store and Play Console products) — checked here too so a
-// verified transaction for some unrelated product can't be replayed to
-// claim Premium.
+// Must match app/subscription.tsx's PLANS[key].androidId values — checked
+// here too so a verified transaction for some unrelated product can't be
+// replayed to claim Premium. iOS uses different ids (PLANS[key].iosId,
+// see verify-purchase.js) — the two stores' product ids are independent
+// namespaces and don't need to match.
 const KNOWN_PRODUCT_IDS = [
   'com.halalzur.app.premium.monthly',
   'com.halalzur.app.premium.sixmonth',

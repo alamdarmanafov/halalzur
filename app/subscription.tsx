@@ -38,16 +38,25 @@ import { colors, radius, spacing, typography } from '../constants/theme';
  * anything locally; onPurchaseSuccess only shows success and calls
  * refreshPlan() after the server confirms the transaction.
  */
+// iOS and Android product ids are independent per-store namespaces and
+// don't need to match — they diverged here because the original
+// com.halalzur.app.premium.* subscription ids got permanently burned in
+// App Store Connect (a subscription group was created and deleted by
+// mistake; Apple never releases a product id once used, even after
+// deletion), so iOS moved to a fresh .pro. naming while Android kept
+// .premium. (never hit the same issue there).
 const PLANS = {
   monthly: {
-    id: 'com.halalzur.app.premium.monthly',
+    iosId: 'com.halalzur.app.pro.monthly',
+    androidId: 'com.halalzur.app.premium.monthly',
     labelKey: 'subPlanMonthly',
     price: '$2.99',
     usdAmount: 2.99,
     periodKey: 'subPeriodMonth',
   },
   sixMonth: {
-    id: 'com.halalzur.app.premium.sixmonth',
+    iosId: 'com.halalzur.app.pro.sixmonth',
+    androidId: 'com.halalzur.app.premium.sixmonth',
     labelKey: 'subPlanSixMonth',
     price: '$9.99',
     usdAmount: 9.99,
@@ -55,7 +64,8 @@ const PLANS = {
     badgeKey: 'subBadgeSixMonthSavings',
   },
   yearly: {
-    id: 'com.halalzur.app.premium.yearly',
+    iosId: 'com.halalzur.app.pro.yearly',
+    androidId: 'com.halalzur.app.premium.yearly',
     labelKey: 'subPlanYearly',
     price: '$19.99',
     usdAmount: 19.99,
@@ -65,7 +75,8 @@ const PLANS = {
 } as const satisfies Record<
   string,
   {
-    id: string;
+    iosId: string;
+    androidId: string;
     labelKey: TranslationKey;
     price: string;
     usdAmount: number;
@@ -74,7 +85,8 @@ const PLANS = {
   }
 >;
 
-const PLAN_SKUS = Object.values(PLANS).map((p) => p.id);
+const PLAN_SKUS = Object.values(PLANS).map((p) => (Platform.OS === 'ios' ? p.iosId : p.androidId));
+const skuFor = (key: keyof typeof PLANS) => (Platform.OS === 'ios' ? PLANS[key].iosId : PLANS[key].androidId);
 
 /**
  * The 4 real Premium features — deliberately just these 4, per spec.
@@ -118,10 +130,10 @@ export default function SubscriptionScreen() {
         const verified =
           Platform.OS === 'ios'
             ? purchase.transactionId
-              ? await verifyApplePurchase(user.id, purchase.transactionId, PLANS[selected].id)
+              ? await verifyApplePurchase(user.id, purchase.transactionId, skuFor(selected))
               : false
             : purchase.purchaseToken
-              ? await verifyGooglePlayPurchase(user.id, purchase.purchaseToken, PLANS[selected].id)
+              ? await verifyGooglePlayPurchase(user.id, purchase.purchaseToken, skuFor(selected))
               : false;
         if (!verified) {
           Alert.alert(t('subPurchaseFailedTitle'), t('subVerificationFailedBody'));
@@ -129,7 +141,7 @@ export default function SubscriptionScreen() {
         }
         await refreshPlan();
         setShowSuccess(true);
-        logPurchaseEvent(user.id, PLANS[selected].id, PLANS[selected].usdAmount);
+        logPurchaseEvent(user.id, skuFor(selected), PLANS[selected].usdAmount);
         sendPushNotification(
           user.id,
           t('subPremiumActivatedPushTitle'),
@@ -158,7 +170,7 @@ export default function SubscriptionScreen() {
   }, [connected, fetchProducts]);
 
   const priceFor = (key: keyof typeof PLANS) => {
-    const live = subscriptions.find((s) => s.id === PLANS[key].id);
+    const live = subscriptions.find((s) => s.id === skuFor(key));
     return live?.displayPrice ?? PLANS[key].price;
   };
 
@@ -170,7 +182,7 @@ export default function SubscriptionScreen() {
    * price tier). react-native-iap just reflects whatever's configured.
    */
   const trialLabelFor = (key: keyof typeof PLANS): string | null => {
-    const live = subscriptions.find((s) => s.id === PLANS[key].id);
+    const live = subscriptions.find((s) => s.id === skuFor(key));
     if (!live || live.platform !== 'ios' || live.introductoryPricePaymentModeIOS !== 'free-trial') return null;
     const n = live.introductoryPriceNumberOfPeriodsIOS;
     const unit = live.introductoryPriceSubscriptionPeriodIOS;
@@ -187,8 +199,8 @@ export default function SubscriptionScreen() {
     try {
       const request =
         Platform.OS === 'ios'
-          ? { apple: { sku: PLANS[selected].id } }
-          : { google: { skus: [PLANS[selected].id] } };
+          ? { apple: { sku: skuFor(selected) } }
+          : { google: { skus: [skuFor(selected)] } };
       await requestPurchase({ request, type: 'subs' });
       // result lands in onPurchaseSuccess / onPurchaseError above
     } catch (err: any) {

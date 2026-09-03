@@ -38,13 +38,14 @@ import { AppStoreServerAPIClient, Environment } from '@apple/app-store-server-li
 import { createClient } from '@supabase/supabase-js';
 
 const BUNDLE_ID = 'com.halalzur.app';
-// Must match app/subscription.tsx's PLANS ids — checked here too so a
-// verified transaction for some unrelated product can't be replayed to
-// claim Premium.
+// Must match app/subscription.tsx's PLANS[key].iosId values — checked
+// here too so a verified transaction for some unrelated product can't be
+// replayed to claim Premium. Android uses different ids
+// (PLANS[key].androidId, see verify-purchase-android.js).
 const KNOWN_PRODUCT_IDS = [
-  'com.halalzur.app.premium.monthly',
-  'com.halalzur.app.premium.sixmonth',
-  'com.halalzur.app.premium.yearly',
+  'com.halalzur.app.pro.monthly',
+  'com.halalzur.app.pro.sixmonth',
+  'com.halalzur.app.pro.yearly',
 ];
 
 function decodeJWSPayload(jws) {
