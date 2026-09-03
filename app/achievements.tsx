@@ -24,15 +24,22 @@ export default function AchievementsScreen() {
     try {
       const count = await getApprovedCount(user.id);
       setApprovedCount(count);
-      const tier = highestUnclaimedTier(count, user.claimedAchievements);
-      if (tier) {
-        await grantAchievementPremium(tier);
-        const label = tierLabel(tier, language);
-        setUnlocked({ label });
-        sendPushNotification(user.id, t('achievementsPushTitle'), `${label} ${t('achievementsCongratsBody')}`, {
-          route: '/achievements',
-        });
-        maybeRequestReview();
+      // highestUnclaimedTier here is only used to decide whether it's worth
+      // asking the server at all — grant_achievement_premium (called via
+      // grantAchievementPremium) recomputes eligibility itself from
+      // product_submissions and is the actual source of truth for what
+      // gets granted.
+      const maybeTier = highestUnclaimedTier(count, user.claimedAchievements);
+      if (maybeTier) {
+        const tier = await grantAchievementPremium();
+        if (tier) {
+          const label = tierLabel(tier, language);
+          setUnlocked({ label });
+          sendPushNotification(user.id, t('achievementsPushTitle'), `${label} ${t('achievementsCongratsBody')}`, {
+            route: '/achievements',
+          });
+          maybeRequestReview();
+        }
       }
     } catch {
       setApprovedCount(0);

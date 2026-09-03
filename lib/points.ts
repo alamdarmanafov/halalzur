@@ -29,36 +29,31 @@ export const POINTS_PER_PREMIUM_DAY = 10;
 /** Below this, floor(points / POINTS_PER_PREMIUM_DAY) would be a trivial reward. */
 export const MIN_REDEEMABLE_DAYS = 3;
 
+export type PointsRedemption = { days: number; newExpiresAt: string };
+
 /**
- * Spends whatever whole days of Premium the user's current point balance
- * covers (leaving any remainder points), returning how many days that
- * was. Not logged to points_log — that table is an "earned" activity
- * feed for the admin panel's monthly leaderboard, and a redemption isn't
- * activity, it's spending. auth-context.tsx's redeemPointsForPremium
- * actually grants the Premium time after this succeeds.
+ * Calls the redeem_points_for_premium Postgres function (see
+ * supabase/migration_2026_09_04_server_side_reward_premium.sql), which
+ * deducts the spent points and grants the Premium extension in one
+ * server-side transaction — this used to read the point balance, deduct
+ * client-side, then have auth-context.tsx separately PATCH users.plan
+ * with a client-computed day count via the same open RLS policy real
+ * profile edits need (so a crafted request could claim any day count),
+ * and as two non-atomic steps, a crash between them could deduct points
+ * without ever granting the time. Not logged to points_log — that table
+ * is an "earned" activity feed for the admin panel's monthly
+ * leaderboard, and a redemption isn't activity, it's spending.
  */
-export async function redeemPointsForPremium(userId: string): Promise<number> {
+export async function redeemPointsForPremium(userId: string): Promise<PointsRedemption> {
   if (!isSupabaseConfigured || !supabase) throw new Error('Supabase qoşulmayıb.');
 
-  const { data: existing, error } = await supabase
-    .from('user_points')
-    .select('points')
-    .eq('user_id', userId)
-    .maybeSingle();
+  const { data, error } = await supabase
+    .rpc('redeem_points_for_premium', { p_user_id: userId })
+    .maybeSingle<{ granted_days: number | null; new_expires_at: string | null }>();
   if (error) throw error;
-
-  const currentPoints = existing?.points ?? 0;
-  const days = Math.floor(currentPoints / POINTS_PER_PREMIUM_DAY);
-  if (days < MIN_REDEEMABLE_DAYS) {
+  if (!data || data.granted_days == null || !data.new_expires_at) {
     throw new Error(`Ən azı ${MIN_REDEEMABLE_DAYS * POINTS_PER_PREMIUM_DAY} xal lazımdır.`);
   }
 
-  const spent = days * POINTS_PER_PREMIUM_DAY;
-  const { error: updateError } = await supabase
-    .from('user_points')
-    .update({ points: currentPoints - spent, updated_at: new Date().toISOString() })
-    .eq('user_id', userId);
-  if (updateError) throw updateError;
-
-  return days;
+  return { days: data.granted_days, newExpiresAt: data.new_expires_at };
 }

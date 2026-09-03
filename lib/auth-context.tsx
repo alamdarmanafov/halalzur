@@ -5,7 +5,7 @@ import { createContext, useContext, useEffect, useMemo, useState, PropsWithChild
 import { User } from './types';
 import { supabase } from './supabase';
 import { syncUser, fetchRemoteAccountState, touchLastSeen, ensureReferralCode } from './userSync';
-import { AchievementTier } from './achievements';
+import { AchievementTier, ACHIEVEMENT_TIERS } from './achievements';
 import { redeemPointsForPremium as redeemPoints } from './points';
 
 const STORAGE_KEY = 'halalzur.user';
@@ -44,7 +44,7 @@ type AuthContextValue = {
   setPlan: (plan: User['plan']) => Promise<void>;
   incrementScanCount: () => Promise<void>;
   refreshPlan: () => Promise<void>;
-  grantAchievementPremium: (tier: AchievementTier) => Promise<void>;
+  grantAchievementPremium: () => Promise<AchievementTier | null>;
   /** Spends whatever whole days the user's points currently cover; resolves to how many days were redeemed. */
   redeemPointsForPremium: () => Promise<number>;
   // In-memory only (not persisted) — true for one app session right after
@@ -279,33 +279,40 @@ export function AuthProvider({ children }: PropsWithChildren) {
         const cleared = withExpiredAchievementCleared(withRemote);
         if (cleared !== user) await persist(cleared);
       },
-      grantAchievementPremium: async (tier) => {
-        if (!user) return;
-        const base =
-          user.plan === 'premium' && user.premiumExpiresAt && new Date(user.premiumExpiresAt).getTime() > Date.now()
-            ? new Date(user.premiumExpiresAt).getTime()
-            : Date.now();
-        const premiumExpiresAt = new Date(base + tier.days * 86400000).toISOString();
+      // Calls the grant_achievement_premium Postgres function (see
+      // supabase/migration_2026_09_04_server_side_reward_premium.sql),
+      // which recomputes the approved-submission count from
+      // product_submissions itself and tracks already-claimed tiers
+      // server-side — this used to grant client-side straight to
+      // users.plan via the same open RLS policy real profile edits need,
+      // so a crafted request could claim an approved-submission count
+      // that was never real. Returns whichever tier the function actually
+      // granted (not necessarily the one that triggered the check) so the
+      // caller can show the right label — null if nothing was newly earned.
+      grantAchievementPremium: async () => {
+        if (!user || !supabase) return null;
+        const { data, error } = await supabase
+          .rpc('grant_achievement_premium', { p_user_id: user.id })
+          .maybeSingle<{ granted_days: number | null; tier_threshold: number | null; new_expires_at: string | null }>();
+        if (error || !data || data.granted_days == null) return null;
+
+        const tier = ACHIEVEMENT_TIERS.find((t) => t.threshold === data.tier_threshold);
+        if (!tier) return null;
+
         const next: User = {
           ...user,
           plan: 'premium',
-          premiumExpiresAt,
+          premiumExpiresAt: data.new_expires_at,
           claimedAchievements: [...user.claimedAchievements, tier.threshold],
         };
         await persist(next);
-        syncUser(next);
+        return tier;
       },
       redeemPointsForPremium: async () => {
         if (!user) return 0;
-        const days = await redeemPoints(user.id);
-        const base =
-          user.plan === 'premium' && user.premiumExpiresAt && new Date(user.premiumExpiresAt).getTime() > Date.now()
-            ? new Date(user.premiumExpiresAt).getTime()
-            : Date.now();
-        const premiumExpiresAt = new Date(base + days * 86400000).toISOString();
-        const next: User = { ...user, plan: 'premium', premiumExpiresAt };
+        const { days, newExpiresAt } = await redeemPoints(user.id);
+        const next: User = { ...user, plan: 'premium', premiumExpiresAt: newExpiresAt };
         await persist(next);
-        syncUser(next);
         return days;
       },
       justRegistered,

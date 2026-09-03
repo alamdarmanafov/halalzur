@@ -73,45 +73,27 @@ export async function getMyReferrals(userId: string): Promise<ReferralEntry[]> {
 }
 
 /**
- * Fires once, the moment the referrer's total referral count exactly
- * equals a milestone (not >=, so an already-passed milestone from before
- * this feature shipped isn't re-granted on someone's next referral).
- * Extends rather than overwrites — same "add to whatever time is left"
- * rule as the admin panel's own extendUserPremium.
+ * Calls the grant_referral_milestone_bonus Postgres function (see
+ * supabase/migration_2026_09_04_server_side_reward_premium.sql), which
+ * recomputes the referral count from the referrals table itself and
+ * tracks already-granted milestones server-side — this used to count and
+ * grant client-side, writing straight to users.plan via the same open
+ * RLS policy real profile edits need, so a crafted request could claim a
+ * referral count that was never real. The function is idempotent: safe
+ * to call after every redeemReferral, whether or not a milestone was
+ * actually just crossed.
  */
 async function grantMilestoneBonusIfEarned(referrerId: string): Promise<void> {
   const client = requireSupabase();
-  const { count, error: countError } = await client
-    .from('referrals')
-    .select('id', { count: 'exact', head: true })
-    .eq('referrer_id', referrerId);
-  if (countError || count == null) return;
-
-  const milestone = REFERRAL_MILESTONES.find((m) => m.count === count);
-  if (!milestone) return;
-
-  const { data: owner } = await client
-    .from('users')
-    .select('plan, premium_expires_at')
-    .eq('id', referrerId)
-    .maybeSingle();
-  if (!owner) return;
-
-  const base =
-    owner.plan === 'premium' && owner.premium_expires_at && new Date(owner.premium_expires_at).getTime() > Date.now()
-      ? new Date(owner.premium_expires_at).getTime()
-      : Date.now();
-  const expiresAt = new Date(base + milestone.premiumDays * 86400000).toISOString();
-
-  await client
-    .from('users')
-    .update({ plan: 'premium', premium_expires_at: expiresAt, updated_at: new Date().toISOString() })
-    .eq('id', referrerId);
+  const { data, error } = await client
+    .rpc('grant_referral_milestone_bonus', { p_user_id: referrerId })
+    .maybeSingle<{ granted_days: number | null; new_expires_at: string | null }>();
+  if (error || !data || data.granted_days == null) return;
 
   sendPushNotification(
     referrerId,
     '🎁 Hədiyyə qazandınız!',
-    `${milestone.count} dostunuzu dəvət etdiniz — ${milestone.premiumDays} gün pulsuz Premium hədiyyəmizdir!`,
+    `Dostlarınızı dəvət etdiyiniz üçün ${data.granted_days} gün pulsuz Premium hədiyyəmizdir!`,
     { route: '/referrals' }
   );
 }
