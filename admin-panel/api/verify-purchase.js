@@ -12,12 +12,11 @@
 // purchase grants Premium, and it only does so after Apple's own API
 // confirms the transaction is real, unrevoked, and unexpired.
 //
-// NOT covered by this fix: lib/referrals.ts's grantMilestoneBonusIfEarned
-// and lib/auth-context.tsx's grantAchievementPremium also grant Premium
-// through that same open users.update policy, based on client-computed
-// referral/achievement counts — a smaller, lower-urgency version of the
-// same underlying gap (users.plan is writable by anyone with the anon
-// key), left as a follow-up.
+// The same class of gap on the referral-milestone/achievement/points-
+// redemption Premium grants (lib/referrals.ts, lib/auth-context.tsx,
+// lib/points.ts) is closed the same way, via security-definer Postgres
+// functions instead of a client PATCH — see
+// supabase/migration_2026_09_04_server_side_reward_premium.sql.
 //
 // Required Vercel environment variables (Settings → Environment Variables):
 //   NOTIFY_SECRET               — shared secret; must match the app's
