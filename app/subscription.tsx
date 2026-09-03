@@ -12,7 +12,7 @@ import { useLanguage } from '../lib/i18n-context';
 import { TranslationKey } from '../lib/i18n';
 import { sendPushNotification } from '../lib/pushNotify';
 import { logPurchaseEvent } from '../lib/purchaseTracking';
-import { verifyApplePurchase } from '../lib/purchaseVerification';
+import { verifyApplePurchase, verifyGooglePlayPurchase } from '../lib/purchaseVerification';
 import { maybeRequestReview } from '../lib/reviewPrompt';
 import { colors, radius, spacing, typography } from '../constants/theme';
 
@@ -111,13 +111,18 @@ export default function SubscriptionScreen() {
       try {
         await finishTransaction({ purchase, isConsumable: false });
         if (!user) return;
-        // finishTransaction() only tells StoreKit the app is done with the
+        // finishTransaction() only tells the store the app is done with the
         // transaction locally — it's not proof of purchase. Premium is
-        // granted server-side only after Apple's own API confirms this
-        // transaction id (see lib/purchaseVerification.ts).
-        const verified = purchase.transactionId
-          ? await verifyApplePurchase(user.id, purchase.transactionId, PLANS[selected].id)
-          : false;
+        // granted server-side only after Apple's/Google's own API confirms
+        // this transaction (see lib/purchaseVerification.ts).
+        const verified =
+          Platform.OS === 'ios'
+            ? purchase.transactionId
+              ? await verifyApplePurchase(user.id, purchase.transactionId, PLANS[selected].id)
+              : false
+            : purchase.purchaseToken
+              ? await verifyGooglePlayPurchase(user.id, purchase.purchaseToken, PLANS[selected].id)
+              : false;
         if (!verified) {
           Alert.alert(t('subPurchaseFailedTitle'), t('subVerificationFailedBody'));
           return;
@@ -174,13 +179,17 @@ export default function SubscriptionScreen() {
   const isFamilyShareable = subscriptions.some((s) => s.platform === 'ios' && s.isFamilyShareableIOS);
 
   const purchasePremium = async () => {
-    if (Platform.OS !== 'ios') {
+    if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
       Alert.alert(t('subNotSupportedTitle'), t('subNotSupportedBody'));
       return;
     }
     setPurchasing(true);
     try {
-      await requestPurchase({ request: { apple: { sku: PLANS[selected].id } }, type: 'subs' });
+      const request =
+        Platform.OS === 'ios'
+          ? { apple: { sku: PLANS[selected].id } }
+          : { google: { skus: [PLANS[selected].id] } };
+      await requestPurchase({ request, type: 'subs' });
       // result lands in onPurchaseSuccess / onPurchaseError above
     } catch (err: any) {
       setPurchasing(false);
@@ -194,11 +203,16 @@ export default function SubscriptionScreen() {
       await restorePurchasesIAP();
       const active = await getActiveSubscriptions(PLAN_SKUS);
       // Same server-verification requirement as a fresh purchase — a
-      // locally-reported "active subscription" isn't granted until Apple's
-      // API confirms that specific transaction (see onPurchaseSuccess).
-      const verified = user && active.length > 0
-        ? await verifyApplePurchase(user.id, active[0].transactionId, active[0].productId)
-        : false;
+      // locally-reported "active subscription" isn't granted until Apple's/
+      // Google's API confirms that specific transaction (see onPurchaseSuccess).
+      const verified =
+        user && active.length > 0
+          ? Platform.OS === 'ios'
+            ? await verifyApplePurchase(user.id, active[0].transactionId, active[0].productId)
+            : active[0].purchaseToken
+              ? await verifyGooglePlayPurchase(user.id, active[0].purchaseToken, active[0].productId)
+              : false
+          : false;
       if (verified) {
         await refreshPlan();
         Alert.alert(t('subRestoredTitle'), t('subRestoredBody'));

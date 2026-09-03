@@ -33,3 +33,27 @@ export async function verifyApplePurchase(
     return false;
   }
 }
+
+/** Android counterpart of verifyApplePurchase — see admin-panel/api/verify-purchase-android.js. */
+export async function verifyGooglePlayPurchase(
+  userId: string,
+  purchaseToken: string,
+  productId: string
+): Promise<boolean> {
+  if (!API_BASE) {
+    console.warn('verifyGooglePlayPurchase: EXPO_PUBLIC_ADMIN_API_URL not set — cannot verify purchase');
+    return false;
+  }
+  try {
+    const res = await fetch(`${API_BASE.replace(/\/$/, '')}/api/verify-purchase-android`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-notify-secret': NOTIFY_SECRET ?? '' },
+      body: JSON.stringify({ userId, purchaseToken, productId }),
+    });
+    const data = await res.json();
+    return !!data.verified;
+  } catch (err: any) {
+    console.warn('verifyGooglePlayPurchase failed:', err.message);
+    return false;
+  }
+}
