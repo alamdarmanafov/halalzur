@@ -336,6 +336,10 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6z"/><path d="M9.5 19a2.5 2.5 0 0 0 5 0"/></svg>
           <span>Bildirişlər</span>
         </button>
+        <button class="nav-item" type="button" data-section="promocodes">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 12.6 12.7 20.5a2 2 0 0 1-2.8 0l-6.4-6.4a2 2 0 0 1 0-2.8L11.4 3.3a2 2 0 0 1 1.4-.6h6a2 2 0 0 1 2 2v6a2 2 0 0 1-.2.9z"/><circle cx="16.5" cy="7.5" r="1.5"/></svg>
+          <span>Promo-kodlar</span>
+        </button>
         <button class="nav-item" type="button" data-section="users">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.6 2.7-5.5 6-5.5s6 1.9 6 5.5"/><circle cx="17.5" cy="9" r="2.4"/><path d="M15.5 14.5c2.5.3 4.5 1.9 4.5 5.5"/></svg>
           <span>İstifadəçilər</span>
@@ -1253,7 +1257,30 @@
     </p>
     <div id="broadcastLogList"></div>
 
-    <div class="panel-head" style="margin-top: 32px;">
+    <div class="place-form" style="margin-top: 16px;">
+      <div class="panel-head" style="margin-bottom: 8px;">
+        <h3 style="margin: 0; font-size: 15px;">Planlanmış bildirişlər</h3>
+        <button type="button" class="btn" id="scheduledBroadcastsRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+          Yenilə
+        </button>
+      </div>
+      <div id="scheduledBroadcastsList"></div>
+    </div>
+
+    <div class="place-form" style="margin-top: 16px;">
+      <div class="panel-head" style="margin-bottom: 8px;">
+        <h3 style="margin: 0; font-size: 15px;">🎯 Geri qaytarma push mərhələləri</h3>
+      </div>
+      <p class="hint">
+        İstifadəçi tətbiqi bu qədər gün açmayanda avtomatik push göndərilir (GitHub Actions, hər gün yoxlanılır).
+        Hər mərhələ bir istifadəçiyə YALNIZ BİR DƏFƏ göndərilir — sonrakı mərhələyə çatanda yeni mətn gedir.
+      </p>
+      <div id="winbackTemplatesList"></div>
+    </div>
+    </section>
+
+    <section class="section" id="section-promocodes" hidden>
+    <div class="panel-head">
       <h2>Promo-kodlar</h2>
     </div>
     <p class="hint">
@@ -1291,8 +1318,8 @@
         <h3 style="margin: 0; font-size: 15px;">Promo-kod bildirişi</h3>
       </div>
       <p class="hint">
-        Yuxarıdakı koddan ayrı, öz addımı: hazır bir promo-koda dair push bildirişi göndərin. Yuxarıdakı "Push
-        bildiriş" bölməsindən fərqli olaraq, birbaşa seçdiyiniz kodu mətnə əlavə edir.
+        Hazır bir promo-koda dair push bildirişi göndərin — Elanlar bölməsindəki ümumi bildiriş vasitəsindən ayrı,
+        birbaşa seçdiyiniz kodu mətnə əlavə edir.
       </p>
       <div class="form-row" style="align-items: flex-end;">
         <div class="field" style="max-width: 200px;">
@@ -1315,27 +1342,6 @@
       </div>
       <button type="button" class="btn btn-approve" id="promoPushSendBtn">Bildiriş göndər</button>
       <div class="gate-error" id="promoPushError"></div>
-    </div>
-
-    <div class="place-form" style="margin-top: 16px;">
-      <div class="panel-head" style="margin-bottom: 8px;">
-        <h3 style="margin: 0; font-size: 15px;">Planlanmış bildirişlər</h3>
-        <button type="button" class="btn" id="scheduledBroadcastsRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
-          Yenilə
-        </button>
-      </div>
-      <div id="scheduledBroadcastsList"></div>
-    </div>
-
-    <div class="place-form" style="margin-top: 16px;">
-      <div class="panel-head" style="margin-bottom: 8px;">
-        <h3 style="margin: 0; font-size: 15px;">🎯 Geri qaytarma push mərhələləri</h3>
-      </div>
-      <p class="hint">
-        İstifadəçi tətbiqi bu qədər gün açmayanda avtomatik push göndərilir (GitHub Actions, hər gün yoxlanılır).
-        Hər mərhələ bir istifadəçiyə YALNIZ BİR DƏFƏ göndərilir — sonrakı mərhələyə çatanda yeni mətn gedir.
-      </p>
-      <div id="winbackTemplatesList"></div>
     </div>
     </section>
 
@@ -2081,6 +2087,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     products: document.getElementById("section-products"),
     places: document.getElementById("section-places"),
     announcements: document.getElementById("section-announcements"),
+    promocodes: document.getElementById("section-promocodes"),
     users: document.getElementById("section-users"),
     feedback: document.getElementById("section-feedback"),
     certifiers: document.getElementById("section-certifiers"),
@@ -2127,8 +2134,8 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       loadNotificationTemplates();
       loadWinbackTemplates();
       loadBroadcastLog();
-      loadPromoCodes();
     },
+    promocodes: loadPromoCodes,
     users: function () {
       loadUsers();
       loadReferralReport();
