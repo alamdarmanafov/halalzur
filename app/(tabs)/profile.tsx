@@ -25,8 +25,7 @@ import { useFavorites } from '../../lib/favorites-context';
 import { useLanguage } from '../../lib/i18n-context';
 import { registerForPushNotifications } from '../../lib/notifications';
 import { syncUserLanguage } from '../../lib/userSync';
-import { isAdmin } from '../../lib/admin';
-import { getPoints, fetchPendingSubmissions } from '../../lib/submissions';
+import { getPoints } from '../../lib/submissions';
 import { POINTS_PER_PREMIUM_DAY, MIN_REDEEMABLE_DAYS } from '../../lib/points';
 import { computeBadges, BADGE_ICON, BADGE_LABEL_KEY } from '../../lib/badges';
 import { useLiteMode } from '../../lib/liteMode-context';
@@ -69,9 +68,7 @@ export default function ProfileScreen() {
   const { favorites } = useFavorites();
   const { language, setLanguage, t } = useLanguage();
   const isPremium = user?.plan === 'premium';
-  const admin = isAdmin(user);
   const [points, setPoints] = useState(0);
-  const [pendingCount, setPendingCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [showDeletionCodeModal, setShowDeletionCodeModal] = useState(false);
   const [deletionCode, setDeletionCode] = useState('');
@@ -82,14 +79,9 @@ export default function ProfileScreen() {
     getPoints(user.id)
       .then(setPoints)
       .catch(() => {});
-    if (admin) {
-      fetchPendingSubmissions()
-        .then((list) => setPendingCount(list.length))
-        .catch(() => {});
-    }
   };
 
-  useEffect(loadProfileData, [user, admin]);
+  useEffect(loadProfileData, [user]);
 
   const badges = useMemo(
     () =>
@@ -271,15 +263,6 @@ export default function ProfileScreen() {
       label: t('profileFeedbackHistory'),
       onPress: () => router.push('/feedback-history'),
     },
-    ...(admin
-      ? [
-          {
-            icon: 'shield-half-outline' as const,
-            label: `${t('profileAdminPending')} (${pendingCount})`,
-            onPress: () => router.push('/admin'),
-          },
-        ]
-      : []),
     {
       icon: 'trash-outline',
       label: t('profileClearHistory'),

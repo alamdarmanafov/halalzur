@@ -1,6 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { sendPushNotification } from './pushNotify';
-import { ADMIN_EMAIL } from './admin';
 
 export type FeedbackItem = {
   id: string;
@@ -116,18 +115,19 @@ async function uploadScreenshot(uri: string): Promise<string | null> {
 }
 
 // Best-effort — never blocks or fails the actual feedback submission if
-// the admin's own account has no registered push token yet.
+// the admin's own account has no registered push token yet. Goes through
+// the get_admin_user_id() RPC rather than a direct `users` query filtered
+// by email — users.email is no longer readable by the anon/authenticated
+// roles (see supabase/migration_2026_09_04_security_hardening.sql), so a
+// raw `.eq('email', ...)` would just come back empty.
 function notifyAdmin(userName: string | null, message: string) {
   if (!supabase) return;
   supabase
-    .from('users')
-    .select('id')
-    .eq('email', ADMIN_EMAIL)
-    .maybeSingle()
-    .then(({ data }) => {
-      if (data?.id) {
+    .rpc('get_admin_user_id')
+    .then(({ data }: { data: string | null }) => {
+      if (data) {
         sendPushNotification(
-          data.id,
+          data,
           'Yeni Xəta/Rəy mesajı',
           `${userName ?? 'Naməlum istifadəçi'}: ${message.slice(0, 100)}`
         );

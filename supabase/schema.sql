@@ -71,18 +71,22 @@ create policy "Public read access" on certifiers
 create policy "Public read access" on certified_entries
   for select using (true);
 
--- Needed by both approveSubmission() (lib/submissions.ts, promotes an
--- approved community submission into this table) and the admin panel's
--- Məhsullar section (direct add/delete). Same no-real-backend-auth caveat
--- as product_submissions above — gated client-side only.
-create policy "Public insert" on certified_entries
-  for insert with check (true);
+-- is_admin()-gated as of migration_2026_09_04_admin_rls_lockdown.sql.
+-- This used to be open ("Public insert/update/delete") for both the
+-- admin panel's Məhsullar section AND an in-app admin.tsx approval
+-- screen that wrote here with no real admin session (Apple/Google
+-- sign-in never gets a Supabase Auth token) — meaning anyone holding the
+-- public anon key could certify anything as Halal or delete real
+-- entries. admin.tsx is removed; review now only happens through the
+-- admin panel, which does authenticate with a real admin session.
+create policy "Admin insert" on certified_entries
+  for insert with check (is_admin());
 
-create policy "Public update" on certified_entries
-  for update using (true) with check (true);
+create policy "Admin update" on certified_entries
+  for update using (is_admin()) with check (is_admin());
 
-create policy "Public delete" on certified_entries
-  for delete using (true);
+create policy "Admin delete" on certified_entries
+  for delete using (is_admin());
 
 insert into certifiers (id, name, short_name, country, source_url) values
   ('gimdes', 'GIMDES – Gıda ve İhtiyaç Maddeleri Denetleme ve Sertifikalandırma Araştırmaları Derneği', 'GIMDES', 'Türkiyə', 'https://www.gimdes.org/'),
@@ -165,8 +169,14 @@ create policy "Public insert" on product_submissions
 create policy "Public read" on product_submissions
   for select using (true);
 
-create policy "Public update" on product_submissions
-  for update using (true) with check (true);
+-- is_admin()-gated as of migration_2026_09_04_admin_rls_lockdown.sql —
+-- insert/select stay open (users submit and read their own submissions),
+-- but the open update let a user PATCH their own row's review_status
+-- straight to 'approved' without any admin ever looking at it, which
+-- fraudulently inflates the approved-submission count
+-- grant_achievement_premium counts to grant free Premium.
+create policy "Admin update" on product_submissions
+  for update using (is_admin()) with check (is_admin());
 
 create table user_points (
   user_id text primary key,        -- local user id (lib/types.ts User.id)
@@ -232,11 +242,19 @@ create policy "Public read" on places
 create policy "Public insert" on places
   for insert with check (true);
 
-create policy "Public update" on places
-  for update using (true) with check (true);
+-- update/delete are is_admin()-gated as of
+-- migration_2026_09_04_admin_rls_lockdown.sql — insert stays open since
+-- lib/places.ts's submitPlace() lets any user propose a place, always
+-- with approved=false; the open "Public update" used to let anyone flip
+-- their own (or anyone else's) place straight to approved=true, skipping
+-- review entirely, and "Public delete" let anyone remove any place.
+drop policy if exists "Public update" on places;
+create policy "Admin update" on places
+  for update using (is_admin()) with check (is_admin());
 
-create policy "Public delete" on places
-  for delete using (true);
+drop policy if exists "Public delete" on places;
+create policy "Admin delete" on places
+  for delete using (is_admin());
 
 -- In-app announcements ("yeni versiya çıxdı", promo, maintenance notice,
 -- etc.) — admin writes one from the admin panel, the app shows the latest
@@ -261,14 +279,17 @@ alter table announcements enable row level security;
 create policy "Public read" on announcements
   for select using (true);
 
-create policy "Public insert" on announcements
-  for insert with check (true);
+drop policy if exists "Public insert" on announcements;
+create policy "Admin insert" on announcements
+  for insert with check (is_admin());
 
-create policy "Public update" on announcements
-  for update using (true) with check (true);
+drop policy if exists "Public update" on announcements;
+create policy "Admin update" on announcements
+  for update using (is_admin()) with check (is_admin());
 
-create policy "Public delete" on announcements
-  for delete using (true);
+drop policy if exists "Public delete" on announcements;
+create policy "Admin delete" on announcements
+  for delete using (is_admin());
 
 -- Mirrors lib/types.ts User for the admin panel's "İstifadəçilər" list.
 -- SCOPE CAVEAT: only synced for Apple/Google Sign-In users (lib/userSync.ts)
@@ -578,11 +599,13 @@ alter table app_versions enable row level security;
 create policy "Public read" on app_versions
   for select using (true);
 
-create policy "Public insert" on app_versions
-  for insert with check (true);
+drop policy if exists "Public insert" on app_versions;
+create policy "Admin insert" on app_versions
+  for insert with check (is_admin());
 
-create policy "Public delete" on app_versions
-  for delete using (true);
+drop policy if exists "Public delete" on app_versions;
+create policy "Admin delete" on app_versions
+  for delete using (is_admin());
 
 -- Synced from the in-app language switcher (app/(tabs)/profile.tsx) so
 -- the admin panel's broadcast push can target by language — nothing
@@ -681,14 +704,20 @@ alter table announcements add column publish_at timestamptz;
 
 -- The admin panel can now manage certifiers directly (add GIMDES-style
 -- entries for new certification bodies) instead of needing raw SQL.
-create policy "Public insert" on certifiers
-  for insert with check (true);
+-- is_admin()-gated as of migration_2026_09_04_admin_rls_lockdown.sql —
+-- see that file for why "Public" here was a real vulnerability, not just
+-- a naming leftover.
+drop policy if exists "Public insert" on certifiers;
+create policy "Admin insert" on certifiers
+  for insert with check (is_admin());
 
-create policy "Public update" on certifiers
-  for update using (true) with check (true);
+drop policy if exists "Public update" on certifiers;
+create policy "Admin update" on certifiers
+  for update using (is_admin()) with check (is_admin());
 
-create policy "Public delete" on certifiers
-  for delete using (true);
+drop policy if exists "Public delete" on certifiers;
+create policy "Admin delete" on certifiers
+  for delete using (is_admin());
 
 -- Mirrors unclassified_scan_counts but for barcodes that DO have a
 -- certified_entries match — powers the Dashboard's "Ən çox skan edilən
@@ -889,11 +918,11 @@ alter table product_categories enable row level security;
 drop policy if exists "Public read" on product_categories;
 create policy "Public read" on product_categories for select using (true);
 drop policy if exists "Public insert" on product_categories;
-create policy "Public insert" on product_categories for insert with check (true);
+create policy "Admin insert" on product_categories for insert with check (is_admin());
 drop policy if exists "Public update" on product_categories;
-create policy "Public update" on product_categories for update using (true) with check (true);
+create policy "Admin update" on product_categories for update using (is_admin()) with check (is_admin());
 drop policy if exists "Public delete" on product_categories;
-create policy "Public delete" on product_categories for delete using (true);
+create policy "Admin delete" on product_categories for delete using (is_admin());
 
 insert into product_categories (label, sort_order)
 select v.label, v.sort_order from (values
@@ -955,9 +984,9 @@ alter table custom_ecodes enable row level security;
 drop policy if exists "Public read" on custom_ecodes;
 create policy "Public read" on custom_ecodes for select using (true);
 drop policy if exists "Public insert" on custom_ecodes;
-create policy "Public insert" on custom_ecodes for insert with check (true);
+create policy "Admin insert" on custom_ecodes for insert with check (is_admin());
 drop policy if exists "Public delete" on custom_ecodes;
-create policy "Public delete" on custom_ecodes for delete using (true);
+create policy "Admin delete" on custom_ecodes for delete using (is_admin());
 
 -- Per-event point history — user_points only ever stored a running
 -- total, with no way to ask "who was most active THIS month" (the
@@ -1027,8 +1056,14 @@ create table if not exists guide_articles (
   updated_at timestamptz not null default now()
 );
 alter table guide_articles enable row level security;
+-- Split as of migration_2026_09_04_admin_rls_lockdown.sql — select stays
+-- public (app/guide.tsx reads it), writes are is_admin()-gated; the
+-- single "for all using(true)" policy let anyone deface/delete articles.
 drop policy if exists "Public read/insert/update/delete" on guide_articles;
-create policy "Public read/insert/update/delete" on guide_articles for all using (true) with check (true);
+create policy "Public read" on guide_articles for select using (true);
+create policy "Admin insert" on guide_articles for insert with check (is_admin());
+create policy "Admin update" on guide_articles for update using (is_admin()) with check (is_admin());
+create policy "Admin delete" on guide_articles for delete using (is_admin());
 
 -- Admin-added named-ingredient (not E-code) haram/mushbooh keywords —
 -- additive to the hardcoded starter list in lib/haramKeywords.ts, same
@@ -1042,8 +1077,17 @@ create table if not exists haram_keywords (
   created_at timestamptz not null default now()
 );
 alter table haram_keywords enable row level security;
+-- Split as of migration_2026_09_04_admin_rls_lockdown.sql — select stays
+-- public (lib/haramKeywords.ts reads it at scan time), writes are
+-- is_admin()-gated. This one mattered most of the tables in that
+-- migration: anyone with the anon key could otherwise delete a real
+-- haram keyword (e.g. remove "pork" from the list), silently making the
+-- detector pass a haram product as safe.
 drop policy if exists "Public read/insert/delete" on haram_keywords;
-create policy "Public read/insert/delete" on haram_keywords for all using (true) with check (true);
+create policy "Public read" on haram_keywords for select using (true);
+create policy "Admin insert" on haram_keywords for insert with check (is_admin());
+create policy "Admin update" on haram_keywords for update using (is_admin()) with check (is_admin());
+create policy "Admin delete" on haram_keywords for delete using (is_admin());
 
 -- Real (database-enforced) admin roles for the web admin panel — one
 -- row per admin, keyed to a real Supabase Auth account (auth.users),
@@ -1196,7 +1240,7 @@ grant execute on function merge_users(text, text) to authenticated;
 -- adding brand-new codes and deleting old ones — custom_ecodes had no
 -- update policy at all, so that upsert was silently rejected by RLS.
 drop policy if exists "Public update" on custom_ecodes;
-create policy "Public update" on custom_ecodes for update using (true) with check (true);
+create policy "Admin update" on custom_ecodes for update using (is_admin()) with check (is_admin());
 
 -- Admin panel product-image upload — same public-read/admin-write Storage
 -- bucket pattern as "certifier-logos" above. The admin panel compresses/
@@ -1244,7 +1288,7 @@ drop policy if exists "Public read" on winback_templates;
 create policy "Public read" on winback_templates for select using (true);
 
 drop policy if exists "Public update" on winback_templates;
-create policy "Public update" on winback_templates for update using (true) with check (true);
+create policy "Admin update" on winback_templates for update using (is_admin()) with check (is_admin());
 
 insert into winback_templates (days_inactive, title, body) values
   (7, 'Sizi darıxdıq!', 'Yeni halal məhsulları yoxlamaq üçün Halalzur-a qayıdın 🍏'),
@@ -1678,8 +1722,15 @@ create table if not exists promo_codes (
   created_at timestamptz not null default now()
 );
 alter table promo_codes enable row level security;
+-- Locked down entirely as of migration_2026_09_04_admin_rls_lockdown.sql
+-- — no client code reads or writes this table directly (redemption goes
+-- through the redeem_promo_code security-definer RPC, which bypasses
+-- RLS regardless), so the old "Public read/insert/update/delete" let
+-- anyone mint their own promo_codes row and grant themselves unlimited
+-- free Premium — the throttle added to redeem_promo_code earlier in this
+-- file doesn't help if an attacker can just create the code they want.
 drop policy if exists "Public read/insert/update/delete" on promo_codes;
-create policy "Public read/insert/update/delete" on promo_codes for all using (true) with check (true);
+create policy "Admin all" on promo_codes for all using (is_admin()) with check (is_admin());
 
 create table if not exists promo_code_redemptions (
   id uuid primary key default gen_random_uuid(),
@@ -1689,8 +1740,13 @@ create table if not exists promo_code_redemptions (
   unique (code, user_id)
 );
 alter table promo_code_redemptions enable row level security;
+-- Locked down entirely as of migration_2026_09_04_admin_rls_lockdown.sql
+-- — same reasoning as promo_codes above; the RPC's own insert bypasses
+-- RLS via security definer, and the open policy let anyone insert a fake
+-- redemption row for a victim's user_id + a real code, silently blocking
+-- that person's own future legitimate redemption of it.
 drop policy if exists "Public read/insert" on promo_code_redemptions;
-create policy "Public read/insert" on promo_code_redemptions for all using (true) with check (true);
+create policy "Admin all" on promo_code_redemptions for all using (is_admin()) with check (is_admin());
 
 -- security definer so the redemption-count bump + Premium grant happen
 -- atomically, same reasoning as gift_premium_from_points.
@@ -1844,3 +1900,19 @@ create table if not exists api_rate_limits (
 alter table api_rate_limits enable row level security;
 -- No anon/authenticated policies — only ever touched by the service_role
 -- key from admin-panel/lib/rateLimit.js.
+
+-- Lets lib/feedback.ts's "notify the admin of new feedback" push find the
+-- admin's own users.id without querying users.email directly — that
+-- column was revoked from anon/authenticated above, so a raw
+-- `.eq('email', ...)` comes back empty for those roles. security definer
+-- bypasses that column restriction the same way every other
+-- privileged-lookup function in this file does.
+create or replace function get_admin_user_id() returns text
+language sql
+security definer
+set search_path = public
+as $$
+  select id from users where email = 'alamdarmanafov@gmail.com' limit 1;
+$$;
+
+grant execute on function get_admin_user_id() to anon, authenticated;

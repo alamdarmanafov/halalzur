@@ -1,8 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import { HalalStatus, ProductSubmission, ReviewStatus } from './types';
-import { awardPoints } from './points';
-
-const POINTS_PER_APPROVAL = 10;
 
 type SubmissionRow = {
   id: string;
@@ -97,17 +94,6 @@ export async function fetchMySubmissions(userId: string): Promise<ProductSubmiss
   return (data ?? []).map(mapRow);
 }
 
-export async function fetchPendingSubmissions(): Promise<ProductSubmission[]> {
-  const client = requireSupabase();
-  const { data, error } = await client
-    .from('product_submissions')
-    .select('*')
-    .eq('review_status', 'pending')
-    .order('created_at', { ascending: true });
-  if (error) throw error;
-  return (data ?? []).map(mapRow);
-}
-
 export async function getApprovedCount(userId: string): Promise<number> {
   const client = requireSupabase();
   const { count, error } = await client
@@ -130,39 +116,14 @@ export async function getPoints(userId: string): Promise<number> {
   return data?.points ?? 0;
 }
 
-export async function approveSubmission(submission: ProductSubmission): Promise<void> {
-  const client = requireSupabase();
-
-  const { error: entryError } = await client.from('certified_entries').insert({
-    entry_type: 'product',
-    barcode: submission.barcode,
-    product_name: submission.productName,
-    brand: submission.brand,
-    category: submission.category,
-    status: submission.suggestedStatus,
-    certifier_id: 'halalzur',
-    certificate_number: null,
-    verified_at: new Date().toISOString().slice(0, 10),
-    ingredients: submission.ingredients,
-    notes: submission.notes,
-    source_url: null,
-  });
-  if (entryError) throw entryError;
-
-  const { error: reviewError } = await client
-    .from('product_submissions')
-    .update({ review_status: 'approved', reviewed_at: new Date().toISOString() })
-    .eq('id', submission.id);
-  if (reviewError) throw reviewError;
-
-  await awardPoints(submission.submittedBy, submission.submittedByName, POINTS_PER_APPROVAL);
-}
-
-export async function rejectSubmission(submissionId: string, adminNotes: string | null): Promise<void> {
-  const client = requireSupabase();
-  const { error } = await client
-    .from('product_submissions')
-    .update({ review_status: 'rejected', reviewed_at: new Date().toISOString(), admin_notes: adminNotes })
-    .eq('id', submissionId);
-  if (error) throw error;
-}
+// Review (approve/reject) is admin-panel-only now — see
+// supabase/migration_2026_09_04_admin_rls_lockdown.sql. It used to also be
+// reachable from an in-app admin.tsx screen that wrote straight to
+// certified_entries/product_submissions using the same open ("Public
+// update") RLS every regular user's own writes need, since the app has no
+// server-verified admin session (Apple/Google sign-in never gets a
+// Supabase Auth token to check against admin_profiles) — meaning anyone
+// holding the public anon key could self-approve their own submission, or
+// certify anything as Halal, without ever being a real admin. That screen
+// is removed; review now only happens through the admin panel, which
+// authenticates with a real Supabase Auth admin session.
