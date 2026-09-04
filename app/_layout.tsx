@@ -81,6 +81,10 @@ function RootLayout() {
                   options={{ presentation: 'card', animation: 'slide_from_right' }}
                 />
                 <Stack.Screen
+                  name="feedback-history"
+                  options={{ presentation: 'card', animation: 'slide_from_right' }}
+                />
+                <Stack.Screen
                   name="referrals"
                   options={{ presentation: 'card', animation: 'slide_from_right' }}
                 />

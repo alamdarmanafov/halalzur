@@ -2,6 +2,33 @@ import { supabase, isSupabaseConfigured } from './supabase';
 import { sendPushNotification } from './pushNotify';
 import { ADMIN_EMAIL } from './admin';
 
+export type FeedbackItem = {
+  id: string;
+  message: string;
+  status: 'open' | 'in_progress' | 'resolved';
+  adminReply: string | null;
+  createdAt: string;
+};
+
+/** Read-back side of submitFeedback — Profile > "Mesajlarım" (feedback-history.tsx). */
+export async function getMyFeedback(userId: string): Promise<FeedbackItem[]> {
+  if (!isSupabaseConfigured || !supabase) return [];
+  const { data, error } = await supabase
+    .from('feedback_reports')
+    .select('id, message, status, admin_reply, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .returns<{ id: string; message: string; status: string; admin_reply: string | null; created_at: string }[]>();
+  if (error || !data) return [];
+  return data.map((row) => ({
+    id: row.id,
+    message: row.message,
+    status: (row.status as FeedbackItem['status']) || 'open',
+    adminReply: row.admin_reply,
+    createdAt: row.created_at,
+  }));
+}
+
 const API_BASE = process.env.EXPO_PUBLIC_ADMIN_API_URL;
 const NOTIFY_SECRET = process.env.EXPO_PUBLIC_NOTIFY_SECRET;
 

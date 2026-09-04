@@ -228,6 +228,11 @@ export default function ProfileScreen() {
       label: t('profileFeedback'),
       onPress: () => router.push('/feedback'),
     },
+    {
+      icon: 'mail-open-outline',
+      label: t('profileFeedbackHistory'),
+      onPress: () => router.push('/feedback-history'),
+    },
     ...(admin
       ? [
           {

@@ -67,24 +67,46 @@ async function sendToTokens(messaging, tokens, notification) {
  *
  * `translations` shape: { en?: {title, body}, ru?: {title, body}, tr?: {title, body} }.
  */
+async function logBroadcast(supabase, { title, body, audiencePlan, audienceLanguage, mode, sent, total }) {
+  if (!supabase) return;
+  try {
+    await supabase.from('broadcast_log').insert({
+      title,
+      body,
+      audience_plan: audiencePlan || 'all',
+      audience_language: audienceLanguage || 'all',
+      mode,
+      sent_count: sent,
+      total_count: total,
+    });
+  } catch {
+    // best-effort — never fail the actual send over a logging error
+  }
+}
+
 export async function sendBroadcast({ firebaseApp, supabaseUrl, serviceRoleKey, title, body, audiencePlan, audienceLanguage, translations }) {
   const plan = audiencePlan || 'all';
   const language = audienceLanguage || 'all';
   const messaging = getMessaging(firebaseApp);
   const hasTranslations = LANGS.slice(1).some((l) => translations && translations[l] && translations[l].title && translations[l].body);
+  const logClient = supabaseUrl && serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : null;
 
   if (plan === 'all' && language === 'all' && !hasTranslations) {
     await messaging.send({ topic: BROADCAST_TOPIC, notification: { title, body } });
+    await logBroadcast(logClient, { title, body, audiencePlan, audienceLanguage, mode: 'topic', sent: null, total: null });
     return { sent: null, total: null, mode: 'topic' };
   }
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
+  const supabase = logClient || createClient(supabaseUrl, serviceRoleKey);
   let userQuery = supabase.from('users').select('id, language');
   if (plan !== 'all') userQuery = userQuery.eq('plan', plan);
   if (language !== 'all') userQuery = userQuery.eq('language', language);
   const { data: users, error: usersError } = await userQuery;
   if (usersError) throw usersError;
-  if (!users || !users.length) return { sent: 0, total: 0, mode: 'targeted' };
+  if (!users || !users.length) {
+    await logBroadcast(supabase, { title, body, audiencePlan, audienceLanguage, mode: 'targeted', sent: 0, total: 0 });
+    return { sent: 0, total: 0, mode: 'targeted' };
+  }
 
   // A specific language filter means everyone in it gets that one
   // language's text. "All" languages with translations provided means
@@ -104,5 +126,6 @@ export async function sendBroadcast({ firebaseApp, supabaseUrl, serviceRoleKey, 
     if (!tokens.length) continue;
     sent += await sendToTokens(messaging, tokens, contentFor(lang, title, body, translations));
   }
+  await logBroadcast(supabase, { title, body, audiencePlan, audienceLanguage, mode: 'targeted', sent, total });
   return { sent, total, mode: 'targeted' };
 }

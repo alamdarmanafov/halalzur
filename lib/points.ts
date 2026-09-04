@@ -77,3 +77,20 @@ export async function giftPremiumFromPoints(userId: string, toReferralCode: stri
 
   return { toUserId: data.to_user_id, toName: data.to_name, newExpiresAt: data.new_expires_at };
 }
+
+export type PromoRedemption = { days: number; newExpiresAt: string };
+
+/** Redeems an admin-issued promo code (see admin panel's "Promo-kodlar" panel) for Premium days. */
+export async function redeemPromoCode(userId: string, code: string): Promise<PromoRedemption> {
+  if (!isSupabaseConfigured || !supabase) throw new Error('Supabase qoşulmayıb.');
+
+  const { data, error } = await supabase
+    .rpc('redeem_promo_code', { p_user_id: userId, p_code: code.trim() })
+    .maybeSingle<{ granted_days: number | null; new_expires_at: string | null }>();
+  if (error) throw error;
+  if (!data || data.granted_days == null || !data.new_expires_at) {
+    throw new Error('Kod tapılmadı, vaxtı bitib, ya da limit dolub.');
+  }
+
+  return { days: data.granted_days, newExpiresAt: data.new_expires_at };
+}

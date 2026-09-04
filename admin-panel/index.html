@@ -412,6 +412,40 @@
       <div class="stat-card"><div class="num" id="revenueMonthUsd">–</div><div class="label">Bu ay (təxmini)</div></div>
     </div>
     <div id="premiumRevenueByPlan"></div>
+    <h3 style="margin: 18px 0 8px; font-size: 14px; color: var(--muted);">Platform üzrə</h3>
+    <div id="premiumRevenueByPlatform"></div>
+
+    <div class="panel-head" style="margin-top: 32px;">
+      <h2>Refund qeydləri</h2>
+    </div>
+    <p class="hint">
+      Apple/Google real geri ödəmə hadisələrini bu tətbiqə bildirmir — admin App Store Connect/Play
+      Console-un öz refund hesabatında gördüyünü burada əl ilə qeyd edir, sonrakı analiz üçün.
+    </p>
+    <div class="form-row" style="align-items: flex-end;">
+      <div class="field" style="max-width: 220px;">
+        <label for="refundUserLabelInput">İstifadəçi (ad/email)</label>
+        <input type="text" id="refundUserLabelInput" placeholder="Ad və ya email" />
+      </div>
+      <div class="field" style="max-width: 110px;">
+        <label for="refundAmountInput">Məbləğ ($)</label>
+        <input type="number" id="refundAmountInput" step="0.01" min="0" />
+      </div>
+      <div class="field" style="max-width: 130px;">
+        <label for="refundPlatformInput">Platform</label>
+        <select id="refundPlatformInput">
+          <option value="iOS">iOS</option>
+          <option value="Android">Android</option>
+          <option value="other">Digər</option>
+        </select>
+      </div>
+      <div class="field" style="flex: 1; min-width: 160px;">
+        <label for="refundReasonInput">Səbəb</label>
+        <input type="text" id="refundReasonInput" placeholder="İstifadəçinin bildirdiyi səbəb" />
+      </div>
+      <button type="button" class="btn btn-approve" id="refundAddBtn">Qeyd et</button>
+    </div>
+    <div id="refundLogList" style="margin-top: 12px;"></div>
 
     <div class="panel-head" style="margin-top: 32px;">
       <h2>Premium churn</h2>
@@ -1207,6 +1241,51 @@
       <div class="gate-error" id="broadcastError"></div>
     </div>
 
+    <div class="panel-head" style="margin-top: 28px;">
+      <h3 style="margin: 0; font-size: 15px;">Çatdırılma tarixçəsi</h3>
+      <button type="button" class="btn" id="broadcastLogRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
+        Yenilə
+      </button>
+    </div>
+    <p class="hint">
+      Hər göndərmədə neçə cihaza çatdırıldığı (sent/total) — "açıldı" faizi izlənmir, çünki tətbiq
+      bildiriş-toxunma hadisəsini geri göndərmir.
+    </p>
+    <div id="broadcastLogList"></div>
+
+    <div class="panel-head" style="margin-top: 32px;">
+      <h2>Promo-kodlar</h2>
+    </div>
+    <p class="hint">
+      İstifadəçi tətbiqdə bu kodu daxil edərək birbaşa Premium əldə edir (redeem_promo_code funksiyası) — App
+      Store/Play Store-un öz endirim kodlarından ayrıdır, heç bir mağaza konfiqurasiyası tələb etmir.
+    </p>
+    <div class="form-row" style="align-items: flex-end;">
+      <div class="field" style="max-width: 160px;">
+        <label for="promoCodeInput">Kod</label>
+        <input type="text" id="promoCodeInput" placeholder="Məs. RAMAZAN2026" style="text-transform: uppercase;" />
+      </div>
+      <div class="field" style="max-width: 110px;">
+        <label for="promoDaysInput">Gün</label>
+        <input type="number" id="promoDaysInput" value="30" min="1" />
+      </div>
+      <div class="field" style="max-width: 110px;">
+        <label for="promoMaxInput">Limit</label>
+        <input type="number" id="promoMaxInput" value="1" min="1" />
+      </div>
+      <div class="field" style="max-width: 170px;">
+        <label for="promoExpiresInput">Bitmə tarixi (istəyə bağlı)</label>
+        <input type="date" id="promoExpiresInput" />
+      </div>
+      <div class="field" style="flex: 1; min-width: 160px;">
+        <label for="promoNoteInput">Qeyd</label>
+        <input type="text" id="promoNoteInput" placeholder="Kampaniya adı və s." />
+      </div>
+      <button type="button" class="btn btn-approve" id="promoCreateBtn">Kod yarat</button>
+    </div>
+    <div class="gate-error" id="promoCodeError"></div>
+    <div id="promoCodeList" style="margin-top: 12px;"></div>
+
     <div class="place-form" style="margin-top: 16px;">
       <div class="panel-head" style="margin-bottom: 8px;">
         <h3 style="margin: 0; font-size: 15px;">Planlanmış bildirişlər</h3>
@@ -1990,6 +2069,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       loadScanTrendChart();
       loadDataHealth();
       loadPremiumRevenue();
+      loadRefundLog();
       loadPremiumChurn();
       loadRegistrationCountries();
     },
@@ -2015,6 +2095,8 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       loadScheduledBroadcasts();
       loadNotificationTemplates();
       loadWinbackTemplates();
+      loadBroadcastLog();
+      loadPromoCodes();
     },
     users: function () {
       loadUsers();
@@ -2695,11 +2777,20 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   // app/subscription.tsx's onPurchaseSuccess. See that table's comment in
   // supabase/schema.sql for exactly what this is/isn't — a rough gross
   // estimate from the app's own reporting, not verified Apple payout data.
+  // iOS moved to fresh .pro.* ids after an App Store Connect product-id
+  // burn (see app/subscription.tsx) — Android kept .premium.*, so both
+  // sets are real, current product ids, not old vs. new.
   var PURCHASE_PLAN_LABEL = {
+    "com.halalzur.app.pro.monthly": "Aylıq",
+    "com.halalzur.app.pro.sixmonth": "6 aylıq",
+    "com.halalzur.app.pro.yearly": "İllik",
     "com.halalzur.app.premium.monthly": "Aylıq",
     "com.halalzur.app.premium.sixmonth": "6 aylıq",
     "com.halalzur.app.premium.yearly": "İllik",
   };
+  function purchasePlatform(productId) {
+    return productId.indexOf(".pro.") !== -1 ? "iOS" : "Android";
+  }
 
   function loadPremiumRevenue() {
     sb("purchase_events?select=product_id,estimated_usd_amount,purchased_at")
@@ -2714,6 +2805,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         var monthCount = 0;
         var monthUsd = 0;
         var byPlan = {};
+        var byPlatform = {};
 
         rows.forEach(function (r) {
           var amount = Number(r.estimated_usd_amount) || 0;
@@ -2725,6 +2817,11 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
           if (!byPlan[r.product_id]) byPlan[r.product_id] = { count: 0, usd: 0 };
           byPlan[r.product_id].count++;
           byPlan[r.product_id].usd += amount;
+
+          var platform = purchasePlatform(r.product_id);
+          if (!byPlatform[platform]) byPlatform[platform] = { count: 0, usd: 0 };
+          byPlatform[platform].count++;
+          byPlatform[platform].usd += amount;
         });
 
         document.getElementById("revenueTotalCount").textContent = totalCount;
@@ -2755,12 +2852,124 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
               '</div>';
             byPlanWrap.appendChild(row);
           });
+
+        var byPlatformWrap = document.getElementById("premiumRevenueByPlatform");
+        if (byPlatformWrap) {
+          byPlatformWrap.innerHTML = "";
+          ["iOS", "Android"].forEach(function (platform) {
+            var stats = byPlatform[platform] || { count: 0, usd: 0 };
+            var row = document.createElement("div");
+            row.className = "place-card";
+            row.style.marginBottom = "8px";
+            row.innerHTML =
+              '<div>' +
+                '<div class="pc-title">' + (platform === "iOS" ? "🍏 iOS" : "🤖 Android") + '</div>' +
+                '<div class="pc-sub">' + stats.count + ' alış · təxmini $' + stats.usd.toFixed(2) + '</div>' +
+              '</div>';
+            byPlatformWrap.appendChild(row);
+          });
+        }
       })
       .catch(function (err) {
         toast("Gəlir məlumatı yüklənmədi: " + err.message);
       });
   }
   document.getElementById("premiumRevenueRefreshBtn").addEventListener("click", loadPremiumRevenue);
+
+  function loadRefundLog() {
+    var wrap = document.getElementById("refundLogList");
+    if (!wrap) return;
+    wrap.textContent = "Yüklənir…";
+    sb("refund_log?select=*&order=created_at.desc&limit=100")
+      .then(function (rows) {
+        wrap.innerHTML = "";
+        rows = rows || [];
+        if (!rows.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Hələ heç bir refund qeydə alınmayıb.";
+          wrap.appendChild(empty);
+          return;
+        }
+        rows.forEach(function (row) {
+          var card = document.createElement("div");
+          card.className = "place-card";
+          card.style.marginBottom = "8px";
+          card.innerHTML =
+            '<div>' +
+              '<div class="pc-title">' + esc(row.user_label || "Naməlum") +
+                (row.amount_usd != null ? " · $" + Number(row.amount_usd).toFixed(2) : "") + '</div>' +
+              '<div class="pc-sub">' + esc(row.platform || "—") + (row.reason ? " · " + esc(row.reason) : "") + '</div>' +
+              '<div class="pc-sub">' + new Date(row.created_at).toLocaleDateString("az-AZ") + '</div>' +
+            '</div>' +
+            '<button type="button" class="place-delete-btn btn-sm" data-action="delete-refund">Sil</button>';
+          card.querySelector('[data-action="delete-refund"]').addEventListener("click", function (e) {
+            deleteRefundLog(row, e.target);
+          });
+          wrap.appendChild(card);
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Yüklənmədi: " + err.message;
+        wrap.appendChild(errEl);
+      });
+  }
+
+  function deleteRefundLog(row, btn) {
+    if (!window.confirm("Bu qeyd silinsin?")) return;
+    btn.disabled = true;
+    sb("refund_log?id=eq." + row.id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+      .then(function () {
+        loadRefundLog();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+      });
+  }
+
+  var refundAddBtn = document.getElementById("refundAddBtn");
+  if (refundAddBtn) {
+    refundAddBtn.addEventListener("click", function () {
+      var userLabel = document.getElementById("refundUserLabelInput").value.trim();
+      var amountRaw = document.getElementById("refundAmountInput").value;
+      var platform = document.getElementById("refundPlatformInput").value;
+      var reason = document.getElementById("refundReasonInput").value.trim();
+      if (!userLabel) {
+        toast("İstifadəçi adı/emaili tələb olunur");
+        return;
+      }
+      var btn = this;
+      btn.disabled = true;
+      sb("refund_log", {
+        method: "POST",
+        headers: { "Prefer": "return=minimal" },
+        body: {
+          user_label: userLabel,
+          amount_usd: amountRaw ? Number(amountRaw) : null,
+          platform: platform,
+          reason: reason || null,
+        },
+      })
+        .then(function () {
+          toast("Refund qeydə alındı");
+          logAudit("add_refund_log", "refund_log", null, userLabel);
+          document.getElementById("refundUserLabelInput").value = "";
+          document.getElementById("refundAmountInput").value = "";
+          document.getElementById("refundReasonInput").value = "";
+          loadRefundLog();
+        })
+        .catch(function (err) {
+          toast("Xəta: " + err.message);
+        })
+        .finally(function () {
+          btn.disabled = false;
+        });
+    });
+  }
 
   // "Churn" here isn't a renewal-rate metric (nothing tracks subscription
   // periods that cleanly) — it's manual-grant activity from audit_log plus
@@ -5602,10 +5811,17 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
 
     var saved = 0;
     var missing = 0;
+    var done = 0;
+    var total = ids.length;
+    var updateProgress = function () {
+      done++;
+      btn.textContent = "Yadda saxlanır… (" + done + " / " + total + ")";
+    };
     var promises = ids.map(function (id) {
       var card = cardsContainer.querySelector('[data-product-id="' + id + '"]');
       if (!card) {
         missing++;
+        updateProgress();
         return Promise.resolve();
       }
       var status = card.querySelector('[data-role="edit-status"]').value;
@@ -5624,6 +5840,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         },
       }).then(function () {
         saved++;
+        updateProgress();
       });
     });
 
@@ -7785,6 +8002,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
             : "Push bildirişi göndərildi (" + result.sent + " / " + result.total + " cihaza)"
         );
         clearBroadcastFields();
+        loadBroadcastLog();
       })
       .catch(function (err) {
         errorEl.textContent = "Xəta: " + err.message;
@@ -7794,6 +8012,161 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         btn.textContent = original;
       });
   });
+
+  function loadBroadcastLog() {
+    var wrap = document.getElementById("broadcastLogList");
+    if (!wrap) return;
+    wrap.textContent = "Yüklənir…";
+    sb("broadcast_log?select=title,body,mode,sent_count,total_count,audience_plan,audience_language,created_at&order=created_at.desc&limit=25")
+      .then(function (rows) {
+        wrap.innerHTML = "";
+        rows = rows || [];
+        if (!rows.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Hələ heç bir bildiriş göndərilməyib.";
+          wrap.appendChild(empty);
+          return;
+        }
+        rows.forEach(function (r) {
+          var pct =
+            r.mode === "topic" || !r.total_count
+              ? null
+              : Math.round((100 * (r.sent_count || 0)) / r.total_count);
+          var row = document.createElement("div");
+          row.className = "place-card";
+          row.style.marginBottom = "8px";
+          row.innerHTML =
+            '<div>' +
+              '<div class="pc-title">' + esc(r.title) + '</div>' +
+              '<div class="pc-sub">' + esc(r.body) + '</div>' +
+              '<div class="pc-sub">' +
+                (r.mode === "topic"
+                  ? "Hamıya (topic)"
+                  : (r.sent_count == null ? "–" : r.sent_count) + " / " + (r.total_count == null ? "–" : r.total_count) + " cihaz" +
+                    (pct != null ? " · " + pct + "%" : "")) +
+                " · " + new Date(r.created_at).toLocaleString("az-AZ") +
+              '</div>' +
+            '</div>';
+          wrap.appendChild(row);
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Yüklənmədi: " + err.message;
+        wrap.appendChild(errEl);
+      });
+  }
+  var broadcastLogRefreshBtn = document.getElementById("broadcastLogRefreshBtn");
+  if (broadcastLogRefreshBtn) broadcastLogRefreshBtn.addEventListener("click", loadBroadcastLog);
+
+  function loadPromoCodes() {
+    var wrap = document.getElementById("promoCodeList");
+    if (!wrap) return;
+    wrap.textContent = "Yüklənir…";
+    sb("promo_codes?select=*&order=created_at.desc&limit=100")
+      .then(function (rows) {
+        wrap.innerHTML = "";
+        rows = rows || [];
+        if (!rows.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty-state";
+          empty.textContent = "Hələ heç bir promo-kod yaradılmayıb.";
+          wrap.appendChild(empty);
+          return;
+        }
+        rows.forEach(function (row) {
+          var expired = row.expires_at && new Date(row.expires_at) < new Date();
+          var exhausted = row.redeemed_count >= row.max_redemptions;
+          var card = document.createElement("div");
+          card.className = "place-card";
+          card.style.marginBottom = "8px";
+          card.innerHTML =
+            '<div>' +
+              '<div class="pc-title">' + esc(row.code) + '</div>' +
+              '<div class="pc-sub">' + row.premium_days + ' gün Premium · ' + row.redeemed_count + ' / ' + row.max_redemptions + ' istifadə olunub' +
+                (row.expires_at ? ' · bitmə: ' + new Date(row.expires_at).toLocaleDateString("az-AZ") : '') +
+              '</div>' +
+              (row.note ? '<div class="pc-sub">' + esc(row.note) + '</div>' : '') +
+              ((expired || exhausted) ? '<span class="status-pill haram" style="margin-top:4px;">' + (expired ? "Vaxtı bitib" : "Limit dolub") + '</span>' : '') +
+            '</div>' +
+            '<button type="button" class="place-delete-btn btn-sm" data-action="delete-promo">Sil</button>';
+          card.querySelector('[data-action="delete-promo"]').addEventListener("click", function (e) {
+            deletePromoCode(row, e.target);
+          });
+          wrap.appendChild(card);
+        });
+      })
+      .catch(function (err) {
+        wrap.innerHTML = "";
+        var errEl = document.createElement("div");
+        errEl.className = "gate-error";
+        errEl.textContent = "Yüklənmədi: " + err.message;
+        wrap.appendChild(errEl);
+      });
+  }
+
+  function deletePromoCode(row, btn) {
+    if (!window.confirm('"' + row.code + '" kodu silinsin?')) return;
+    btn.disabled = true;
+    sb("promo_codes?code=eq." + encodeURIComponent(row.code), {
+      method: "DELETE",
+      headers: { "Prefer": "return=minimal" },
+    })
+      .then(function () {
+        logAudit("delete_promo_code", "promo_codes", row.code, row.code);
+        loadPromoCodes();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+      });
+  }
+
+  var promoCreateBtn = document.getElementById("promoCreateBtn");
+  if (promoCreateBtn) {
+    promoCreateBtn.addEventListener("click", function () {
+      var errorEl = document.getElementById("promoCodeError");
+      errorEl.textContent = "";
+      var code = document.getElementById("promoCodeInput").value.trim().toUpperCase();
+      var days = parseInt(document.getElementById("promoDaysInput").value, 10);
+      var max = parseInt(document.getElementById("promoMaxInput").value, 10);
+      var expiresRaw = document.getElementById("promoExpiresInput").value;
+      var note = document.getElementById("promoNoteInput").value.trim();
+      if (!code || !days || days <= 0 || !max || max <= 0) {
+        errorEl.textContent = "Kod, gün sayı və limit tələb olunur.";
+        return;
+      }
+      var btn = this;
+      btn.disabled = true;
+      sb("promo_codes", {
+        method: "POST",
+        headers: { "Prefer": "return=minimal" },
+        body: {
+          code: code,
+          premium_days: days,
+          max_redemptions: max,
+          expires_at: expiresRaw ? new Date(expiresRaw + "T23:59:59").toISOString() : null,
+          note: note || null,
+        },
+      })
+        .then(function () {
+          toast('"' + code + '" kodu yaradıldı');
+          logAudit("create_promo_code", "promo_codes", code, days + " gün · limit " + max);
+          document.getElementById("promoCodeInput").value = "";
+          document.getElementById("promoNoteInput").value = "";
+          loadPromoCodes();
+        })
+        .catch(function (err) {
+          errorEl.textContent = "Xəta: " + err.message;
+        })
+        .finally(function () {
+          btn.disabled = false;
+        });
+    });
+  }
 
   document.getElementById("broadcastScheduleBtn").addEventListener("click", function () {
     var errorEl = document.getElementById("broadcastError");
@@ -8504,13 +8877,18 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     }
     if (!window.confirm(ids.length + " istifadəçiyə Premium verilsin?")) return;
     var btn = this;
+    var original = btn.textContent;
     btn.disabled = true;
+    var doneCount = 0;
     Promise.all(
       ids.map(function (id) {
         return sb("users?id=eq." + id, {
           method: "PATCH",
           headers: { "Prefer": "return=minimal" },
           body: { plan: "premium", premium_expires_at: expiresAt, updated_at: new Date().toISOString() },
+        }).then(function () {
+          doneCount++;
+          btn.textContent = "Verilir… (" + doneCount + " / " + ids.length + ")";
         });
       })
     )
@@ -8526,6 +8904,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       })
       .finally(function () {
         btn.disabled = false;
+        btn.textContent = original;
       });
   });
 
@@ -8535,13 +8914,18 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     var reason = window.prompt(ids.length + " istifadəçi bloklanacaq. Səbəb (istəyə bağlı):", "");
     if (reason === null) return;
     var btn = this;
+    var original = btn.textContent;
     btn.disabled = true;
+    var doneCount = 0;
     Promise.all(
       ids.map(function (id) {
         return sb("users?id=eq." + id, {
           method: "PATCH",
           headers: { "Prefer": "return=minimal" },
           body: { banned: true, ban_reason: reason || null, updated_at: new Date().toISOString() },
+        }).then(function () {
+          doneCount++;
+          btn.textContent = "Bloklanır… (" + doneCount + " / " + ids.length + ")";
         });
       })
     )
@@ -8557,6 +8941,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       })
       .finally(function () {
         btn.disabled = false;
+        btn.textContent = original;
       });
   });
 
@@ -9483,6 +9868,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   function toggleUserPlan(row, btn) {
     var newPlan = row.plan === "premium" ? "free" : "premium";
     var expiresAt = null;
+    var reason = null;
     if (newPlan === "premium") {
       var daysStr = window.prompt(
         '"' + (row.name || row.email || "İstifadəçi") +
@@ -9499,6 +9885,11 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         }
         expiresAt = new Date(Date.now() + days * 86400000).toISOString();
       }
+      // Manual grant reason — kept separate from the automated win-back/
+      // achievement/referral/points grants, which already have their own
+      // fixed, self-explanatory audit reasons.
+      reason = window.prompt("Səbəb (audit-loqa yazılacaq, istəyə bağlı):", "");
+      if (reason === null) reason = "";
     }
     btn.disabled = true;
     sb("users?id=eq." + row.id, {
@@ -9507,12 +9898,14 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       body: { plan: newPlan, premium_expires_at: expiresAt, updated_at: new Date().toISOString() },
     })
       .then(function () {
-        logAudit(
-          newPlan === "premium" ? "user_grant_premium" : "user_revoke_premium",
-          "users",
-          row.id,
-          newPlan === "premium" ? (expiresAt ? "bitmə tarixi: " + expiresAt : "müddətsiz") : "free-ə keçirildi"
-        );
+        var detail;
+        if (newPlan === "premium") {
+          detail = expiresAt ? "bitmə tarixi: " + expiresAt : "müddətsiz";
+          if (reason && reason.trim()) detail += " · səbəb: " + reason.trim();
+        } else {
+          detail = "free-ə keçirildi";
+        }
+        logAudit(newPlan === "premium" ? "user_grant_premium" : "user_revoke_premium", "users", row.id, detail);
         loadUsers();
       })
       .catch(function (err) {
@@ -9686,6 +10079,21 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         }
         row.admin_reply = reply || null;
         toast("Cavab yadda saxlanıldı");
+        // The app only ever wrote feedback one-way until now (Profil →
+        // "Mesajlarım" reads admin_reply back) — a push is the only way
+        // the user actually notices a reply landed, rather than having to
+        // remember to re-open that screen.
+        if (reply && row.user_id) {
+          fetch("/api/send-user-notification", {
+            method: "POST",
+            headers: adminApiHeaders(),
+            body: JSON.stringify({
+              userId: row.user_id,
+              title: "Mesajınıza cavab verildi",
+              body: reply.length > 120 ? reply.slice(0, 117) + "…" : reply,
+            }),
+          }).catch(function () {});
+        }
       })
       .catch(function (err) {
         toast("Xəta: " + err.message);

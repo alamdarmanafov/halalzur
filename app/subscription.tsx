@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Linking, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Linking, Platform, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import { useLanguage } from '../lib/i18n-context';
 import { TranslationKey } from '../lib/i18n';
 import { sendPushNotification } from '../lib/pushNotify';
 import { logPurchaseEvent } from '../lib/purchaseTracking';
+import { redeemPromoCode } from '../lib/points';
 import { verifyApplePurchase, verifyGooglePlayPurchase } from '../lib/purchaseVerification';
 import { maybeRequestReview } from '../lib/reviewPrompt';
 import { colors, radius, spacing, typography } from '../constants/theme';
@@ -109,6 +110,9 @@ export default function SubscriptionScreen() {
   const [restoring, setRestoring] = useState(false);
   const [iapError, setIapError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [promoVisible, setPromoVisible] = useState(false);
+  const [promoInput, setPromoInput] = useState('');
+  const [redeemingPromo, setRedeemingPromo] = useState(false);
 
   const {
     connected,
@@ -249,6 +253,22 @@ export default function SubscriptionScreen() {
     }
   };
 
+  const onRedeemPromo = async () => {
+    if (!user || !promoInput.trim()) return;
+    setRedeemingPromo(true);
+    try {
+      const { days } = await redeemPromoCode(user.id, promoInput);
+      await refreshPlan();
+      setPromoInput('');
+      setPromoVisible(false);
+      Alert.alert(t('subPromoSuccessTitle'), t('subPromoSuccessBody').replace('{days}', String(days)));
+    } catch (err: any) {
+      Alert.alert(t('subPromoFailedTitle'), err.message ?? t('subPromoFailedBody'));
+    } finally {
+      setRedeemingPromo(false);
+    }
+  };
+
   if (user?.plan === 'premium') {
     return (
       <SafeAreaView style={styles.container}>
@@ -319,6 +339,34 @@ export default function SubscriptionScreen() {
         <Pressable onPress={restorePurchases} style={{ marginTop: spacing.md }} disabled={restoring}>
           <Text style={styles.restoreText}>{restoring ? t('subRestoring') : t('subRestorePurchases')}</Text>
         </Pressable>
+
+        <Pressable onPress={() => setPromoVisible((v) => !v)} style={{ marginTop: spacing.sm }}>
+          <Text style={styles.restoreText}>{t('subHavePromoCode')}</Text>
+        </Pressable>
+        {promoVisible && (
+          <View style={styles.promoRow}>
+            <TextInput
+              value={promoInput}
+              onChangeText={(v) => setPromoInput(v.toUpperCase())}
+              placeholder={t('subPromoPlaceholder')}
+              placeholderTextColor={colors.gray}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              style={styles.promoInput}
+            />
+            <Pressable
+              style={styles.promoBtn}
+              onPress={onRedeemPromo}
+              disabled={redeemingPromo || !promoInput.trim()}
+            >
+              {redeemingPromo ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Text style={styles.promoBtnText}>{t('subPromoApply')}</Text>
+              )}
+            </Pressable>
+          </View>
+        )}
 
         {isFamilyShareable && (
           <View style={styles.familyRow}>
@@ -400,6 +448,21 @@ const styles = StyleSheet.create({
   planPer: { fontSize: 11, color: colors.gray },
   planTrial: { fontSize: 10.5, color: colors.primary, fontWeight: '700', marginTop: 4, textAlign: 'center' },
   restoreText: { textAlign: 'center', color: colors.primary, fontWeight: '600' },
+  promoRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+  promoInput: {
+    flex: 1,
+    height: 44,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.grayLight,
+    paddingHorizontal: spacing.md,
+    fontSize: typography.body.fontSize,
+    letterSpacing: 1,
+    color: colors.black,
+    backgroundColor: colors.surface,
+  },
+  promoBtn: { paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  promoBtnText: { color: colors.white, fontWeight: '700', fontSize: typography.small.fontSize },
   familyRow: {
     flexDirection: 'row',
     alignItems: 'center',
