@@ -1288,6 +1288,37 @@
 
     <div class="place-form" style="margin-top: 16px;">
       <div class="panel-head" style="margin-bottom: 8px;">
+        <h3 style="margin: 0; font-size: 15px;">Promo-kod bildirişi</h3>
+      </div>
+      <p class="hint">
+        Yuxarıdakı koddan ayrı, öz addımı: hazır bir promo-koda dair push bildirişi göndərin. Yuxarıdakı "Push
+        bildiriş" bölməsindən fərqli olaraq, birbaşa seçdiyiniz kodu mətnə əlavə edir.
+      </p>
+      <div class="form-row" style="align-items: flex-end;">
+        <div class="field" style="max-width: 200px;">
+          <label for="promoPushCodeSelect">Kod</label>
+          <select id="promoPushCodeSelect"></select>
+        </div>
+        <button type="button" class="btn" id="promoPushPrefillBtn" style="padding: 8px 12px;">Mətni doldur</button>
+      </div>
+      <div class="form-row">
+        <div class="field" style="flex: 1;">
+          <label for="promoPushTitle">Başlıq</label>
+          <input type="text" id="promoPushTitle" placeholder="Məs. Xüsusi hədiyyə kodu!" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field" style="flex: 1;">
+          <label for="promoPushBody">Mətn</label>
+          <input type="text" id="promoPushBody" placeholder="Kodu tətbiqdə daxil edib Premium əldə edin." />
+        </div>
+      </div>
+      <button type="button" class="btn btn-approve" id="promoPushSendBtn">Bildiriş göndər</button>
+      <div class="gate-error" id="promoPushError"></div>
+    </div>
+
+    <div class="place-form" style="margin-top: 16px;">
+      <div class="panel-head" style="margin-bottom: 8px;">
         <h3 style="margin: 0; font-size: 15px;">Planlanmış bildirişlər</h3>
         <button type="button" class="btn" id="scheduledBroadcastsRefreshBtn" style="padding: 4px 10px; font-size: 12.5px;">
           Yenilə
@@ -8070,6 +8101,21 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       .then(function (rows) {
         wrap.innerHTML = "";
         rows = rows || [];
+        var pushSelect = document.getElementById("promoPushCodeSelect");
+        if (pushSelect) {
+          var active = rows.filter(function (r) {
+            var expired = r.expires_at && new Date(r.expires_at) < new Date();
+            var exhausted = r.redeemed_count >= r.max_redemptions;
+            return !expired && !exhausted;
+          });
+          pushSelect.innerHTML = active.length
+            ? active
+                .map(function (r) {
+                  return '<option value="' + esc(r.code) + '">' + esc(r.code) + " (" + r.premium_days + " gün)</option>";
+                })
+                .join("")
+            : '<option value="">— aktiv kod yoxdur —</option>';
+        }
         if (!rows.length) {
           var empty = document.createElement("div");
           empty.className = "empty-state";
@@ -8164,6 +8210,64 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         })
         .finally(function () {
           btn.disabled = false;
+        });
+    });
+  }
+
+  var promoPushPrefillBtn = document.getElementById("promoPushPrefillBtn");
+  if (promoPushPrefillBtn) {
+    promoPushPrefillBtn.addEventListener("click", function () {
+      var code = document.getElementById("promoPushCodeSelect").value;
+      if (!code) return;
+      document.getElementById("promoPushTitle").value = "🎁 Xüsusi hədiyyə kodu!";
+      document.getElementById("promoPushBody").value =
+        '"' + code + '" kodunu tətbiqdə daxil edib pulsuz Premium əldə edin.';
+    });
+  }
+
+  var promoPushSendBtn = document.getElementById("promoPushSendBtn");
+  if (promoPushSendBtn) {
+    promoPushSendBtn.addEventListener("click", function () {
+      var errorEl = document.getElementById("promoPushError");
+      errorEl.textContent = "";
+      var title = document.getElementById("promoPushTitle").value.trim();
+      var body = document.getElementById("promoPushBody").value.trim();
+      if (!title || !body) {
+        errorEl.textContent = "Başlıq və mətn tələb olunur.";
+        return;
+      }
+      var code = document.getElementById("promoPushCodeSelect").value;
+      if (!window.confirm("Bu bildiriş DƏRHAL bütün istifadəçilərə göndəriləcək. Davam edilsin?")) return;
+      var btn = this;
+      btn.disabled = true;
+      var original = btn.textContent;
+      btn.textContent = "Göndərilir…";
+      fetch("/api/send-broadcast", {
+        method: "POST",
+        headers: adminApiHeaders(),
+        body: JSON.stringify({ title: title, body: body }),
+      })
+        .then(function (res) {
+          if (!res.ok) return res.json().then(function (d) { throw new Error((d.reason || d.error) || res.statusText); });
+          return res.json();
+        })
+        .then(function (result) {
+          toast(
+            result.mode === "topic"
+              ? "Push bildirişi göndərildi (hamıya)"
+              : "Push bildirişi göndərildi (" + result.sent + " / " + result.total + " cihaza)"
+          );
+          logAudit("promo_code_push", "promo_codes", code || null, title);
+          document.getElementById("promoPushTitle").value = "";
+          document.getElementById("promoPushBody").value = "";
+          loadBroadcastLog();
+        })
+        .catch(function (err) {
+          errorEl.textContent = "Xəta: " + err.message;
+        })
+        .finally(function () {
+          btn.disabled = false;
+          btn.textContent = original;
         });
     });
   }
