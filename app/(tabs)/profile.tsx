@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert, RefreshControl, Switch } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, Alert, RefreshControl, Switch, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -171,6 +171,21 @@ export default function ProfileScreen() {
       icon: 'options-outline',
       label: t('profileNotificationPrefs'),
       onPress: () => router.push('/notification-preferences'),
+    },
+    {
+      // Text throughout the app already scales with the OS's own "Larger
+      // Text"/font-size accessibility setting (no allowFontScaling={false}
+      // anywhere) — this just surfaces that + a shortcut, rather than
+      // re-implementing a separate in-app scale that would fight the OS
+      // setting on every screen.
+      icon: 'text-outline',
+      label: t('profileLargeText'),
+      onPress: () => {
+        Alert.alert(t('largeTextInfoTitle'), t('largeTextInfoBody'), [
+          { text: t('productCancel'), style: 'cancel' },
+          { text: t('largeTextOpenSettings'), onPress: () => Linking.openSettings() },
+        ]);
+      },
     },
     {
       icon: 'trophy-outline',

@@ -15,6 +15,7 @@ import {
   Platform,
   Linking,
   Share,
+  AccessibilityInfo,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -133,6 +134,12 @@ export default function ProductDetailScreen() {
       lookupBarcode(id).then((result) => {
         if (cancelled) return;
         setProduct(result);
+        // VoiceOver/TalkBack: speak the result as soon as it's known,
+        // rather than requiring a sighted user to visually scan the badge
+        // — the "səslə desin" accessibility ask for scan results.
+        AccessibilityInfo.announceForAccessibility(
+          `${result.productName}. ${t(STATUS_DESC_KEY[result.status])}`
+        );
         // External lookups (Open Food Facts/UPCitemdb) often already know
         // the name/brand/category even when they don't know the halal
         // status — prefilling these saves retyping what we already have.
@@ -590,21 +597,28 @@ export default function ProductDetailScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityLabel={t('a11yBack')} accessibilityRole="button">
           <Ionicons name="arrow-back" size={22} color={colors.black} />
         </Pressable>
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
           {isInHistory && (
-            <Pressable onPress={handleDeleteFromHistory} style={styles.backBtn}>
+            <Pressable
+              onPress={handleDeleteFromHistory}
+              style={styles.backBtn}
+              accessibilityLabel={t('a11yDeleteFromHistory')}
+              accessibilityRole="button"
+            >
               <Ionicons name="trash-outline" size={20} color={colors.danger} />
             </Pressable>
           )}
-          <Pressable onPress={onShareProduct} style={styles.backBtn}>
+          <Pressable onPress={onShareProduct} style={styles.backBtn} accessibilityLabel={t('a11yShare')} accessibilityRole="button">
             <Ionicons name="share-outline" size={22} color={colors.black} />
           </Pressable>
           <Pressable
             onPress={() => (isOnList(product.barcode) ? removeFromShoppingList(product.barcode) : addItem(product))}
             style={styles.backBtn}
+            accessibilityLabel={isOnList(product.barcode) ? t('a11yRemoveFromShoppingList') : t('a11yAddToShoppingList')}
+            accessibilityRole="button"
           >
             <Ionicons
               name={isOnList(product.barcode) ? 'cart' : 'cart-outline'}
@@ -612,7 +626,12 @@ export default function ProductDetailScreen() {
               color={isOnList(product.barcode) ? colors.primary : colors.black}
             />
           </Pressable>
-          <Pressable onPress={() => toggleFavorite(product)} style={styles.backBtn}>
+          <Pressable
+            onPress={() => toggleFavorite(product)}
+            style={styles.backBtn}
+            accessibilityLabel={isFavorite(product.barcode) ? t('a11yRemoveFavorite') : t('a11yAddFavorite')}
+            accessibilityRole="button"
+          >
             <Ionicons
               name={isFavorite(product.barcode) ? 'heart' : 'heart-outline'}
               size={22}

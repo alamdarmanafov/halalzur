@@ -18,12 +18,18 @@ export function StatusBadge({ status, size = 'md' }: { status: HalalStatus; size
   const { t } = useLanguage();
   const s = STATUS_STYLE[status];
   const small = size === 'sm';
+  const label = t(STATUS_LABEL_KEY[status]);
   return (
-    <View style={[styles.badge, { backgroundColor: s.bg, paddingVertical: small ? 3 : 6 }]}>
-      <Text style={[styles.icon, { color: s.fg, fontSize: small ? 11 : 13 }]}>{s.icon}</Text>
-      <Text style={[styles.label, { color: s.fg, fontSize: small ? 11 : typography.small.fontSize }]}>
-        {t(STATUS_LABEL_KEY[status])}
+    <View
+      style={[styles.badge, { backgroundColor: s.bg, paddingVertical: small ? 3 : 6 }]}
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={label}
+    >
+      <Text style={[styles.icon, { color: s.fg, fontSize: small ? 11 : 13 }]} importantForAccessibility="no">
+        {s.icon}
       </Text>
+      <Text style={[styles.label, { color: s.fg, fontSize: small ? 11 : typography.small.fontSize }]}>{label}</Text>
     </View>
   );
 }

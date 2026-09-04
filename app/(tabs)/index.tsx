@@ -137,12 +137,16 @@ export default function ScanScreen() {
                 setManualBarcode('');
                 setShowManualEntry(true);
               }}
+              accessibilityLabel={t('manualBarcodeBtn')}
+              accessibilityRole="button"
             >
               <Ionicons name="keypad-outline" size={18} color={colors.white} />
             </Pressable>
             <Pressable
               style={[styles.torchBtn, torchOn && styles.torchBtnActive]}
               onPress={() => setTorchOn((v) => !v)}
+              accessibilityLabel={t('a11yTorch')}
+              accessibilityRole="button"
             >
               <Ionicons name={torchOn ? 'flash' : 'flash-outline'} size={18} color={torchOn ? colors.primaryDark : colors.white} />
             </Pressable>
