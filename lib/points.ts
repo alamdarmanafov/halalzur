@@ -57,3 +57,23 @@ export async function redeemPointsForPremium(userId: string): Promise<PointsRede
 
   return { days: data.granted_days, newExpiresAt: data.new_expires_at };
 }
+
+export type GiftResult = { toUserId: string; toName: string | null; newExpiresAt: string };
+
+/**
+ * Spends the caller's own points to gift Premium days to a friend found by
+ * referral code — see gift_premium_from_points in
+ * supabase/migration_2026_09_04_gift_premium.sql for why this is a single
+ * server-side RPC rather than two client-side steps.
+ */
+export async function giftPremiumFromPoints(userId: string, toReferralCode: string, days: number): Promise<GiftResult> {
+  if (!isSupabaseConfigured || !supabase) throw new Error('Supabase qoşulmayıb.');
+
+  const { data, error } = await supabase
+    .rpc('gift_premium_from_points', { p_from_user_id: userId, p_to_referral_code: toReferralCode.trim(), p_days: days })
+    .maybeSingle<{ to_user_id: string; to_name: string | null; new_expires_at: string }>();
+  if (error) throw error;
+  if (!data) throw new Error('Kod tapılmadı, ya da kifayət qədər xalınız yoxdur.');
+
+  return { toUserId: data.to_user_id, toName: data.to_name, newExpiresAt: data.new_expires_at };
+}

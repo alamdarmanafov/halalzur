@@ -18,7 +18,8 @@
       },
       "infoPlist": {
         "NSCameraUsageDescription": "Halalzur məhsulun barkodunu skan edərək halallıq statusunu yoxlamaq üçün kameraya ehtiyac duyur.",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": ["whatsapp"]
       }
     },
     "android": {

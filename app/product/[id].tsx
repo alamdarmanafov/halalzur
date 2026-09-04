@@ -46,6 +46,7 @@ import { matchDietaryTags, matchAllergenTags, DIETARY_TAG_LABEL_KEY, ALLERGEN_TA
 import { getReviewComments, addReviewComment, ReviewComment } from '../../lib/reviews';
 import { getQuestions, askQuestion, answerQuestion, QaQuestion } from '../../lib/qa';
 import { getFirstDiscoverer, Discoverer } from '../../lib/discoverer';
+import { useShoppingList } from '../../lib/shoppingList-context';
 import { StatusBadge } from '../../components/StatusBadge';
 import { ECodeCard } from '../../components/ECodeCard';
 import { ShareResultCard } from '../../components/ShareResultCard';
@@ -68,6 +69,7 @@ export default function ProductDetailScreen() {
   const isPremium = user?.plan === 'premium';
   const { isFavorite, toggleFavorite } = useFavorites();
   const { dietaryTags, allergenTags, isBrandBlocked } = useDietaryProfile();
+  const { isOnList, addItem, removeItem: removeFromShoppingList } = useShoppingList();
   const { history, removeScan } = useHistory();
   const [product, setProduct] = useState<CertificationResult | null>(null);
   const [alternatives, setAlternatives] = useState<CertificationResult[]>([]);
@@ -599,6 +601,16 @@ export default function ProductDetailScreen() {
           )}
           <Pressable onPress={onShareProduct} style={styles.backBtn}>
             <Ionicons name="share-outline" size={22} color={colors.black} />
+          </Pressable>
+          <Pressable
+            onPress={() => (isOnList(product.barcode) ? removeFromShoppingList(product.barcode) : addItem(product))}
+            style={styles.backBtn}
+          >
+            <Ionicons
+              name={isOnList(product.barcode) ? 'cart' : 'cart-outline'}
+              size={22}
+              color={isOnList(product.barcode) ? colors.primary : colors.black}
+            />
           </Pressable>
           <Pressable onPress={() => toggleFavorite(product)} style={styles.backBtn}>
             <Ionicons

@@ -16,6 +16,7 @@ import { POINTS_PER_PREMIUM_DAY, MIN_REDEEMABLE_DAYS } from '../../lib/points';
 import { computeBadges, BADGE_ICON, BADGE_LABEL_KEY } from '../../lib/badges';
 import { useLiteMode } from '../../lib/liteMode-context';
 import { useStreak } from '../../lib/streak-context';
+import { useShoppingList } from '../../lib/shoppingList-context';
 import type { Language, TranslationKey } from '../../lib/i18n';
 import { deleteAccount } from '../../lib/deleteAccount';
 import { colors, radius, spacing, typography } from '../../constants/theme';
@@ -48,6 +49,7 @@ export default function ProfileScreen() {
   const { user, signOut, refreshPlan, redeemPointsForPremium } = useAuth();
   const { liteMode, setLiteMode } = useLiteMode();
   const { streak } = useStreak();
+  const { items: shoppingItems } = useShoppingList();
   const { history, clear } = useHistory();
   const { favorites } = useFavorites();
   const { language, setLanguage, t } = useLanguage();
@@ -132,6 +134,11 @@ export default function ProfileScreen() {
       icon: 'heart-outline',
       label: `${t('profileFavoritesItem')} (${favorites.length})`,
       onPress: () => router.push('/favorites'),
+    },
+    {
+      icon: 'cart-outline',
+      label: `${t('profileShoppingList')} (${shoppingItems.filter((i) => !i.bought).length})`,
+      onPress: () => router.push('/shopping-list'),
     },
     {
       icon: 'notifications-outline',

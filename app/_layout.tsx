@@ -9,6 +9,7 @@ import { LanguageProvider } from '../lib/i18n-context';
 import { LiteModeProvider } from '../lib/liteMode-context';
 import { DietaryProfileProvider } from '../lib/dietaryProfile-context';
 import { StreakProvider } from '../lib/streak-context';
+import { ShoppingListProvider } from '../lib/shoppingList-context';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { initSentry, Sentry } from '../lib/sentry';
 import { rootViewRef } from '../lib/screenshotRef';
@@ -31,6 +32,7 @@ function RootLayout() {
             <LiteModeProvider>
             <DietaryProfileProvider>
             <StreakProvider>
+            <ShoppingListProvider>
               <StatusBar style="light" />
               <OfflineBanner />
               <Stack screenOptions={{ headerShown: false }}>
@@ -48,6 +50,10 @@ function RootLayout() {
                 />
                 <Stack.Screen
                   name="notification-preferences"
+                  options={{ presentation: 'card', animation: 'slide_from_right' }}
+                />
+                <Stack.Screen
+                  name="shopping-list"
                   options={{ presentation: 'card', animation: 'slide_from_right' }}
                 />
                 <Stack.Screen
@@ -79,6 +85,7 @@ function RootLayout() {
                   options={{ presentation: 'card', animation: 'slide_from_right' }}
                 />
               </Stack>
+            </ShoppingListProvider>
             </StreakProvider>
             </DietaryProfileProvider>
             </LiteModeProvider>
