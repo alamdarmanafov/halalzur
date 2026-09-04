@@ -18,7 +18,7 @@
 //   FIREBASE_PRIVATE_KEY          |  "Generate new private key"
 import { getMessaging } from 'firebase-admin/messaging';
 import { createClient } from '@supabase/supabase-js';
-import { getFirebaseApp } from '../lib/firebaseAdmin.js';
+import { getFirebaseApp, NOTIFICATION_SOUND } from '../lib/firebaseAdmin.js';
 import { verifyAdmin } from '../lib/verifyAdmin.js';
 
 export default async function handler(req, res) {
@@ -63,7 +63,7 @@ export default async function handler(req, res) {
     let sent = 0;
     for (const { fcm_token } of tokens) {
       try {
-        await messaging.send({ token: fcm_token, notification: { title, body } });
+        await messaging.send({ token: fcm_token, notification: { title, body }, ...NOTIFICATION_SOUND });
         sent++;
       } catch (err) {
         console.error('send-user-notification: FCM send failed', err.code, err.message);

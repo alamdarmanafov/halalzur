@@ -82,7 +82,8 @@
           }
         }
       ],
-      "./plugins/withFirebaseDisableSPM"
+      "./plugins/withFirebaseDisableSPM",
+      "./plugins/withNotificationSound"
     ],
     "extra": {
       "router": {},

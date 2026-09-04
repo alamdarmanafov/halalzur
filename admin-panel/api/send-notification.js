@@ -22,7 +22,7 @@
 //                                     a JSON file with these 3 fields)
 import { getMessaging } from 'firebase-admin/messaging';
 import { createClient } from '@supabase/supabase-js';
-import { getFirebaseApp } from '../lib/firebaseAdmin.js';
+import { getFirebaseApp, NOTIFICATION_SOUND } from '../lib/firebaseAdmin.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -87,7 +87,7 @@ export default async function handler(req, res) {
           data && typeof data === 'object'
             ? Object.fromEntries(Object.entries(data).filter(([, v]) => typeof v === 'string'))
             : undefined;
-        await messaging.send({ token: fcm_token, notification: { title, body }, data: fcmData });
+        await messaging.send({ token: fcm_token, notification: { title, body }, data: fcmData, ...NOTIFICATION_SOUND });
         sent++;
       } catch (err) {
         console.error('send-notification: FCM send failed', err.code, err.message);

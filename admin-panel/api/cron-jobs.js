@@ -13,7 +13,7 @@
 // pipeline.
 import { getMessaging } from 'firebase-admin/messaging';
 import { createClient } from '@supabase/supabase-js';
-import { getFirebaseApp } from '../lib/firebaseAdmin.js';
+import { getFirebaseApp, NOTIFICATION_SOUND } from '../lib/firebaseAdmin.js';
 
 function checkConfigured(res) {
   if (
@@ -71,7 +71,7 @@ async function runWeeklyDigest(res) {
     const body = `${newLine}${topLine} Yoxlamaq üçün tətbiqi aç!`;
 
     const messaging = getMessaging(getFirebaseApp());
-    await messaging.send({ topic: BROADCAST_TOPIC, notification: { title: 'Həftəlik Halalzur xülasəsi', body } });
+    await messaging.send({ topic: BROADCAST_TOPIC, notification: { title: 'Həftəlik Halalzur xülasəsi', body }, ...NOTIFICATION_SOUND });
 
     res.status(200).json({ sent: true, newCount: newCount || 0, body });
   } catch (err) {
@@ -135,7 +135,7 @@ async function runWinBackPush(res) {
       let sentAny = false;
       for (const { fcm_token } of tokens) {
         try {
-          await messaging.send({ token: fcm_token, notification: { title: template.title, body: template.body } });
+          await messaging.send({ token: fcm_token, notification: { title: template.title, body: template.body }, ...NOTIFICATION_SOUND });
           sentAny = true;
         } catch (err) {
           console.error('cron-jobs[win-back]: FCM send failed', err.code, err.message);
@@ -226,6 +226,7 @@ async function runRecommendPush(res) {
             token: fcm_token,
             notification: { title, body },
             data: { route: `/product/${pick.barcode}` },
+            ...NOTIFICATION_SOUND,
           });
           sentAny = true;
         } catch (err) {
@@ -309,7 +310,7 @@ async function runCategoryDigestPush(res) {
       let sentAny = false;
       for (const { fcm_token } of tokens) {
         try {
-          await messaging.send({ token: fcm_token, notification: { title, body } });
+          await messaging.send({ token: fcm_token, notification: { title, body }, ...NOTIFICATION_SOUND });
           sentAny = true;
         } catch (err) {
           console.error('cron-jobs[category-digest]: FCM send failed', err.code, err.message);
@@ -400,6 +401,7 @@ async function runMonthlyDetectivePush(res) {
               body: `Bu ay ${winnerCount} məhsul əlavə etdiniz — ${AWARD_DAYS} gün pulsuz Premium hədiyyəmizdir!`,
             },
             data: { route: '/(tabs)/profile' },
+            ...NOTIFICATION_SOUND,
           });
         } catch (err) {
           console.error('cron-jobs[monthly-detective]: FCM send failed', err.code, err.message);

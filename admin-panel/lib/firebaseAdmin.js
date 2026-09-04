@@ -36,3 +36,16 @@ export function getFirebaseApp() {
     }),
   });
 }
+
+/**
+ * Custom notification sound, spread into every messaging.send()/sendEach()
+ * call's message object. assets/sounds/success.wav is bundled into the
+ * native app by plugins/withNotificationSound.js — "success.wav" on iOS
+ * (exact filename in the app bundle) and "success" on Android (raw
+ * resource name, no extension). Requires a new build to take effect (it's
+ * a native asset, not something JS-only can carry).
+ */
+export const NOTIFICATION_SOUND = {
+  apns: { payload: { aps: { sound: 'success.wav' } } },
+  android: { notification: { sound: 'success' } },
+};

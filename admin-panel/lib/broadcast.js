@@ -5,6 +5,7 @@
 // its own.
 import { getMessaging } from 'firebase-admin/messaging';
 import { createClient } from '@supabase/supabase-js';
+import { NOTIFICATION_SOUND } from './firebaseAdmin.js';
 
 const BROADCAST_TOPIC = 'halalzur_all';
 const LANGS = ['az', 'en', 'ru', 'tr'];
@@ -37,7 +38,7 @@ async function sendToTokens(messaging, tokens, notification) {
   let sent = 0;
   for (const token of tokens) {
     try {
-      await messaging.send({ token, notification });
+      await messaging.send({ token, notification, ...NOTIFICATION_SOUND });
       sent++;
     } catch (err) {
       console.error('sendBroadcast: FCM send failed', err.code, err.message);
@@ -92,7 +93,7 @@ export async function sendBroadcast({ firebaseApp, supabaseUrl, serviceRoleKey, 
   const logClient = supabaseUrl && serviceRoleKey ? createClient(supabaseUrl, serviceRoleKey) : null;
 
   if (plan === 'all' && language === 'all' && !hasTranslations) {
-    await messaging.send({ topic: BROADCAST_TOPIC, notification: { title, body } });
+    await messaging.send({ topic: BROADCAST_TOPIC, notification: { title, body }, ...NOTIFICATION_SOUND });
     await logBroadcast(logClient, { title, body, audiencePlan, audienceLanguage, mode: 'topic', sent: null, total: null });
     return { sent: null, total: null, mode: 'topic' };
   }
