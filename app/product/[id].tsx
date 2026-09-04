@@ -41,6 +41,8 @@ import { useLiteMode } from '../../lib/liteMode-context';
 import { sendPushNotification } from '../../lib/pushNotify';
 import { CertificationResult, ECodeEntry } from '../../lib/types';
 import { detectBarcodeFormat } from '../../lib/barcodeFormat';
+import { useDietaryProfile } from '../../lib/dietaryProfile-context';
+import { matchDietaryTags, matchAllergenTags, DIETARY_TAG_LABEL_KEY, ALLERGEN_TAG_LABEL_KEY } from '../../lib/dietaryKeywords';
 import { StatusBadge } from '../../components/StatusBadge';
 import { ECodeCard } from '../../components/ECodeCard';
 import { ShareResultCard } from '../../components/ShareResultCard';
@@ -62,6 +64,7 @@ export default function ProductDetailScreen() {
   const { liteMode } = useLiteMode();
   const isPremium = user?.plan === 'premium';
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { dietaryTags, allergenTags, isBrandBlocked } = useDietaryProfile();
   const { history, removeScan } = useHistory();
   const [product, setProduct] = useState<CertificationResult | null>(null);
   const [alternatives, setAlternatives] = useState<CertificationResult[]>([]);
@@ -316,6 +319,8 @@ export default function ProductDetailScreen() {
     () => detectedECodes.some((e) => e.status === 'haram') || detectedKeywords.some((k) => k.status === 'haram'),
     [detectedECodes, detectedKeywords]
   );
+  const matchedDietTags = useMemo(() => matchDietaryTags(ingredientText, dietaryTags), [ingredientText, dietaryTags]);
+  const matchedAllergenTags = useMemo(() => matchAllergenTags(ingredientText, allergenTags), [ingredientText, allergenTags]);
 
   const hasECode = (code: string) =>
     manualIngredients
@@ -593,6 +598,16 @@ export default function ProductDetailScreen() {
           </View>
         </View>
 
+        {isBrandBlocked(product.brand) && (
+          <View style={styles.blockedBrandBanner}>
+            <Ionicons name="ban" size={18} color={colors.danger} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.blockedBrandTitle}>{t('productBlockedBrandTitle')}</Text>
+              <Text style={styles.blockedBrandBody}>{t('productBlockedBrandBody')}</Text>
+            </View>
+          </View>
+        )}
+
         <View style={[styles.certifierCard, { borderColor: tint }]}>
           <Ionicons name="shield-checkmark" size={22} color={tint} />
           <View style={{ flex: 1 }}>
@@ -642,6 +657,26 @@ export default function ProductDetailScreen() {
               </View>
             </View>
           )}
+
+        {matchedAllergenTags.length > 0 && (
+          <View style={styles.reasonCard}>
+            <Ionicons name="alert-circle" size={18} color={colors.danger} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.reasonTitle}>{t('productAllergenWarningTitle')}</Text>
+              <Text style={styles.reasonText}>{matchedAllergenTags.map((tag) => t(ALLERGEN_TAG_LABEL_KEY[tag])).join(', ')}</Text>
+            </View>
+          </View>
+        )}
+
+        {matchedDietTags.length > 0 && (
+          <View style={styles.reasonCard}>
+            <Ionicons name="nutrition" size={18} color={colors.warning} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.reasonTitle}>{t('productDietWarningTitle')}</Text>
+              <Text style={styles.reasonText}>{matchedDietTags.map((tag) => t(DIETARY_TAG_LABEL_KEY[tag])).join(', ')}</Text>
+            </View>
+          </View>
+        )}
 
         {product.notes && (
           <View style={styles.noteCard}>
@@ -1054,6 +1089,18 @@ const styles = StyleSheet.create({
   recommendPillTextActive: { color: colors.white },
   starRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.sm },
   starSummary: { ...typography.small, color: colors.gray, marginLeft: spacing.xs, fontWeight: '600' },
+  blockedBrandBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    backgroundColor: '#FBE9E9',
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
+  blockedBrandTitle: { ...typography.small, color: colors.danger, fontWeight: '800' },
+  blockedBrandBody: { ...typography.small, color: colors.danger, marginTop: 2 },
   certifierCard: {
     flexDirection: 'row',
     gap: spacing.md,

@@ -7,6 +7,7 @@ import { HistoryProvider } from '../lib/history-context';
 import { FavoritesProvider } from '../lib/favorites-context';
 import { LanguageProvider } from '../lib/i18n-context';
 import { LiteModeProvider } from '../lib/liteMode-context';
+import { DietaryProfileProvider } from '../lib/dietaryProfile-context';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { initSentry, Sentry } from '../lib/sentry';
 import { rootViewRef } from '../lib/screenshotRef';
@@ -27,6 +28,7 @@ function RootLayout() {
         <HistoryProvider>
           <FavoritesProvider>
             <LiteModeProvider>
+            <DietaryProfileProvider>
               <StatusBar style="light" />
               <OfflineBanner />
               <Stack screenOptions={{ headerShown: false }}>
@@ -37,6 +39,10 @@ function RootLayout() {
                 <Stack.Screen
                   name="subscription"
                   options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+                />
+                <Stack.Screen
+                  name="dietary-profile"
+                  options={{ presentation: 'card', animation: 'slide_from_right' }}
                 />
                 <Stack.Screen
                   name="product/[id]"
@@ -67,6 +73,7 @@ function RootLayout() {
                   options={{ presentation: 'card', animation: 'slide_from_right' }}
                 />
               </Stack>
+            </DietaryProfileProvider>
             </LiteModeProvider>
           </FavoritesProvider>
         </HistoryProvider>

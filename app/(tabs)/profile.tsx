@@ -154,6 +154,11 @@ export default function ProfileScreen() {
       onPress: () => router.push('/followed-brands'),
     },
     {
+      icon: 'nutrition-outline',
+      label: t('profileDietaryProfile'),
+      onPress: () => router.push('/dietary-profile'),
+    },
+    {
       icon: 'trophy-outline',
       label: t('profileAchievements'),
       onPress: () => router.push('/achievements'),
