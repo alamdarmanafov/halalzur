@@ -13,8 +13,8 @@ import { colors, radius, spacing, typography } from '../constants/theme';
 export default function FeedbackScreen() {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const { screenshot } = useLocalSearchParams<{ screenshot?: string }>();
-  const [message, setMessage] = useState('');
+  const { screenshot, context } = useLocalSearchParams<{ screenshot?: string; context?: string }>();
+  const [message, setMessage] = useState(context ?? '');
   const [image, setImage] = useState<string | null>(screenshot ?? null);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);

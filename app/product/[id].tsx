@@ -39,7 +39,8 @@ import { getRatingSummary, getMyRating, setRating, RatingSummary } from '../../l
 import { isFollowingBrand, followBrand, unfollowBrand } from '../../lib/brandFollows';
 import { useLiteMode } from '../../lib/liteMode-context';
 import { sendPushNotification } from '../../lib/pushNotify';
-import { CertificationResult } from '../../lib/types';
+import { CertificationResult, ECodeEntry } from '../../lib/types';
+import { detectBarcodeFormat } from '../../lib/barcodeFormat';
 import { StatusBadge } from '../../components/StatusBadge';
 import { ECodeCard } from '../../components/ECodeCard';
 import { ShareResultCard } from '../../components/ShareResultCard';
@@ -88,6 +89,7 @@ export default function ProductDetailScreen() {
   const [myRating, setMyRating] = useState(0);
   const [sharingCard, setSharingCard] = useState(false);
   const shareCardRef = useRef<View>(null);
+  const [ecodeTooltip, setEcodeTooltip] = useState<ECodeEntry | null>(null);
 
   useEffect(() => {
     getDistinctBrands()
@@ -248,12 +250,12 @@ export default function ProductDetailScreen() {
   };
 
   useEffect(() => {
-    if (!product || product.status === 'halal' || !isPremium) {
+    if (!product || product.status === 'halal') {
       setAlternatives([]);
       return;
     }
     let cancelled = false;
-    getHalalAlternatives(product.category, product.barcode).then((results) => {
+    getHalalAlternatives(product.category, product.barcode, isPremium ? 3 : 1).then((results) => {
       if (!cancelled) setAlternatives(results);
     });
     return () => {
@@ -648,7 +650,7 @@ export default function ProductDetailScreen() {
           </View>
         )}
 
-        {product.status !== 'halal' && isPremium && alternatives.length > 0 && (
+        {product.status !== 'halal' && alternatives.length > 0 && (
           <View style={styles.section}>
             <View style={styles.sectionTitleRow}>
               <Ionicons name="leaf" size={18} color={colors.primary} />
@@ -675,19 +677,11 @@ export default function ProductDetailScreen() {
                 <StatusBadge status={alt.status} size="sm" />
               </Pressable>
             ))}
-          </View>
-        )}
-
-        {product.status !== 'halal' && !isPremium && (
-          <View style={styles.section}>
-            <Pressable style={styles.lockedCard} onPress={() => router.push('/subscription')}>
-              <Ionicons name="leaf" size={20} color={colors.primary} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.lockedTitle}>{t('productHalalAlternativesTitle')}</Text>
-                <Text style={styles.lockedBody}>{t('productHalalAlternativesLockedBody')}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={colors.grayLight} />
-            </Pressable>
+            {!isPremium && (
+              <Pressable onPress={() => router.push('/subscription')}>
+                <Text style={styles.altFreeNote}>{t('productHalalAlternativesFreeNote')}</Text>
+              </Pressable>
+            )}
           </View>
         )}
 
@@ -697,14 +691,17 @@ export default function ProductDetailScreen() {
             <View style={styles.ingredientWrap}>
               {product.ingredients.map((ing, index) => {
                 const flagged = ingredientChipStatus.get(ing);
+                const chipECode = extractECodesFromText(ing)[0];
+                const Chip = chipECode ? Pressable : View;
                 return (
-                  <View
+                  <Chip
                     key={`${ing}-${index}`}
                     style={[
                       styles.ingredientChip,
                       flagged === 'haram' && styles.ingredientChipHaram,
                       flagged === 'mushbooh' && styles.ingredientChipMushbooh,
                     ]}
+                    {...(chipECode ? { onPress: () => setEcodeTooltip(chipECode) } : {})}
                   >
                     <Text
                       style={[
@@ -714,8 +711,9 @@ export default function ProductDetailScreen() {
                       ]}
                     >
                       {translateIngredientTerm(ing, language)}
+                      {chipECode ? ' ⓘ' : ''}
                     </Text>
-                  </View>
+                  </Chip>
                 );
               })}
             </View>
@@ -835,8 +833,26 @@ export default function ProductDetailScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('productBarcodeTitle')}</Text>
-          <Text style={styles.barcode}>{product.barcode}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Text style={styles.barcode}>{product.barcode}</Text>
+            <View style={styles.formatPill}>
+              <Text style={styles.formatPillText}>{detectBarcodeFormat(product.barcode)}</Text>
+            </View>
+          </View>
         </View>
+
+        <Pressable
+          style={styles.reportIssueBtn}
+          onPress={() =>
+            router.push({
+              pathname: '/feedback',
+              params: { context: `${t('productReportIssueContext')} — ${product.productName} (${product.barcode})\n\n` },
+            })
+          }
+        >
+          <Ionicons name="flag-outline" size={15} color={colors.gray} />
+          <Text style={styles.reportIssueText}>{t('productReportIssue')}</Text>
+        </Pressable>
       </ScrollView>
       </KeyboardAvoidingView>
 
@@ -951,6 +967,17 @@ export default function ProductDetailScreen() {
             )}
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal visible={!!ecodeTooltip} transparent animationType="fade" onRequestClose={() => setEcodeTooltip(null)}>
+        <Pressable style={styles.tooltipBackdrop} onPress={() => setEcodeTooltip(null)}>
+          <Pressable style={styles.tooltipCard} onPress={(e) => e.stopPropagation()}>
+            {ecodeTooltip && <ECodeCard entry={ecodeTooltip} />}
+            <Pressable style={styles.tooltipCloseBtn} onPress={() => setEcodeTooltip(null)}>
+              <Text style={styles.tooltipCloseText}>{t('ecodeTooltipClose')}</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
       </Modal>
 
       {/* Off-screen at a fixed position (not display:none — captureRef
@@ -1095,6 +1122,7 @@ const styles = StyleSheet.create({
   altEmoji: { fontSize: 24 },
   altName: { ...typography.body, color: colors.black, fontWeight: '700' },
   altBrand: { ...typography.small, color: colors.gray },
+  altFreeNote: { ...typography.small, color: colors.primaryDark, fontWeight: '600', marginTop: spacing.xs, textDecorationLine: 'underline' },
   eCodeIntro: { ...typography.small, color: colors.gray, marginBottom: spacing.sm, lineHeight: 18 },
   photoBtn: {
     flexDirection: 'row',
@@ -1243,4 +1271,26 @@ const styles = StyleSheet.create({
   ingredientTextHaram: { color: colors.danger, fontWeight: '700' },
   ingredientTextMushbooh: { color: colors.warning, fontWeight: '700' },
   barcode: { ...typography.body, color: colors.gray, letterSpacing: 2 },
+  formatPill: { backgroundColor: colors.surface, paddingHorizontal: spacing.sm, paddingVertical: 2, borderRadius: radius.pill },
+  formatPillText: { fontSize: 11, fontWeight: '700', color: colors.gray },
+  reportIssueBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: spacing.lg,
+    marginHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  reportIssueText: { ...typography.small, color: colors.gray, fontWeight: '600' },
+  tooltipBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(11,19,16,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  tooltipCard: { width: '100%', maxWidth: 340, backgroundColor: colors.white, borderRadius: radius.xl, padding: spacing.lg },
+  tooltipCloseBtn: { alignItems: 'center', marginTop: spacing.xs, paddingVertical: spacing.xs },
+  tooltipCloseText: { ...typography.small, color: colors.primaryDark, fontWeight: '700' },
 });

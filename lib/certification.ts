@@ -244,7 +244,8 @@ export async function searchProducts(query: string): Promise<CertificationResult
  */
 export async function getHalalAlternatives(
   category: string,
-  excludeBarcode: string
+  excludeBarcode: string,
+  limit: number = 3
 ): Promise<CertificationResult[]> {
   if (!isSupabaseConfigured || !supabase || !category || category === '—') return [];
 
@@ -259,7 +260,7 @@ export async function getHalalAlternatives(
     .is('deleted_at', null)
     .ilike('category', `%${safeCategory}%`)
     .neq('barcode', excludeBarcode)
-    .limit(3)
+    .limit(limit)
     .returns<CertifiedEntryRow[]>();
 
   if (error) {

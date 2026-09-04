@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,6 +27,8 @@ export default function ScanScreen() {
   const [isBusy, setIsBusy] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [manualBarcode, setManualBarcode] = useState('');
   const lockRef = useRef(false);
 
   const isPremium = user?.plan === 'premium';
@@ -126,6 +128,15 @@ export default function ScanScreen() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
             <Pressable
+              style={styles.torchBtn}
+              onPress={() => {
+                setManualBarcode('');
+                setShowManualEntry(true);
+              }}
+            >
+              <Ionicons name="keypad-outline" size={18} color={colors.white} />
+            </Pressable>
+            <Pressable
               style={[styles.torchBtn, torchOn && styles.torchBtnActive]}
               onPress={() => setTorchOn((v) => !v)}
             >
@@ -181,6 +192,46 @@ export default function ScanScreen() {
         }}
         onClose={() => setShowLimitModal(false)}
       />
+
+      <Modal
+        visible={showManualEntry}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowManualEntry(false)}
+      >
+        <KeyboardAvoidingView style={styles.manualBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.manualCard}>
+            <Text style={styles.manualTitle}>{t('manualBarcodeModalTitle')}</Text>
+            <TextInput
+              value={manualBarcode}
+              onChangeText={setManualBarcode}
+              placeholder={t('manualBarcodePlaceholder')}
+              placeholderTextColor={colors.gray}
+              keyboardType="number-pad"
+              autoFocus
+              style={styles.manualInput}
+            />
+            <View style={styles.manualActions}>
+              <Pressable style={styles.manualCancelBtn} onPress={() => setShowManualEntry(false)}>
+                <Text style={styles.manualCancelText}>{t('manualBarcodeCancel')}</Text>
+              </Pressable>
+              <Button
+                title={t('manualBarcodeSubmit')}
+                onPress={() => {
+                  const code = manualBarcode.trim();
+                  if (!/^\d{6,}$/.test(code)) {
+                    Alert.alert(t('manualBarcodeModalTitle'), t('manualBarcodeInvalid'));
+                    return;
+                  }
+                  setShowManualEntry(false);
+                  handleBarcode(code);
+                }}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -256,4 +307,32 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   demoChipText: { color: colors.white, fontWeight: '700' },
+  manualBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(11,19,16,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  manualCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+  },
+  manualTitle: { ...typography.h3, color: colors.black, marginBottom: spacing.sm },
+  manualInput: {
+    height: 48,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.grayLight,
+    paddingHorizontal: spacing.md,
+    fontSize: typography.body.fontSize,
+    color: colors.black,
+    backgroundColor: colors.surface,
+  },
+  manualActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  manualCancelBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.surface },
+  manualCancelText: { ...typography.body, color: colors.gray, fontWeight: '600' },
 });
