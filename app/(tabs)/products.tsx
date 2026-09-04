@@ -21,7 +21,9 @@ import {
   searchProducts,
   getManyByBarcode,
   getMostRecommendedProducts,
+  getPopularProducts,
   RecommendedProduct,
+  PopularProduct,
 } from '../../lib/certification';
 import { PRODUCT_CATEGORIES, getProductCategories } from '../../lib/categories';
 import { CertificationResult } from '../../lib/types';
@@ -73,6 +75,10 @@ export default function ProductsScreen() {
   const [loadingRecommended, setLoadingRecommended] = useState(false);
   const RECOMMENDED_PAGE_SIZE = 10;
   const [recommendedVisibleCount, setRecommendedVisibleCount] = useState(RECOMMENDED_PAGE_SIZE);
+  const [popularMode, setPopularMode] = useState(false);
+  const [popularProducts, setPopularProducts] = useState<PopularProduct[]>([]);
+  const [loadingPopular, setLoadingPopular] = useState(false);
+  const [popularVisibleCount, setPopularVisibleCount] = useState(RECOMMENDED_PAGE_SIZE);
   // Starts from the hardcoded fallback so the chip row isn't empty on
   // first render, then swaps in the admin-editable DB list once it loads.
   const [categoryChips, setCategoryChips] = useState(() => buildCategoryChips(PRODUCT_CATEGORIES));
@@ -133,12 +139,30 @@ export default function ProductsScreen() {
     };
   }, [recommendedMode]);
 
+  useEffect(() => {
+    if (!popularMode) return;
+    let active = true;
+    setLoadingPopular(true);
+    getPopularProducts(200).then((r) => {
+      if (!active) return;
+      setPopularProducts(r);
+      setPopularVisibleCount(RECOMMENDED_PAGE_SIZE);
+      setLoadingPopular(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [popularMode]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     try {
       if (recommendedMode) {
         setRecommendedProducts(await getMostRecommendedProducts(200));
         setRecommendedVisibleCount(RECOMMENDED_PAGE_SIZE);
+      } else if (popularMode) {
+        setPopularProducts(await getPopularProducts(200));
+        setPopularVisibleCount(RECOMMENDED_PAGE_SIZE);
       } else {
         setResults(await searchProducts(query));
         if (history.length) setLiveHistory(await getManyByBarcode(history.map((h) => h.barcode)));
@@ -151,6 +175,8 @@ export default function ProductsScreen() {
   const filteredData = useMemo(() => {
     const base = recommendedMode
       ? recommendedProducts
+      : popularMode
+      ? popularProducts
       : query
       ? results
       : history.length
@@ -158,21 +184,29 @@ export default function ProductsScreen() {
       : results;
     if (category === 'Hamısı') return base;
     return base.filter((item) => item.category.toLowerCase().includes(category.toLowerCase()));
-  }, [query, results, history, liveHistory, category, recommendedMode, recommendedProducts]);
+  }, [query, results, history, liveHistory, category, recommendedMode, recommendedProducts, popularMode, popularProducts]);
 
-  // Recommended mode paginates 10-at-a-time client-side (already fetched
-  // up to 200) rather than everything at once — nothing else does, since
-  // search/history/category browsing are already naturally short lists.
-  const data = recommendedMode ? filteredData.slice(0, recommendedVisibleCount) : filteredData;
-  const hasMoreRecommended = recommendedMode && recommendedVisibleCount < filteredData.length;
+  // Recommended/popular modes paginate 10-at-a-time client-side (already
+  // fetched up to 200) rather than everything at once — nothing else does,
+  // since search/history/category browsing are already naturally short lists.
+  const rankedMode = recommendedMode || popularMode;
+  const visibleCount = recommendedMode ? recommendedVisibleCount : popularVisibleCount;
+  const data = rankedMode ? filteredData.slice(0, visibleCount) : filteredData;
+  const hasMoreRecommended = rankedMode && visibleCount < filteredData.length;
 
   // Only history-backed rows are deletable — search/browse results are the
   // shared product database, not something a personal "wrong scan" delete
   // applies to.
-  const isHistoryView = !recommendedMode && !query && history.length > 0;
+  const isHistoryView = !rankedMode && !query && history.length > 0;
 
   const toggleRecommendedMode = () => {
     setRecommendedMode((prev) => !prev);
+    setPopularMode(false);
+    setQuery('');
+  };
+  const togglePopularMode = () => {
+    setPopularMode((prev) => !prev);
+    setRecommendedMode(false);
     setQuery('');
   };
   const confirmDelete = (item: CertificationResult) => {
@@ -242,19 +276,34 @@ export default function ProductsScreen() {
         )}
       </View>
 
-      <Pressable
-        style={[styles.recommendedToggle, recommendedMode && styles.recommendedToggleActive]}
-        onPress={toggleRecommendedMode}
-      >
-        <Ionicons
-          name={recommendedMode ? 'thumbs-up' : 'thumbs-up-outline'}
-          size={16}
-          color={recommendedMode ? colors.white : colors.primaryDark}
-        />
-        <Text style={[styles.recommendedToggleText, recommendedMode && styles.recommendedToggleTextActive]}>
-          {t('productsRecommendedToggle')}
-        </Text>
-      </Pressable>
+      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        <Pressable
+          style={[styles.recommendedToggle, recommendedMode && styles.recommendedToggleActive]}
+          onPress={toggleRecommendedMode}
+        >
+          <Ionicons
+            name={recommendedMode ? 'thumbs-up' : 'thumbs-up-outline'}
+            size={16}
+            color={recommendedMode ? colors.white : colors.primaryDark}
+          />
+          <Text style={[styles.recommendedToggleText, recommendedMode && styles.recommendedToggleTextActive]}>
+            {t('productsRecommendedToggle')}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.recommendedToggle, popularMode && styles.recommendedToggleActive]}
+          onPress={togglePopularMode}
+        >
+          <Ionicons
+            name={popularMode ? 'flame' : 'flame-outline'}
+            size={16}
+            color={popularMode ? colors.white : colors.primaryDark}
+          />
+          <Text style={[styles.recommendedToggleText, popularMode && styles.recommendedToggleTextActive]}>
+            {t('productsPopularToggle')}
+          </Text>
+        </Pressable>
+      </View>
 
       <View style={styles.categoryRowWrap}>
         <ScrollView
@@ -292,6 +341,8 @@ export default function ProductsScreen() {
 
       {recommendedMode ? (
         <Text style={styles.sectionLabel}>{t('productsRecommendedLabel')}</Text>
+      ) : popularMode ? (
+        <Text style={styles.sectionLabel}>{t('productsPopularSectionLabel')}</Text>
       ) : (
         !query && (
           <Text style={styles.sectionLabel}>
@@ -324,7 +375,7 @@ export default function ProductsScreen() {
             onPress={() => router.push({ pathname: '/product/[id]', params: { id: item.barcode } })}
             onLongPress={isHistoryView ? () => confirmDelete(item) : undefined}
           >
-            {recommendedMode && (
+            {rankedMode && (
               <View style={[styles.rankBadge, index === 0 && styles.rankBadgeGold]}>
                 <Text style={styles.rankBadgeText}>{index + 1}</Text>
               </View>
@@ -343,6 +394,12 @@ export default function ProductsScreen() {
                   <View style={styles.recommendCountRow}>
                     <Ionicons name="thumbs-up" size={12} color={colors.primary} />
                     <Text style={styles.recommendCountText}>{(item as RecommendedProduct).recommendCount}</Text>
+                  </View>
+                )}
+                {popularMode && (
+                  <View style={styles.recommendCountRow}>
+                    <Ionicons name="eye-outline" size={12} color={colors.primary} />
+                    <Text style={styles.recommendCountText}>{(item as PopularProduct).scanCount}</Text>
                   </View>
                 )}
               </View>
@@ -373,10 +430,14 @@ export default function ProductsScreen() {
           hasMoreRecommended ? (
             <Pressable
               style={styles.moreBtn}
-              onPress={() => setRecommendedVisibleCount((n) => n + RECOMMENDED_PAGE_SIZE)}
+              onPress={() =>
+                recommendedMode
+                  ? setRecommendedVisibleCount((n) => n + RECOMMENDED_PAGE_SIZE)
+                  : setPopularVisibleCount((n) => n + RECOMMENDED_PAGE_SIZE)
+              }
             >
               <Text style={styles.moreBtnText}>
-                {t('productsShowMore')} ({Math.min(RECOMMENDED_PAGE_SIZE, filteredData.length - recommendedVisibleCount)})
+                {t('productsShowMore')} ({Math.min(RECOMMENDED_PAGE_SIZE, filteredData.length - visibleCount)})
               </Text>
             </Pressable>
           ) : null

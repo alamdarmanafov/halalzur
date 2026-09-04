@@ -351,6 +351,46 @@ export async function getMostRecommendedProducts(limit: number): Promise<Recomme
     .map((row) => ({ ...byBarcode[row.barcode], recommendCount: row.recommend_count }));
 }
 
+type ConfirmedScanCountRow = {
+  barcode: string;
+  scan_count: number;
+  product_name: string;
+  brand: string;
+  status: CertificationResult['status'];
+};
+
+export type PopularProduct = CertificationResult & { scanCount: number };
+
+/**
+ * Products.tsx's "Populyar" section — ranked by raw scan volume (how many
+ * times anyone scanned the barcode), not community up-votes like
+ * getMostRecommendedProducts above. Reads confirmed_scan_counts (a view
+ * over scan_events + certified_entries, see supabase/schema.sql) which
+ * already existed for the admin panel's own Dashboard report.
+ *
+ * scan_events has no city/location column (a scan never captures the
+ * user's location), so this is a nationwide leaderboard rather than a
+ * per-city one — the closest real signal available without adding a new
+ * location-permission flow.
+ */
+export async function getPopularProducts(limit: number): Promise<PopularProduct[]> {
+  if (!isSupabaseConfigured || !supabase) return [];
+
+  const { data, error } = await supabase
+    .from('confirmed_scan_counts')
+    .select('barcode, scan_count, product_name, brand, status')
+    .order('scan_count', { ascending: false })
+    .limit(limit)
+    .returns<ConfirmedScanCountRow[]>();
+
+  if (error || !data || data.length === 0) return [];
+
+  const byBarcode = await getManyByBarcode(data.map((row) => row.barcode));
+  return data
+    .filter((row) => !!byBarcode[row.barcode])
+    .map((row) => ({ ...byBarcode[row.barcode], scanCount: row.scan_count }));
+}
+
 export function getAllProducts(): CertificationResult[] {
   return Object.values(MOCK_DB);
 }

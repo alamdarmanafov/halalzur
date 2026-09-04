@@ -43,6 +43,9 @@ import { CertificationResult, ECodeEntry } from '../../lib/types';
 import { detectBarcodeFormat } from '../../lib/barcodeFormat';
 import { useDietaryProfile } from '../../lib/dietaryProfile-context';
 import { matchDietaryTags, matchAllergenTags, DIETARY_TAG_LABEL_KEY, ALLERGEN_TAG_LABEL_KEY } from '../../lib/dietaryKeywords';
+import { getReviewComments, addReviewComment, ReviewComment } from '../../lib/reviews';
+import { getQuestions, askQuestion, answerQuestion, QaQuestion } from '../../lib/qa';
+import { getFirstDiscoverer, Discoverer } from '../../lib/discoverer';
 import { StatusBadge } from '../../components/StatusBadge';
 import { ECodeCard } from '../../components/ECodeCard';
 import { ShareResultCard } from '../../components/ShareResultCard';
@@ -93,6 +96,15 @@ export default function ProductDetailScreen() {
   const [sharingCard, setSharingCard] = useState(false);
   const shareCardRef = useRef<View>(null);
   const [ecodeTooltip, setEcodeTooltip] = useState<ECodeEntry | null>(null);
+  const [discoverer, setDiscoverer] = useState<Discoverer | null>(null);
+  const [reviews, setReviews] = useState<ReviewComment[]>([]);
+  const [reviewInput, setReviewInput] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [questions, setQuestions] = useState<QaQuestion[]>([]);
+  const [questionInput, setQuestionInput] = useState('');
+  const [submittingQuestion, setSubmittingQuestion] = useState(false);
+  const [answerInputs, setAnswerInputs] = useState<Record<string, string>>({});
+  const [answeringId, setAnsweringId] = useState<string | null>(null);
 
   useEffect(() => {
     getDistinctBrands()
@@ -203,6 +215,77 @@ export default function ProductDetailScreen() {
       cancelled = true;
     };
   }, [id, user]);
+
+  const loadReviews = () => {
+    if (!id) return;
+    getReviewComments(id).then(setReviews);
+  };
+  const loadQuestions = () => {
+    if (!id) return;
+    getQuestions(id).then(setQuestions);
+  };
+
+  useEffect(() => {
+    if (!id) return;
+    loadReviews();
+    loadQuestions();
+    getFirstDiscoverer(id).then(setDiscoverer);
+  }, [id]);
+
+  const onSubmitReview = async () => {
+    if (!user) {
+      Alert.alert(t('productRecommendSignInTitle'), t('productRecommendSignInBody'));
+      return;
+    }
+    if (!reviewInput.trim() || !id) return;
+    setSubmittingReview(true);
+    try {
+      await addReviewComment(user.id, user.name, id, reviewInput);
+      setReviewInput('');
+      loadReviews();
+    } catch (err: any) {
+      Alert.alert(t('productSubmitFailedTitle'), err.message ?? t('productSubmitFailedBody'));
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const onAskQuestion = async () => {
+    if (!user) {
+      Alert.alert(t('productRecommendSignInTitle'), t('productRecommendSignInBody'));
+      return;
+    }
+    if (!questionInput.trim() || !id) return;
+    setSubmittingQuestion(true);
+    try {
+      await askQuestion(user.id, user.name, id, questionInput);
+      setQuestionInput('');
+      loadQuestions();
+    } catch (err: any) {
+      Alert.alert(t('productSubmitFailedTitle'), err.message ?? t('productSubmitFailedBody'));
+    } finally {
+      setSubmittingQuestion(false);
+    }
+  };
+
+  const onAnswerQuestion = async (questionId: string) => {
+    if (!user) {
+      Alert.alert(t('productRecommendSignInTitle'), t('productRecommendSignInBody'));
+      return;
+    }
+    const text = answerInputs[questionId];
+    if (!text?.trim()) return;
+    setAnsweringId(questionId);
+    try {
+      await answerQuestion(user.id, user.name, questionId, text);
+      setAnswerInputs((prev) => ({ ...prev, [questionId]: '' }));
+      loadQuestions();
+    } catch (err: any) {
+      Alert.alert(t('productSubmitFailedTitle'), err.message ?? t('productSubmitFailedBody'));
+    } finally {
+      setAnsweringId(null);
+    }
+  };
 
   const onRateProduct = async (rating: number) => {
     if (!product) return;
@@ -596,6 +679,12 @@ export default function ProductDetailScreen() {
               </Text>
             )}
           </View>
+
+          {discoverer && (
+            <Text style={styles.discovererBadge}>
+              {t('productDiscovererBadge').replace('{name}', discoverer.userName || '—')}
+            </Text>
+          )}
         </View>
 
         {isBrandBlocked(product.brand) && (
@@ -867,6 +956,93 @@ export default function ProductDetailScreen() {
         )}
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('productReviewsTitle')}</Text>
+          <View style={styles.qaInputRow}>
+            <TextInput
+              value={reviewInput}
+              onChangeText={setReviewInput}
+              placeholder={t('productReviewsPlaceholder')}
+              placeholderTextColor={colors.gray}
+              style={styles.qaInput}
+              multiline
+            />
+            <Pressable style={styles.qaSendBtn} onPress={onSubmitReview} disabled={submittingReview}>
+              {submittingReview ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Text style={styles.qaSendBtnText}>{t('productReviewsSend')}</Text>
+              )}
+            </Pressable>
+          </View>
+          {reviews.length === 0 ? (
+            <Text style={styles.qaEmpty}>{t('productReviewsEmpty')}</Text>
+          ) : (
+            reviews.map((r) => (
+              <View key={r.id} style={styles.reviewRow}>
+                <Text style={styles.reviewAuthor}>{r.userName || '—'}</Text>
+                <Text style={styles.reviewText}>{r.comment}</Text>
+              </View>
+            ))
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('productQaTitle')}</Text>
+          <View style={styles.qaInputRow}>
+            <TextInput
+              value={questionInput}
+              onChangeText={setQuestionInput}
+              placeholder={t('productQaAskPlaceholder')}
+              placeholderTextColor={colors.gray}
+              style={styles.qaInput}
+              multiline
+            />
+            <Pressable style={styles.qaSendBtn} onPress={onAskQuestion} disabled={submittingQuestion}>
+              {submittingQuestion ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <Text style={styles.qaSendBtnText}>{t('productQaAsk')}</Text>
+              )}
+            </Pressable>
+          </View>
+          {questions.length === 0 ? (
+            <Text style={styles.qaEmpty}>{t('productQaEmpty')}</Text>
+          ) : (
+            questions.map((q) => (
+              <View key={q.id} style={styles.questionCard}>
+                <Text style={styles.reviewAuthor}>{q.userName || '—'}</Text>
+                <Text style={styles.reviewText}>{q.question}</Text>
+                {q.answers.map((a) => (
+                  <View key={a.id} style={styles.answerRow}>
+                    <Ionicons name="return-down-forward" size={14} color={colors.gray} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.reviewAuthor}>{a.userName || '—'}</Text>
+                      <Text style={styles.reviewText}>{a.answer}</Text>
+                    </View>
+                  </View>
+                ))}
+                <View style={styles.answerInputRow}>
+                  <TextInput
+                    value={answerInputs[q.id] ?? ''}
+                    onChangeText={(v) => setAnswerInputs((prev) => ({ ...prev, [q.id]: v }))}
+                    placeholder={t('productQaAnswerPlaceholder')}
+                    placeholderTextColor={colors.gray}
+                    style={styles.answerInput}
+                  />
+                  <Pressable onPress={() => onAnswerQuestion(q.id)} disabled={answeringId === q.id}>
+                    {answeringId === q.id ? (
+                      <ActivityIndicator size="small" color={colors.primaryDark} />
+                    ) : (
+                      <Text style={styles.answerSendText}>{t('productQaAnswerAction')}</Text>
+                    )}
+                  </Pressable>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('productBarcodeTitle')}</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
             <Text style={styles.barcode}>{product.barcode}</Text>
@@ -1089,6 +1265,42 @@ const styles = StyleSheet.create({
   recommendPillTextActive: { color: colors.white },
   starRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.sm },
   starSummary: { ...typography.small, color: colors.gray, marginLeft: spacing.xs, fontWeight: '600' },
+  discovererBadge: { ...typography.small, color: colors.primaryDark, fontWeight: '700', marginTop: spacing.sm },
+  qaInputRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md, alignItems: 'flex-end' },
+  qaInput: {
+    flex: 1,
+    minHeight: 44,
+    maxHeight: 100,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.grayLight,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    fontSize: typography.body.fontSize,
+    color: colors.black,
+    backgroundColor: colors.surface,
+  },
+  qaSendBtn: { height: 44, paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  qaSendBtnText: { color: colors.white, fontWeight: '700', fontSize: typography.small.fontSize },
+  qaEmpty: { ...typography.small, color: colors.gray },
+  reviewRow: { backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm, marginBottom: spacing.xs },
+  reviewAuthor: { ...typography.small, color: colors.primaryDark, fontWeight: '700' },
+  reviewText: { ...typography.small, color: colors.black, marginTop: 2, lineHeight: 18 },
+  questionCard: { backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.sm, marginBottom: spacing.sm },
+  answerRow: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm, paddingLeft: spacing.sm },
+  answerInputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.sm },
+  answerInput: {
+    flex: 1,
+    height: 38,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.grayLight,
+    paddingHorizontal: spacing.sm,
+    fontSize: typography.small.fontSize,
+    color: colors.black,
+    backgroundColor: colors.white,
+  },
+  answerSendText: { ...typography.small, color: colors.primaryDark, fontWeight: '700' },
   blockedBrandBanner: {
     flexDirection: 'row',
     alignItems: 'center',
