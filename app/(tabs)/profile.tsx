@@ -15,6 +15,7 @@ import { getPoints, fetchPendingSubmissions } from '../../lib/submissions';
 import { POINTS_PER_PREMIUM_DAY, MIN_REDEEMABLE_DAYS } from '../../lib/points';
 import { computeBadges, BADGE_ICON, BADGE_LABEL_KEY } from '../../lib/badges';
 import { useLiteMode } from '../../lib/liteMode-context';
+import { useStreak } from '../../lib/streak-context';
 import type { Language, TranslationKey } from '../../lib/i18n';
 import { deleteAccount } from '../../lib/deleteAccount';
 import { colors, radius, spacing, typography } from '../../constants/theme';
@@ -46,6 +47,7 @@ function formatExpiryDate(iso: string, language: Language): string {
 export default function ProfileScreen() {
   const { user, signOut, refreshPlan, redeemPointsForPremium } = useAuth();
   const { liteMode, setLiteMode } = useLiteMode();
+  const { streak } = useStreak();
   const { history, clear } = useHistory();
   const { favorites } = useFavorites();
   const { language, setLanguage, t } = useLanguage();
@@ -157,6 +159,11 @@ export default function ProfileScreen() {
       icon: 'nutrition-outline',
       label: t('profileDietaryProfile'),
       onPress: () => router.push('/dietary-profile'),
+    },
+    {
+      icon: 'options-outline',
+      label: t('profileNotificationPrefs'),
+      onPress: () => router.push('/notification-preferences'),
     },
     {
       icon: 'trophy-outline',
@@ -279,10 +286,18 @@ export default function ProfileScreen() {
               </Text>
             )}
           </View>
-          <Pressable style={styles.pointsBadge} onPress={onRedeemPoints}>
-            <Ionicons name="trophy" size={14} color={colors.primaryDark} />
-            <Text style={styles.pointsText}>{points}</Text>
-          </Pressable>
+          <View style={{ alignItems: 'flex-end', gap: 4 }}>
+            <Pressable style={styles.pointsBadge} onPress={onRedeemPoints}>
+              <Ionicons name="trophy" size={14} color={colors.primaryDark} />
+              <Text style={styles.pointsText}>{points}</Text>
+            </Pressable>
+            {streak > 0 && (
+              <View style={styles.streakBadge}>
+                <Ionicons name="flame" size={13} color={colors.accent} />
+                <Text style={styles.streakText}>{streak}</Text>
+              </View>
+            )}
+          </View>
         </View>
 
         {badges.length > 0 && (
@@ -390,6 +405,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   pointsText: { ...typography.small, color: colors.primaryDark, fontWeight: '800' },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  streakText: { ...typography.small, color: colors.black, fontWeight: '700' },
   badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.lg },
   badgeChip: {
     flexDirection: 'row',

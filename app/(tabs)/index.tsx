@@ -9,6 +9,7 @@ import { Button } from '../../components/Button';
 import { BrandModal } from '../../components/BrandModal';
 import { useAuth } from '../../lib/auth-context';
 import { useHistory } from '../../lib/history-context';
+import { useStreak } from '../../lib/streak-context';
 import { useLanguage } from '../../lib/i18n-context';
 import { lookupBarcode } from '../../lib/certification';
 import { logScanEvent } from '../../lib/scanEvents';
@@ -22,6 +23,7 @@ const DEMO_BARCODES = ['8690504048068', '8690506042027', '4006381333931', '54490
 export default function ScanScreen() {
   const { user, incrementScanCount } = useAuth();
   const { addScan, history } = useHistory();
+  const { recordScan } = useStreak();
   const { t } = useLanguage();
   const [permission, requestPermission] = useCameraPermissions();
   const [isBusy, setIsBusy] = useState(false);
@@ -59,6 +61,7 @@ export default function ScanScreen() {
           }
           hapticForStatus(cached.status);
           await addScan(cached);
+          recordScan();
           if (!isPremium) await incrementScanCount();
           router.push({ pathname: '/product/[id]', params: { id: cached.barcode } });
           return;
@@ -66,6 +69,7 @@ export default function ScanScreen() {
         const result = await lookupBarcode(barcode);
         hapticForStatus(result.status);
         await addScan(result);
+        recordScan();
         logScanEvent(result);
         if (!isPremium) await incrementScanCount();
         router.push({ pathname: '/product/[id]', params: { id: result.barcode } });

@@ -111,6 +111,37 @@ export function syncUserLanguage(userId: string, language: 'az' | 'en' | 'ru' | 
     });
 }
 
+/**
+ * Per-notification-type opt-out list read/written by the notification-
+ * preferences screen — checked by the re-engagement cron jobs
+ * (admin-panel/api/cron-jobs.js) before sending a win-back/recommend/
+ * category-digest push. The weekly digest is a topic broadcast (FCM
+ * topic, not per-token), so it isn't covered by this per-user list.
+ */
+export function syncMutedNotificationTypes(userId: string, muted: string[]): void {
+  if (!isSupabaseConfigured || !supabase) return;
+  if (!isSyncableUserId(userId)) return;
+  supabase
+    .from('users')
+    .update({ muted_notification_types: muted, updated_at: new Date().toISOString() })
+    .eq('id', userId)
+    .then(({ error }) => {
+      if (error) console.warn('syncMutedNotificationTypes failed:', error.message);
+    });
+}
+
+export async function fetchMutedNotificationTypes(userId: string): Promise<string[]> {
+  if (!isSupabaseConfigured || !supabase) return [];
+  if (!isSyncableUserId(userId)) return [];
+  const { data, error } = await supabase
+    .from('users')
+    .select('muted_notification_types')
+    .eq('id', userId)
+    .maybeSingle<{ muted_notification_types: string[] | null }>();
+  if (error || !data) return [];
+  return data.muted_notification_types ?? [];
+}
+
 export type RemoteAccountState = {
   plan: User['plan'];
   premiumExpiresAt: string | null;

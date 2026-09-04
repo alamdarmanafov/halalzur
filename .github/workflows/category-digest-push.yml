@@ -1,0 +1,18 @@
+name: Send weekly category-digest push
+
+on:
+  schedule:
+    - cron: "0 10 * * 1"
+  workflow_dispatch: {}
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger category digest push
+        run: |
+          curl -sf -X POST "${ADMIN_API_URL}/api/cron-jobs?job=category-digest" \
+            -H "x-notify-secret: ${NOTIFY_SECRET}"
+        env:
+          ADMIN_API_URL: ${{ secrets.ADMIN_API_URL }}
+          NOTIFY_SECRET: ${{ secrets.NOTIFY_SECRET }}

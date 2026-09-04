@@ -107,7 +107,7 @@ async function runWinBackPush(res) {
 
     const { data: candidates, error } = await supabase
       .from('users')
-      .select('id, last_seen_at, last_winback_tier_sent')
+      .select('id, last_seen_at, last_winback_tier_sent, muted_notification_types')
       .not('last_seen_at', 'is', null)
       .lt('last_seen_at', inactiveSince)
       .or(`last_winback_tier_sent.is.null,last_winback_tier_sent.lt.${highestTier}`)
@@ -122,6 +122,7 @@ async function runWinBackPush(res) {
     let notified = 0;
 
     for (const user of candidates) {
+      if ((user.muted_notification_types || []).includes('winback')) continue;
       const daysInactive = Math.floor((Date.now() - new Date(user.last_seen_at).getTime()) / 86400000);
       // Highest tier this user has now crossed that they haven't already received.
       const template = [...templates]
@@ -171,7 +172,7 @@ async function runRecommendPush(res) {
 
     const { data: candidates, error } = await supabase
       .from('users')
-      .select('id')
+      .select('id, muted_notification_types')
       .or(`last_recommend_sent_at.is.null,last_recommend_sent_at.lt.${resendAfter}`)
       .limit(100);
     if (error) throw error;
@@ -184,6 +185,7 @@ async function runRecommendPush(res) {
     let notified = 0;
 
     for (const user of candidates) {
+      if ((user.muted_notification_types || []).includes('recommend')) continue;
       const { data: favorites } = await supabase
         .from('favorites')
         .select('barcode, data')
@@ -243,6 +245,175 @@ async function runRecommendPush(res) {
   }
 }
 
+// Weekly "new in your favorite category" push. Reuses the same
+// top-favorited-category signal as runRecommendPush, but only notifies
+// when there's genuinely new supply (a certified_entries row added in the
+// last 7 days in that category) rather than any pick from the whole
+// category — a distinct, narrower signal from "might interest you".
+// Skips users who muted 'category_digest' (see users.muted_notification_types).
+async function runCategoryDigestPush(res) {
+  if (!checkConfigured(res)) return;
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const resendAfter = new Date(Date.now() - 7 * 86400000).toISOString();
+    const weekAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+
+    const { data: candidates, error } = await supabase
+      .from('users')
+      .select('id, muted_notification_types')
+      .or(`last_category_digest_sent_at.is.null,last_category_digest_sent_at.lt.${resendAfter}`)
+      .limit(100);
+    if (error) throw error;
+    if (!candidates || !candidates.length) {
+      res.status(200).json({ notified: 0 });
+      return;
+    }
+
+    const messaging = getMessaging(getFirebaseApp());
+    let notified = 0;
+
+    for (const user of candidates) {
+      if ((user.muted_notification_types || []).includes('category_digest')) continue;
+
+      const { data: favorites } = await supabase.from('favorites').select('data').eq('user_id', user.id).limit(50);
+      if (!favorites || !favorites.length) continue;
+
+      const counts = {};
+      favorites.forEach((f) => {
+        const category = f.data && f.data.category;
+        if (category) counts[category] = (counts[category] || 0) + 1;
+      });
+      const topCategory = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+      if (!topCategory) continue;
+
+      const { data: newProducts, count } = await supabase
+        .from('certified_entries')
+        .select('product_name, brand', { count: 'exact' })
+        .eq('entry_type', 'product')
+        .eq('category', topCategory)
+        .eq('status', 'halal')
+        .is('deleted_at', null)
+        .gte('created_at', weekAgo)
+        .limit(1);
+      if (!count) continue;
+
+      const { data: tokens } = await supabase.from('device_tokens').select('fcm_token').eq('user_id', user.id);
+      if (!tokens || !tokens.length) continue;
+
+      const first = newProducts && newProducts[0];
+      const title = `${topCategory}: yeni halal məhsullar`;
+      const body =
+        count === 1
+          ? `${first?.product_name || first?.brand} əlavə edildi — yoxlayın!`
+          : `${count} yeni məhsul əlavə edildi, o cümlədən ${first?.product_name || first?.brand}.`;
+      let sentAny = false;
+      for (const { fcm_token } of tokens) {
+        try {
+          await messaging.send({ token: fcm_token, notification: { title, body } });
+          sentAny = true;
+        } catch (err) {
+          console.error('cron-jobs[category-digest]: FCM send failed', err.code, err.message);
+        }
+      }
+      if (sentAny) {
+        await supabase.from('users').update({ last_category_digest_sent_at: new Date().toISOString() }).eq('id', user.id);
+        notified++;
+      }
+    }
+
+    res.status(200).json({ notified });
+  } catch (err) {
+    console.error('cron-jobs[category-digest]: unexpected error', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// Monthly "Halal Detektiv" reward — whoever submitted the most (non-
+// rejected) unknown-product suggestions in the previous calendar month
+// gets 7 days of free Premium plus a congratulatory push. Idempotent: if
+// ANY user already carries this month's award marker
+// (last_detective_award_month), the job is a no-op on re-run.
+async function runMonthlyDetectivePush(res) {
+  if (!checkConfigured(res)) return;
+  try {
+    const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const now = new Date();
+    const monthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1)).toISOString();
+    const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+
+    const { data: alreadyAwarded } = await supabase
+      .from('users')
+      .select('id')
+      .eq('last_detective_award_month', monthKey)
+      .limit(1);
+    if (alreadyAwarded && alreadyAwarded.length) {
+      res.status(200).json({ awarded: false, reason: 'already_awarded_this_month' });
+      return;
+    }
+
+    const { data: submissions, error } = await supabase
+      .from('product_submissions')
+      .select('submitted_by')
+      .neq('review_status', 'rejected')
+      .gte('created_at', monthStart)
+      .lt('created_at', monthEnd);
+    if (error) throw error;
+    if (!submissions || !submissions.length) {
+      res.status(200).json({ awarded: false, reason: 'no_submissions' });
+      return;
+    }
+
+    const counts = {};
+    submissions.forEach((s) => {
+      counts[s.submitted_by] = (counts[s.submitted_by] || 0) + 1;
+    });
+    const [winnerId, winnerCount] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+
+    const AWARD_DAYS = 7;
+    const { data: winner } = await supabase.from('users').select('premium_expires_at, plan').eq('id', winnerId).maybeSingle();
+    const base =
+      winner?.plan === 'premium' && winner.premium_expires_at && new Date(winner.premium_expires_at) > now
+        ? new Date(winner.premium_expires_at)
+        : now;
+    const newExpiresAt = new Date(base.getTime() + AWARD_DAYS * 86400000).toISOString();
+
+    await supabase
+      .from('users')
+      .update({
+        plan: 'premium',
+        premium_expires_at: newExpiresAt,
+        last_detective_award_month: monthKey,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', winnerId);
+
+    const { data: tokens } = await supabase.from('device_tokens').select('fcm_token').eq('user_id', winnerId);
+    if (tokens && tokens.length) {
+      const messaging = getMessaging(getFirebaseApp());
+      for (const { fcm_token } of tokens) {
+        try {
+          await messaging.send({
+            token: fcm_token,
+            notification: {
+              title: '🕵️ Ayın Halal Detektivi sizsiniz!',
+              body: `Bu ay ${winnerCount} məhsul əlavə etdiniz — ${AWARD_DAYS} gün pulsuz Premium hədiyyəmizdir!`,
+            },
+            data: { route: '/(tabs)/profile' },
+          });
+        } catch (err) {
+          console.error('cron-jobs[monthly-detective]: FCM send failed', err.code, err.message);
+        }
+      }
+    }
+
+    res.status(200).json({ awarded: true, winnerId, winnerCount, newExpiresAt });
+  } catch (err) {
+    console.error('cron-jobs[monthly-detective]: unexpected error', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'method_not_allowed' });
@@ -257,5 +428,7 @@ export default async function handler(req, res) {
   if (job === 'weekly-digest') return runWeeklyDigest(res);
   if (job === 'win-back') return runWinBackPush(res);
   if (job === 'recommend') return runRecommendPush(res);
+  if (job === 'category-digest') return runCategoryDigestPush(res);
+  if (job === 'monthly-detective') return runMonthlyDetectivePush(res);
   res.status(400).json({ error: 'unknown_job', job });
 }
