@@ -68,6 +68,7 @@ async function deleteUserData(supabase, userId) {
     supabase.from('referrals').delete().eq('referred_id', userId),
     supabase.from('product_submissions').delete().eq('submitted_by', userId).eq('review_status', 'pending'),
     supabase.from('account_deletion_codes').delete().eq('user_id', userId),
+    supabase.from('scan_history_backup').delete().eq('user_id', userId),
   ]);
 
   await supabase.from('users').delete().eq('id', userId);

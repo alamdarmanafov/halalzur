@@ -171,7 +171,7 @@
     <div class="doc-body">
       <section>
         <h2>1. Cihazınızdakı məlumatlar</h2>
-        <p>Skan tarixçəniz, favoritləriniz və giriş məlumatınız yalnız telefonunuzda saxlanılır. Bunları silmək üçün:</p>
+        <p>Skan tarixçəniz və favoritləriniz əsasən telefonunuzda saxlanılır (Apple/Google hesabı ilə daxil olmusunuzsa, cihaz dəyişəndə itməsin deyə serverimizdə də ehtiyat nüsxəsi saxlanılır — bu, aşağıdakı 2-ci bölmədə təsvir olunan hesab silmə ilə serverdən də silinir). Giriş məlumatınız cihazınızda saxlanılır. Bunları silmək üçün:</p>
         <div class="steps">
           <div class="step-card">
             <div class="step-num">1</div>
@@ -200,13 +200,34 @@
       <section>
         <h2>2. Serverimizdə saxlanılan məlumatlar</h2>
         <p>
-          Əgər bazada olmayan məhsul təklif etmisinizsə (ad, barkod, tərkib) və ya bildirişlərə
-          icazə vermisinizsə, bu qeydlər serverimizdə (Supabase) qalır. Hazırda tətbiqdə bunları
-          özünüz avtomatik silə biləcəyiniz düymə yoxdur — aşağıdakı formadan tələb göndərin,
-          biz əl ilə siləcəyik.
+          Hesab yaratmısınızsa (e-poçt, Apple və ya Google ilə), tətbiq daxilində
+          <strong>bir toxunuşla</strong> hesabınızı və ona bağlı bütün server məlumatlarını
+          həmişəlik silə bilərsiniz — ayrıca tələb göndərməyə ehtiyac yoxdur:
+        </p>
+        <div class="steps">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <div>
+              <h3>Profil → Hesabı sil</h3>
+              <p>Tətbiqdə <strong>Profil</strong> bölməsinə keçib <strong>Hesabı sil</strong> düyməsinə toxunun və təsdiqləyin.</p>
+            </div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <div>
+              <h3>Apple/Google hesabları üçün əlavə addım</h3>
+              <p>Apple və ya Google ilə daxil olmusunuzsa, cihazınıza bir dəfəlik təsdiq kodu göndərilir (bildiriş formasında) — kodu tətbiqdə daxil etdikdən sonra silinmə dərhal icra olunur. E-poçt hesabları üçün bu addıma ehtiyac yoxdur, silinmə birbaşa baş verir.</p>
+            </div>
+          </div>
+        </div>
+        <p style="margin-top: 4px;">
+          Bu, aşağıdakıları serverimizdən (Supabase) həmişəlik silir: hesab qeydiniz, bildiriş
+          tokeni, favoritləriniz, bulud skan tarixçəsi backup-ı (aktiv olduğu hallarda), xal
+          məlumatınız, hələ nəzərdən keçirilməmiş icma təklifləriniz və referral əlaqəniz.
+          E-poçt hesablarında əsl giriş məlumatınız da (Supabase Auth) silinir.
         </p>
         <div class="request-box">
-          <p>Silinməsini istədiyiniz məlumatı (icma təklifləri, xal, bildiriş tokeni) qeyd edin — tətbiqdə istifadə etdiyiniz ad/e-poçtu daxil etməyi unutmayın ki, düzgün qeydi tapa bilək.</p>
+          <p>Tətbiqə girişiniz yoxdursa (məsələn, cihazı dəyişmisiniz) və ya yuxarıdakı addımlar işləmirsə, aşağıdakı formadan bizə birbaşa müraciət edə bilərsiniz.</p>
           <a class="btn-mail" href="mailto:info@bepositive.az?subject=Halalzur%20-%20hesab%20məlumatlarımı%20silin&body=Tətbiqdə%20istifadə%20etdiyim%20ad%2Fe-poçt%3A%0ASilinməsini%20istədiyim%20məlumat%3A">
             ✉️ Silinmə tələbi göndər
           </a>
