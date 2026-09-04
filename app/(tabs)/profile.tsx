@@ -1,9 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Alert, RefreshControl, Switch, Linking } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  Alert,
+  RefreshControl,
+  Switch,
+  Linking,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Button } from '../../components/Button';
 import { useAuth } from '../../lib/auth-context';
 import { useHistory } from '../../lib/history-context';
 import { useFavorites } from '../../lib/favorites-context';
@@ -18,7 +33,7 @@ import { useLiteMode } from '../../lib/liteMode-context';
 import { useStreak } from '../../lib/streak-context';
 import { useShoppingList } from '../../lib/shoppingList-context';
 import type { Language, TranslationKey } from '../../lib/i18n';
-import { deleteAccount } from '../../lib/deleteAccount';
+import { deleteAccount, confirmAccountDeletion } from '../../lib/deleteAccount';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 const LANGUAGE_LABEL_KEY: Record<Language, TranslationKey> = {
@@ -58,6 +73,9 @@ export default function ProfileScreen() {
   const [points, setPoints] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [showDeletionCodeModal, setShowDeletionCodeModal] = useState(false);
+  const [deletionCode, setDeletionCode] = useState('');
+  const [deletionCodeBusy, setDeletionCodeBusy] = useState(false);
 
   const loadProfileData = () => {
     if (!user) return;
@@ -122,6 +140,26 @@ export default function ProfileScreen() {
         },
       ]
     );
+  };
+
+  const onConfirmDeletionCode = async () => {
+    if (!user) return;
+    const code = deletionCode.trim();
+    if (!/^\d{6}$/.test(code)) {
+      Alert.alert(t('profileDeleteAccountCodeTitle'), t('profileDeleteAccountCodeInvalid'));
+      return;
+    }
+    setDeletionCodeBusy(true);
+    try {
+      await confirmAccountDeletion(user.id, code);
+      setShowDeletionCodeModal(false);
+      await signOut();
+      router.replace('/(auth)/welcome');
+    } catch {
+      Alert.alert(t('profileDeleteAccountCodeTitle'), t('profileDeleteAccountCodeInvalid'));
+    } finally {
+      setDeletionCodeBusy(false);
+    }
   };
 
   const menuItems: MenuItem[] = [
@@ -268,11 +306,23 @@ export default function ProfileScreen() {
             style: 'destructive',
             onPress: async () => {
               try {
-                await deleteAccount(user.id);
+                const result = await deleteAccount(user.id);
+                if (result.needsCode) {
+                  // apple-/google- accounts have no session to verify
+                  // server-side, so a one-time code was just pushed to
+                  // this device instead — collect it before deleting.
+                  setDeletionCode('');
+                  setShowDeletionCodeModal(true);
+                  return;
+                }
                 await signOut();
                 router.replace('/(auth)/welcome');
               } catch (err: any) {
-                Alert.alert(t('profileDeleteAccountFailedTitle'), err.message ?? t('profileDeleteAccountFailedTitle'));
+                const message =
+                  err?.message === 'no_registered_device'
+                    ? t('profileDeleteAccountNoDevice')
+                    : err?.message ?? t('profileDeleteAccountFailedTitle');
+                Alert.alert(t('profileDeleteAccountFailedTitle'), message);
               }
             },
           },
@@ -386,6 +436,45 @@ export default function ProfileScreen() {
 
         <Text style={styles.version}>Halalzur v1.0.0</Text>
       </ScrollView>
+
+      <Modal
+        visible={showDeletionCodeModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowDeletionCodeModal(false)}
+      >
+        <KeyboardAvoidingView style={styles.manualBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.manualCard}>
+            <Text style={styles.manualTitle}>{t('profileDeleteAccountCodeTitle')}</Text>
+            <Text style={styles.manualSubtitle}>{t('profileDeleteAccountCodeBody')}</Text>
+            <TextInput
+              value={deletionCode}
+              onChangeText={setDeletionCode}
+              placeholder={t('profileDeleteAccountCodePlaceholder')}
+              placeholderTextColor={colors.gray}
+              keyboardType="number-pad"
+              maxLength={6}
+              autoFocus
+              style={styles.manualInput}
+            />
+            <View style={styles.manualActions}>
+              <Pressable
+                style={styles.manualCancelBtn}
+                onPress={() => setShowDeletionCodeModal(false)}
+                disabled={deletionCodeBusy}
+              >
+                <Text style={styles.manualCancelText}>{t('productCancel')}</Text>
+              </Pressable>
+              <Button
+                title={t('profileDeleteAccountCodeCta')}
+                onPress={onConfirmDeletionCode}
+                loading={deletionCodeBusy}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -487,4 +576,35 @@ const styles = StyleSheet.create({
   liteModeLabel: { ...typography.body, color: colors.black, fontWeight: '700' },
   liteModeSub: { ...typography.small, color: colors.gray, marginTop: 2 },
   version: { textAlign: 'center', color: colors.grayLight, marginTop: spacing.lg, fontSize: typography.small.fontSize },
+  manualBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(11,19,16,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  manualCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
+    padding: spacing.lg,
+  },
+  manualTitle: { ...typography.h3, color: colors.black, marginBottom: spacing.xs },
+  manualSubtitle: { ...typography.small, color: colors.gray, marginBottom: spacing.md },
+  manualInput: {
+    height: 48,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.grayLight,
+    paddingHorizontal: spacing.md,
+    fontSize: typography.body.fontSize,
+    color: colors.black,
+    backgroundColor: colors.surface,
+    textAlign: 'center',
+    letterSpacing: 4,
+  },
+  manualActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+  manualCancelBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.surface },
+  manualCancelText: { ...typography.body, color: colors.gray, fontWeight: '600' },
 });

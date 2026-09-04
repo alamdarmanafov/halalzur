@@ -305,6 +305,15 @@ alter table users enable row level security;
 create policy "Public read" on users
   for select using (true);
 
+-- Column-level lock-down on top of the row policy above: the row policy
+-- has to stay `true` (single-row lookups by id/referral_code, and
+-- id/name lookups for a known list of referred users, are legitimate
+-- public reads this app relies on), but nothing client-side ever needs
+-- another user's email through this table — exposing it in bulk to
+-- anyone holding the public anon key was a standing PII leak. See
+-- migration_2026_09_04_security_hardening.sql.
+revoke select (email) on users from anon, authenticated;
+
 create policy "Public insert" on users
   for insert with check (true);
 
@@ -1534,6 +1543,21 @@ alter table users add column if not exists muted_notification_types text[] not n
 -- the grant decision depends only on real committed rows (the sender's
 -- actual point balance, the recipient's actual referral code), never a
 -- client-supplied number.
+-- Per-caller-id sliding-window throttle shared by gift_premium_from_points
+-- and redeem_promo_code (defined further down, alongside promo_codes) —
+-- created here first since gift_premium_from_points' declare block needs
+-- the row type to already exist. See
+-- migration_2026_09_04_security_hardening.sql.
+create table if not exists promo_code_attempts (
+  user_id text primary key,
+  window_start timestamptz not null default now(),
+  attempt_count int not null default 0
+);
+alter table promo_code_attempts enable row level security;
+-- Deliberately no anon/authenticated policies — only ever touched from
+-- inside the security-definer functions above/below, which run as their
+-- owner regardless of RLS.
+
 create or replace function gift_premium_from_points(p_from_user_id text, p_to_referral_code text, p_days int)
 returns table (to_user_id text, to_name text, new_expires_at timestamptz)
 language plpgsql
@@ -1547,10 +1571,24 @@ declare
   v_to_name text;
   v_base timestamptz;
   v_new_expires timestamptz;
+  v_attempts promo_code_attempts%rowtype;
 begin
-  if p_days is null or p_days < 1 then
+  if p_days is null or p_days < 1 or p_from_user_id is null then
     return;
   end if;
+
+  select * into v_attempts from promo_code_attempts where user_id = p_from_user_id for update;
+  if v_attempts is null then
+    insert into promo_code_attempts (user_id, window_start, attempt_count) values (p_from_user_id, now(), 1);
+  elsif v_attempts.window_start < now() - interval '10 minutes' then
+    update promo_code_attempts set window_start = now(), attempt_count = 1 where user_id = p_from_user_id;
+  else
+    if v_attempts.attempt_count >= 8 then
+      return;
+    end if;
+    update promo_code_attempts set attempt_count = attempt_count + 1 where user_id = p_from_user_id;
+  end if;
+
   v_cost := p_days * 10; -- must match lib/points.ts's POINTS_PER_PREMIUM_DAY
 
   select points into v_points from user_points where user_id = p_from_user_id;
@@ -1667,7 +1705,32 @@ declare
   v_row promo_codes%rowtype;
   v_base timestamptz;
   v_new_expires timestamptz;
+  v_attempts promo_code_attempts%rowtype;
 begin
+  if p_user_id is null or length(trim(p_user_id)) = 0 or v_code is null or length(v_code) = 0 then
+    return;
+  end if;
+
+  -- Per-caller-id sliding window: at most 8 attempts per rolling 10
+  -- minutes — kills naive single-identity code guessing/hammering.
+  select * into v_attempts from promo_code_attempts where user_id = p_user_id for update;
+  if v_attempts is null then
+    insert into promo_code_attempts (user_id, window_start, attempt_count) values (p_user_id, now(), 1);
+  elsif v_attempts.window_start < now() - interval '10 minutes' then
+    update promo_code_attempts set window_start = now(), attempt_count = 1 where user_id = p_user_id;
+  else
+    if v_attempts.attempt_count >= 8 then
+      return;
+    end if;
+    update promo_code_attempts set attempt_count = attempt_count + 1 where user_id = p_user_id;
+  end if;
+
+  -- Requiring a real users row also stops an attacker exhausting a
+  -- giveaway code's max_redemptions pool with entirely made-up ids.
+  if not exists (select 1 from users where id = p_user_id) then
+    return;
+  end if;
+
   select * into v_row from promo_codes where code = v_code for update;
   if v_row.code is null then
     return;
@@ -1718,3 +1781,66 @@ create table if not exists refund_log (
 alter table refund_log enable row level security;
 drop policy if exists "Public read/insert/delete" on refund_log;
 create policy "Public read/insert/delete" on refund_log for all using (true) with check (true);
+
+-- One row per (platform, transaction id) ever successfully verified by
+-- admin-panel/api/verify-purchase.js / verify-purchase-android.js — those
+-- endpoints re-confirm a transactionId/purchaseToken against Apple/Google
+-- on every call but, before this, never recorded that one had already
+-- been consumed. Apple/Google keep confirming the same real, unexpired
+-- transaction forever, so without this a purchase's id (visible in
+-- device logs, a proxied request, or shared by its owner) could be
+-- replayed against different userIds to grant unlimited free Premium.
+-- android's "transaction_id" is the subscription-level purchaseToken,
+-- which stays stable across legitimate renewal re-checks of the same
+-- subscription — that's why both endpoints insert-if-new and only reject
+-- when the existing row belongs to a *different* user, rather than
+-- rejecting outright on a second sighting.
+create table if not exists verified_purchases (
+  platform text not null check (platform in ('ios', 'android')),
+  transaction_id text not null,
+  user_id text not null,
+  product_id text not null,
+  verified_at timestamptz not null default now(),
+  primary key (platform, transaction_id)
+);
+alter table verified_purchases enable row level security;
+-- No anon/authenticated policies — only ever touched by the service_role
+-- key from those two endpoints.
+
+-- One-time push-confirmation codes for admin-panel/api/delete-account.js's
+-- self-service path. NOTIFY_SECRET (shared by that path) is a single
+-- static value shipped in every app install, not a per-user credential,
+-- so it never actually proved the caller *was* the account named in the
+-- request body — combined with the public `users` read policy, anyone
+-- holding that secret could otherwise permanently delete any account.
+-- email-/password accounts have a real Supabase Auth session to verify
+-- instead (see delete-account.js); apple-/google- accounts never get one,
+-- so those go through this table: a random code pushed to the account's
+-- own already-registered device (device_tokens has no anon SELECT
+-- policy, so an outside caller who only knows the target userId cannot
+-- read or guess it) must be echoed back before the delete proceeds.
+create table if not exists account_deletion_codes (
+  user_id text primary key,
+  code text not null,
+  expires_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+alter table account_deletion_codes enable row level security;
+-- No anon/authenticated policies — only ever touched by the service_role
+-- key from delete-account.js.
+
+-- Generic IP-keyed rate limiter (admin-panel/lib/rateLimit.js), used by
+-- github-issue.js's NOTIFY_SECRET-gated "create" action — that secret is,
+-- like NOTIFY_SECRET above, shipped in every app install rather than
+-- being per-user, so this bounds how many public GitHub issues one
+-- source can spam through it.
+create table if not exists api_rate_limits (
+  bucket text not null,
+  identifier text not null,
+  window_start timestamptz not null default now(),
+  request_count int not null default 0,
+  primary key (bucket, identifier)
+);
+alter table api_rate_limits enable row level security;
+-- No anon/authenticated policies — only ever touched by the service_role
+-- key from admin-panel/lib/rateLimit.js.

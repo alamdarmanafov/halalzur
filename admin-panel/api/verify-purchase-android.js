@@ -122,6 +122,40 @@ export default async function handler(req, res) {
 
   try {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // Same replay guard as verify-purchase.js: Google keeps confirming the
+    // same real subscription forever, so a leaked purchaseToken could
+    // otherwise be replayed with a different userId to grant unlimited
+    // free Premium. purchaseToken is subscription-level and stays stable
+    // across legitimate renewal re-checks of the same subscription, so a
+    // second sighting for the same user just falls through to the
+    // idempotent grant below — only a different user claiming it is
+    // rejected.
+    const { data: existingClaim } = await supabase
+      .from('verified_purchases')
+      .select('user_id')
+      .eq('platform', 'android')
+      .eq('transaction_id', purchaseToken)
+      .maybeSingle();
+    if (existingClaim && existingClaim.user_id !== userId) {
+      console.error('verify-purchase-android: token already claimed by a different user', {
+        claimedBy: existingClaim.user_id,
+        requestedBy: userId,
+      });
+      res.status(200).json({ verified: false, error: 'transaction_already_claimed' });
+      return;
+    }
+    if (!existingClaim) {
+      const { error: claimError } = await supabase
+        .from('verified_purchases')
+        .insert({ platform: 'android', transaction_id: purchaseToken, user_id: userId, product_id: productId });
+      if (claimError) {
+        console.error('verify-purchase-android: claim race lost', { userId, error: claimError.message });
+        res.status(200).json({ verified: false, error: 'transaction_already_claimed' });
+        return;
+      }
+    }
+
     const { error: updateError } = await supabase
       .from('users')
       .update({ plan: 'premium', premium_expires_at: expiresAt.toISOString(), updated_at: new Date().toISOString() })

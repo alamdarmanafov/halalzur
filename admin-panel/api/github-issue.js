@@ -17,7 +17,9 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY  (for verifyAdmin())
 //   GITHUB_TOKEN         a GitHub personal access token with Issues write access
 //   GITHUB_REPO          "owner/repo", e.g. "alamdarmanafov/halalzur"
+import { createClient } from '@supabase/supabase-js';
 import { verifyAdmin } from '../lib/verifyAdmin.js';
+import { checkRateLimit, clientIp } from '../lib/rateLimit.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -45,6 +47,24 @@ export default async function handler(req, res) {
       if (!process.env.NOTIFY_SECRET || req.headers['x-notify-secret'] !== process.env.NOTIFY_SECRET) {
         res.status(401).json({ error: 'unauthorized' });
         return;
+      }
+
+      // NOTIFY_SECRET is a single static value shipped in every app
+      // install, not a per-user credential, so anyone who extracts it
+      // could otherwise flood the public repo with issues. Bound by IP
+      // since that's the only per-caller signal available here.
+      if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+        const allowed = await checkRateLimit(supabase, {
+          bucket: 'github-issue-create',
+          identifier: clientIp(req),
+          limit: 5,
+          windowSeconds: 3600,
+        });
+        if (!allowed) {
+          res.status(429).json({ error: 'rate_limited' });
+          return;
+        }
       }
 
       const { message, userName, screenshotUrl } = req.body || {};

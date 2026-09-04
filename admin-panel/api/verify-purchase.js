@@ -141,6 +141,42 @@ export default async function handler(req, res) {
 
   try {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // Apple keeps confirming the same real transaction forever, so
+    // without this a transactionId — visible in device logs, a proxied
+    // request, or shared by its owner — could be replayed with a
+    // different userId to grant unlimited free Premium. Only reject when
+    // it's already claimed by someone else; a second sighting for the
+    // same user (a resync, a restore-purchases retry) is expected and
+    // just falls through to the idempotent grant below.
+    const { data: existingClaim } = await supabase
+      .from('verified_purchases')
+      .select('user_id')
+      .eq('platform', 'ios')
+      .eq('transaction_id', transactionId)
+      .maybeSingle();
+    if (existingClaim && existingClaim.user_id !== userId) {
+      console.error('verify-purchase: transaction already claimed by a different user', {
+        transactionId,
+        claimedBy: existingClaim.user_id,
+        requestedBy: userId,
+      });
+      res.status(200).json({ verified: false, error: 'transaction_already_claimed' });
+      return;
+    }
+    if (!existingClaim) {
+      const { error: claimError } = await supabase
+        .from('verified_purchases')
+        .insert({ platform: 'ios', transaction_id: transactionId, user_id: userId, product_id: productId });
+      if (claimError) {
+        // Unique-constraint race — someone else claimed it between our
+        // SELECT and this INSERT.
+        console.error('verify-purchase: claim race lost', { transactionId, userId, error: claimError.message });
+        res.status(200).json({ verified: false, error: 'transaction_already_claimed' });
+        return;
+      }
+    }
+
     const { error: updateError } = await supabase
       .from('users')
       .update({
