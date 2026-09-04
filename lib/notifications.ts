@@ -36,7 +36,7 @@ import { supabase, isSupabaseConfigured } from './supabase';
 const BROADCAST_TOPIC = 'halalzur_all';
 
 export async function registerForPushNotifications(userId: string): Promise<string | null> {
-  if (Platform.OS !== 'ios') return null;
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') return null;
 
   try {
     const messaging = getMessaging();
@@ -52,7 +52,7 @@ export async function registerForPushNotifications(userId: string): Promise<stri
       const { error } = await supabase
         .from('device_tokens')
         .upsert(
-          { user_id: userId, fcm_token: token, platform: 'ios', updated_at: new Date().toISOString() },
+          { user_id: userId, fcm_token: token, platform: Platform.OS, updated_at: new Date().toISOString() },
           { onConflict: 'fcm_token' }
         );
       if (error) console.warn('device_tokens upsert failed:', error.message);
