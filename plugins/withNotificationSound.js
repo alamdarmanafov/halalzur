@@ -3,13 +3,13 @@ const fs = require('fs');
 const path = require('path');
 
 // A push notification's sound is played by the OS itself, not by app JS —
-// unlike assets/sounds/success.wav's existing in-app use (expo-audio's
+// unlike assets/sounds/success.wav's in-app use (expo-audio's
 // useAudioPlayer in PremiumSuccessOverlay), the OS can only find it if the
 // file is bundled as a native resource with this exact name, which
 // `require()`/Metro asset bundling never does. FCM payloads then reference
 // it by name (apns.payload.aps.sound on iOS, notification.sound on
-// Android — see admin-panel/lib/broadcast.js and friends).
-const SOUND_FILE = 'success.wav';
+// Android — see admin-panel/lib/firebaseAdmin.js's NOTIFICATION_SOUND).
+const SOUND_FILE = 'appsound.wav';
 const SOUND_SRC = path.join(__dirname, '..', 'assets', 'sounds', SOUND_FILE);
 
 function withNotificationSoundIOS(config) {
