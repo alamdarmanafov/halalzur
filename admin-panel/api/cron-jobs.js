@@ -421,7 +421,13 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'method_not_allowed' });
     return;
   }
-  if (!process.env.NOTIFY_SECRET || req.headers['x-notify-secret'] !== process.env.NOTIFY_SECRET) {
+  // CRON_SECRET, not NOTIFY_SECRET — this is only ever called by the
+  // GitHub Actions workflows above, never by the app, so it should never
+  // share a secret with EXPO_PUBLIC_NOTIFY_SECRET, which ships inside
+  // every app install. Every job here fires a real push to real users
+  // (a broadcast in weekly-digest's case), so anyone able to call this
+  // on demand could spam the whole user base.
+  if (!process.env.CRON_SECRET || req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {
     res.status(401).json({ error: 'unauthorized' });
     return;
   }

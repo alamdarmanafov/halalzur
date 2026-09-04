@@ -12,15 +12,19 @@
 // anon key — no Vercel function needed for that half), so this is the
 // only piece that ever actually acts on either one.
 //
-// Auth: gated by NOTIFY_SECRET (same secret send-notification.js and
-// github-issue.js's create action already use) — the GitHub Actions
-// workflow needs this value as a repo secret (Settings → Secrets and
-// variables → Actions → New repository secret), same value as this
-// Vercel project's NOTIFY_SECRET env var.
+// Auth: gated by CRON_SECRET — deliberately NOT the same NOTIFY_SECRET
+// send-notification.js/github-issue.js use. This route is only ever
+// called by the scheduled GitHub Actions workflow, never by the app, and
+// every call sends a real push to real users — sharing a secret with
+// EXPO_PUBLIC_NOTIFY_SECRET (shipped inside every app install) would let
+// anyone who extracted it fire broadcasts on demand. The GitHub Actions
+// workflow needs CRON_SECRET as its own repo secret (Settings → Secrets
+// and variables → Actions → New repository secret), matching this
+// Vercel project's CRON_SECRET env var — a fresh random value, not
+// reused from NOTIFY_SECRET.
 //
-// Required Vercel environment variables (all already needed elsewhere —
-// no new setup if send-notification.js/send-broadcast.js are configured):
-//   NOTIFY_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+// Required Vercel environment variables:
+//   CRON_SECRET, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
 //   FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY
 import { createClient } from '@supabase/supabase-js';
 import { sendBroadcast } from '../lib/broadcast.js';
@@ -58,7 +62,7 @@ export default async function handler(req, res) {
     res.status(405).json({ error: 'method_not_allowed' });
     return;
   }
-  if (!process.env.NOTIFY_SECRET || req.headers['x-notify-secret'] !== process.env.NOTIFY_SECRET) {
+  if (!process.env.CRON_SECRET || req.headers['x-cron-secret'] !== process.env.CRON_SECRET) {
     res.status(401).json({ error: 'unauthorized' });
     return;
   }

@@ -12,7 +12,7 @@ jobs:
       - name: Trigger recommendation push
         run: |
           curl -sf -X POST "${ADMIN_API_URL}/api/cron-jobs?job=recommend" \
-            -H "x-notify-secret: ${NOTIFY_SECRET}"
+            -H "x-cron-secret: ${CRON_SECRET}"
         env:
           ADMIN_API_URL: ${{ secrets.ADMIN_API_URL }}
-          NOTIFY_SECRET: ${{ secrets.NOTIFY_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
