@@ -130,14 +130,6 @@ export default function ScanScreen() {
             <Logo size={34} />
             <Text style={styles.headerTitle}>Halalzur</Text>
           </View>
-          <Pressable
-            style={[styles.torchBtn, torchOn && styles.torchBtnActive]}
-            onPress={() => setTorchOn((v) => !v)}
-            accessibilityLabel={t('a11yTorch')}
-            accessibilityRole="button"
-          >
-            <Ionicons name={torchOn ? 'flash' : 'flash-outline'} size={18} color={torchOn ? colors.primaryDark : colors.white} />
-          </Pressable>
         </View>
         <Text style={styles.headerSubtitle}>{t('scanFrameHint')}</Text>
         <Pressable
@@ -150,8 +142,16 @@ export default function ScanScreen() {
         </Pressable>
       </LinearGradient>
 
-      <View style={styles.frameWrap} pointerEvents="none">
+      <View style={styles.frameWrap} pointerEvents="box-none">
         <View style={styles.frame} />
+        <Pressable
+          style={[styles.torchBtn, styles.torchBtnBelowFrame, torchOn && styles.torchBtnActive]}
+          onPress={() => setTorchOn((v) => !v)}
+          accessibilityLabel={t('a11yTorch')}
+          accessibilityRole="button"
+        >
+          <Ionicons name={torchOn ? 'flash' : 'flash-outline'} size={18} color={torchOn ? colors.primaryDark : colors.white} />
+        </Pressable>
         {isBusy && (
           <View style={styles.busyBadge}>
             <ActivityIndicator color={colors.white} size="small" />
@@ -284,6 +284,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.4)',
   },
   torchBtnActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  torchBtnBelowFrame: { marginTop: spacing.lg },
   headerSubtitle: { ...typography.small, color: colors.surface, marginTop: 4 },
   frameWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   frame: {
