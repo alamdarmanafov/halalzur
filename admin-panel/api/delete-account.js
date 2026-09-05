@@ -69,6 +69,23 @@ async function deleteUserData(supabase, userId) {
     supabase.from('product_submissions').delete().eq('submitted_by', userId).eq('review_status', 'pending'),
     supabase.from('account_deletion_codes').delete().eq('user_id', userId),
     supabase.from('scan_history_backup').delete().eq('user_id', userId),
+    // Same personal-data scope as merge_users() in supabase/schema.sql —
+    // these were missing here, so a deleted account's ratings, brand
+    // follows, recommendations, and points history all silently survived
+    // on the server, at odds with website/delete-account.html's promise.
+    supabase.from('product_ratings').delete().eq('user_id', userId),
+    supabase.from('brand_follows').delete().eq('user_id', userId),
+    supabase.from('product_recommendations').delete().eq('user_id', userId),
+    supabase.from('place_recommendations').delete().eq('user_id', userId),
+    supabase.from('points_log').delete().eq('user_id', userId),
+    supabase.from('purchase_events').delete().eq('user_id', userId),
+    // Comments/Q&A are personal posts tied to this account, not shared
+    // certified-product data — same "your content goes, the public
+    // database entry stays" line delete-account.html already draws for
+    // approved product submissions.
+    supabase.from('product_review_comments').delete().eq('user_id', userId),
+    supabase.from('product_qa_questions').delete().eq('user_id', userId),
+    supabase.from('product_qa_answers').delete().eq('user_id', userId),
   ]);
 
   await supabase.from('users').delete().eq('id', userId);
