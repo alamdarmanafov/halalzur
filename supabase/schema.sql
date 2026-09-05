@@ -589,13 +589,16 @@ create policy "Public select" on feedback_reports
 create policy "Public delete" on feedback_reports
   for delete using (true);
 
--- Missing until now — lib/feedback.ts's createGithubIssue() writes
--- github_issue_number/github_issue_url back onto the row after insert, and
--- the admin panel writes admin_reply, but without an update policy both
--- were silently no-ops (RLS matches zero rows, no error) rather than an
--- actual failure either code path would have surfaced.
-create policy "Public update" on feedback_reports
-  for update using (true) with check (true);
+-- is_admin()-gated, not public — see
+-- migration_2026_09_05_feedback_reports_lockdown.sql: with select also
+-- public and no user_id check at all, "Public update" let anyone
+-- overwrite ANY report, including forging a fake admin_reply that then
+-- displays on the real reporter's own screen as if support wrote it.
+-- lib/feedback.ts's own narrow write (github_issue_number/url onto the
+-- row it just inserted) goes through set_feedback_github_issue() further
+-- down instead.
+create policy "Admin update" on feedback_reports
+  for update using (is_admin()) with check (is_admin());
 
 -- Storage bucket for the shake-to-report screenshot (lib/screenshot.ts,
 -- lib/feedback.ts uploadScreenshot). Public, matching this schema's
@@ -2372,3 +2375,20 @@ as $$
 $$;
 
 grant execute on function register_device_token(text, uuid, text, text) to anon, authenticated;
+
+-- Narrow, first-set-wins write for lib/feedback.ts's createGithubIssue() —
+-- see migration_2026_09_05_feedback_reports_lockdown.sql for why
+-- feedback_reports' old "Public update" was a real problem (anyone could
+-- forge admin_reply on any report), not just a formality this replaces.
+create or replace function set_feedback_github_issue(p_feedback_id uuid, p_issue_number int, p_issue_url text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update feedback_reports
+  set github_issue_number = p_issue_number, github_issue_url = p_issue_url
+  where id = p_feedback_id and github_issue_number is null;
+$$;
+
+grant execute on function set_feedback_github_issue(uuid, int, text) to anon, authenticated;

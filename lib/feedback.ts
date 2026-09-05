@@ -78,10 +78,14 @@ function createGithubIssue(
     .then((res) => (res.ok ? res.json() : null))
     .then((issue: { number: number; url: string } | null) => {
       if (!issue || !supabase) return;
-      return supabase
-        .from('feedback_reports')
-        .update({ github_issue_number: issue.number, github_issue_url: issue.url })
-        .eq('id', feedbackId);
+      // set_feedback_github_issue is the only write path left on this
+      // table for a non-admin caller — see
+      // migration_2026_09_05_feedback_reports_lockdown.sql.
+      return supabase.rpc('set_feedback_github_issue', {
+        p_feedback_id: feedbackId,
+        p_issue_number: issue.number,
+        p_issue_url: issue.url,
+      });
     })
     .catch(() => {
       // best-effort
