@@ -886,21 +886,24 @@ drop policy if exists "Public select" on product_recommendations;
 create policy "Public select" on product_recommendations
   for select using (true);
 
+-- Insert/delete removed as of migration_2026_09_05_recommendations_
+-- lockdown.sql — "Public insert/delete" let anyone recommend/un-
+-- recommend a product as any user_id. A regular user's own toggle now
+-- goes through recommend_product_add()/recommend_product_remove()
+-- (sync_token-gated, further down).
 drop policy if exists "Public insert" on product_recommendations;
-create policy "Public insert" on product_recommendations
-  for insert with check (true);
-
 drop policy if exists "Public delete" on product_recommendations;
-create policy "Public delete" on product_recommendations
-  for delete using (true);
 
 -- The admin panel's "merge duplicate products" reassigns a dropped
 -- product's recommendation rows to the surviving barcode via PATCH
--- (admin-panel/index.html mergeProducts()) — needs update, not just
--- select/insert/delete.
+-- (admin-panel/index.html mergeProducts()) — is_admin()-gated rather
+-- than a token-gated RPC since it operates across many different
+-- users' rows by barcode, not one caller's own row.
 drop policy if exists "Public update" on product_recommendations;
-create policy "Public update" on product_recommendations
-  for update using (true) with check (true);
+create policy "Admin update" on product_recommendations
+  for update using (is_admin()) with check (is_admin());
+create policy "Admin delete" on product_recommendations
+  for delete using (is_admin());
 
 -- Powers the admin panel's "Ən çox tövsiyə olunan məhsullar" report —
 -- same shape as confirmed_scan_counts, but counting user recommends
@@ -940,13 +943,12 @@ drop policy if exists "Public select" on place_recommendations;
 create policy "Public select" on place_recommendations
   for select using (true);
 
+-- Insert/delete removed as of migration_2026_09_05_recommendations_
+-- lockdown.sql — same reasoning as product_recommendations above. No
+-- admin-panel feature writes this table directly (only reads it), so
+-- unlike product_recommendations there's no is_admin() carve-out needed.
 drop policy if exists "Public insert" on place_recommendations;
-create policy "Public insert" on place_recommendations
-  for insert with check (true);
-
 drop policy if exists "Public delete" on place_recommendations;
-create policy "Public delete" on place_recommendations
-  for delete using (true);
 
 -- Powers the admin panel's "Ən çox tövsiyə olunan məkanlar" report.
 drop view if exists place_recommend_counts;
@@ -2291,3 +2293,58 @@ $$;
 
 grant execute on function brand_follow_add(text, uuid, text) to anon, authenticated;
 grant execute on function brand_follow_remove(text, uuid, text) to anon, authenticated;
+
+-- sync_token-gated writes for product_recommendations/place_recommendations
+-- — see migration_2026_09_05_recommendations_lockdown.sql.
+
+create or replace function recommend_product_add(p_user_id text, p_token uuid, p_barcode text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  insert into product_recommendations (user_id, barcode)
+  select p_user_id, p_barcode
+  where exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token)
+  on conflict (user_id, barcode) do nothing;
+$$;
+
+create or replace function recommend_product_remove(p_user_id text, p_token uuid, p_barcode text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from product_recommendations r
+  where r.user_id = p_user_id and r.barcode = p_barcode
+    and exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token);
+$$;
+
+grant execute on function recommend_product_add(text, uuid, text) to anon, authenticated;
+grant execute on function recommend_product_remove(text, uuid, text) to anon, authenticated;
+
+create or replace function recommend_place_add(p_user_id text, p_token uuid, p_place_id uuid)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  insert into place_recommendations (user_id, place_id)
+  select p_user_id, p_place_id
+  where exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token)
+  on conflict (user_id, place_id) do nothing;
+$$;
+
+create or replace function recommend_place_remove(p_user_id text, p_token uuid, p_place_id uuid)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from place_recommendations r
+  where r.user_id = p_user_id and r.place_id = p_place_id
+    and exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token);
+$$;
+
+grant execute on function recommend_place_add(text, uuid, uuid) to anon, authenticated;
+grant execute on function recommend_place_remove(text, uuid, uuid) to anon, authenticated;

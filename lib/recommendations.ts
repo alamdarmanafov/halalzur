@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
+import { getOrClaimSyncToken } from './syncToken';
 
 /** How many users have tapped "Tövsiyə et" on this barcode. */
 export async function getRecommendCount(barcode: string): Promise<number> {
@@ -30,15 +31,21 @@ export async function toggleRecommend(
   currentlyRecommended: boolean
 ): Promise<void> {
   if (!isSupabaseConfigured || !supabase) throw new Error('Supabase qoşulmayıb.');
+  const token = await getOrClaimSyncToken(userId);
+  if (!token) throw new Error('Sinxronizasiya hazır deyil, bir az sonra cəhd edin.');
   if (currentlyRecommended) {
-    const { error } = await supabase
-      .from('product_recommendations')
-      .delete()
-      .eq('user_id', userId)
-      .eq('barcode', barcode);
+    const { error } = await supabase.rpc('recommend_product_remove', {
+      p_user_id: userId,
+      p_token: token,
+      p_barcode: barcode,
+    });
     if (error) throw error;
   } else {
-    const { error } = await supabase.from('product_recommendations').insert({ user_id: userId, barcode });
+    const { error } = await supabase.rpc('recommend_product_add', {
+      p_user_id: userId,
+      p_token: token,
+      p_barcode: barcode,
+    });
     if (error) throw error;
   }
 }
@@ -78,15 +85,21 @@ export async function togglePlaceRecommend(
   currentlyRecommended: boolean
 ): Promise<void> {
   if (!isSupabaseConfigured || !supabase) throw new Error('Supabase qoşulmayıb.');
+  const token = await getOrClaimSyncToken(userId);
+  if (!token) throw new Error('Sinxronizasiya hazır deyil, bir az sonra cəhd edin.');
   if (currentlyRecommended) {
-    const { error } = await supabase
-      .from('place_recommendations')
-      .delete()
-      .eq('user_id', userId)
-      .eq('place_id', placeId);
+    const { error } = await supabase.rpc('recommend_place_remove', {
+      p_user_id: userId,
+      p_token: token,
+      p_place_id: placeId,
+    });
     if (error) throw error;
   } else {
-    const { error } = await supabase.from('place_recommendations').insert({ user_id: userId, place_id: placeId });
+    const { error } = await supabase.rpc('recommend_place_add', {
+      p_user_id: userId,
+      p_token: token,
+      p_place_id: placeId,
+    });
     if (error) throw error;
   }
 }
