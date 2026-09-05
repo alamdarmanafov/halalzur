@@ -1489,12 +1489,12 @@ on conflict (id) do nothing;
 
 alter table users add column if not exists granted_referral_milestones int[] not null default '{}';
 
--- Follow-up: milestones changed from 5/10/25 invites to 3/10/20, and the
--- reward changed from an automatic direct Premium grant to a credited
--- points balance (days * 10, matching lib/points.ts's
--- POINTS_PER_PREMIUM_DAY) that the person redeems into Premium themselves
--- via the existing self-redeem flow (redeemPointsForPremium /
--- redeem_points_for_premium) — see
+-- Follow-up: reward sizes changed to 7/30/90 days' worth at the same
+-- 5/10/25 invite thresholds, and the reward changed from an automatic
+-- direct Premium grant to a credited points balance (days * 10, matching
+-- lib/points.ts's POINTS_PER_PREMIUM_DAY) that the person redeems into
+-- Premium themselves via the existing self-redeem flow
+-- (redeemPointsForPremium / redeem_points_for_premium) — see
 -- migration_2026_09_05_referral_milestones_to_points.sql. Each milestone
 -- still fires exactly once, tracked the same way via
 -- granted_referral_milestones.
@@ -1514,7 +1514,7 @@ begin
 
   -- Must match lib/referrals.ts's REFERRAL_MILESTONES.
   select m.threshold, m.days into v_milestone from (
-    values (3, 7), (10, 30), (20, 90)
+    values (5, 7), (10, 30), (25, 90)
   ) as m(threshold, days)
   where m.threshold <= v_count
     and not (m.threshold = any (

@@ -13,9 +13,9 @@ export const REFERRAL_BONUS_POINTS = 20;
  * referral that crosses the threshold.
  */
 export const REFERRAL_MILESTONES: { count: number; premiumDays: number }[] = [
-  { count: 3, premiumDays: 7 },
+  { count: 5, premiumDays: 7 },
   { count: 10, premiumDays: 30 },
-  { count: 20, premiumDays: 90 },
+  { count: 25, premiumDays: 90 },
 ];
 
 function requireSupabase() {

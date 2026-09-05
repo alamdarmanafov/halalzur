@@ -3,8 +3,8 @@
 -- Two changes to the referral-milestone bonus (grant_referral_milestone_bonus,
 -- added in migration_2026_09_04_server_side_reward_premium.sql):
 --
--- 1. Thresholds changed from 5/10/25 invites to 3/10/20, with new reward
---    sizes (7/30/90 days' worth).
+-- 1. Reward sizes changed to 7/30/90 days' worth at the existing 5/10/25
+--    invite thresholds.
 -- 2. The reward is no longer an automatic direct Premium grant — it's now
 --    a credited points balance (days * 10, matching lib/points.ts's
 --    POINTS_PER_PREMIUM_DAY) that the person redeems into Premium
@@ -31,7 +31,7 @@ begin
 
   -- Must match lib/referrals.ts's REFERRAL_MILESTONES.
   select m.threshold, m.days into v_milestone from (
-    values (3, 7), (10, 30), (20, 90)
+    values (5, 7), (10, 30), (25, 90)
   ) as m(threshold, days)
   where m.threshold <= v_count
     and not (m.threshold = any (
