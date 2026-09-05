@@ -211,7 +211,7 @@ export const translations: Record<Language, Dict> = {
     achievementsIntroBody:
       'Təklif etdiyiniz məhsullar admin tərəfindən təsdiqlənəndə sayına əlavə olunur. Aşağıdakı həddlərə çatanda hesabınıza avtomatik müvəqqəti Premium verilir.',
     achievementsApprovedLabel: 'təsdiqlənmiş məhsul',
-    achievementsTierTitle: 'məhsul →',
+    achievementsTierTitle: 'təklif →',
     achievementsClaimed: 'Qazanıldı',
     achievementsCongratsTitle: 'Təbriklər! 🎉',
     achievementsCongratsBody: 'qazandınız — hesabınıza əlavə olundu.',
@@ -746,7 +746,7 @@ export const translations: Record<Language, Dict> = {
     achievementsIntroBody:
       'Products you suggest count toward your total once an admin approves them. Reach the milestones below to automatically unlock temporary Premium.',
     achievementsApprovedLabel: 'approved products',
-    achievementsTierTitle: 'products →',
+    achievementsTierTitle: 'suggestions →',
     achievementsClaimed: 'Earned',
     achievementsCongratsTitle: 'Congratulations! 🎉',
     achievementsCongratsBody: 'earned — added to your account.',
@@ -1282,7 +1282,7 @@ export const translations: Record<Language, Dict> = {
     achievementsIntroBody:
       'Предложенные вами товары засчитываются после одобрения администратором. Достигая порогов ниже, вы автоматически получаете временный Premium.',
     achievementsApprovedLabel: 'одобренных товаров',
-    achievementsTierTitle: 'товаров →',
+    achievementsTierTitle: 'предложений →',
     achievementsClaimed: 'Получено',
     achievementsCongratsTitle: 'Поздравляем! 🎉',
     achievementsCongratsBody: 'получено — добавлено на ваш аккаунт.',
@@ -1817,7 +1817,7 @@ export const translations: Record<Language, Dict> = {
     achievementsIntroBody:
       'Önerdiğiniz ürünler bir yönetici tarafından onaylandığında toplamınıza eklenir. Aşağıdaki eşiklere ulaştığınızda otomatik olarak geçici Premium kazanırsınız.',
     achievementsApprovedLabel: 'onaylanmış ürün',
-    achievementsTierTitle: 'ürün →',
+    achievementsTierTitle: 'öneri →',
     achievementsClaimed: 'Kazanıldı',
     achievementsCongratsTitle: 'Tebrikler! 🎉',
     achievementsCongratsBody: 'kazanıldı — hesabınıza eklendi.',
