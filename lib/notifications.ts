@@ -11,6 +11,7 @@ import {
 } from '@react-native-firebase/messaging';
 import { router } from 'expo-router';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { getOrClaimSyncToken } from './syncToken';
 
 /**
  * Push delivery goes through Firebase Cloud Messaging (this file).
@@ -49,13 +50,20 @@ export async function registerForPushNotifications(userId: string): Promise<stri
     const token = await getToken(messaging);
 
     if (token && isSupabaseConfigured && supabase) {
-      const { error } = await supabase
-        .from('device_tokens')
-        .upsert(
-          { user_id: userId, fcm_token: token, platform: Platform.OS, updated_at: new Date().toISOString() },
-          { onConflict: 'fcm_token' }
-        );
-      if (error) console.warn('device_tokens upsert failed:', error.message);
+      // register_device_token requires this device to already hold the
+      // account's sync_token — see migration_2026_09_05_device_tokens_
+      // lockdown.sql for why a direct upsert here used to let anyone
+      // register a device under someone else's userId.
+      const syncToken = await getOrClaimSyncToken(userId);
+      if (syncToken) {
+        const { error } = await supabase.rpc('register_device_token', {
+          p_user_id: userId,
+          p_token: syncToken,
+          p_fcm_token: token,
+          p_platform: Platform.OS,
+        });
+        if (error) console.warn('register_device_token failed:', error.message);
+      }
     }
 
     return token;

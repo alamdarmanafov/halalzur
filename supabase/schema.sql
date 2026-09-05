@@ -111,14 +111,17 @@ create table device_tokens (
 
 alter table device_tokens enable row level security;
 
--- Write-only from the app's anon key: a device can register/update its own
--- token, but nothing can list tokens back out through this key — only the
--- service_role (a future send-notification backend) can read them.
-create policy "Public insert" on device_tokens
-  for insert with check (true);
-
-create policy "Public update" on device_tokens
-  for update using (true) with check (true);
+-- No anon/authenticated insert/update policies — see
+-- migration_2026_09_05_device_tokens_lockdown.sql for why this table
+-- being openly writable was critical, not just a privacy nicety:
+-- delete-account.js's and sync-token.js's push-code "proof of device
+-- ownership" flows both trust a device_tokens row at face value, so an
+-- open write here let anyone redirect a victim's confirmation code to
+-- their own device just by knowing the victim's user_id, bypassing both
+-- flows entirely. register_device_token() (further down, once
+-- users.sync_token exists) is the only way a row can be created now.
+-- Nothing can list tokens back out through the anon key either way —
+-- only the service_role (send-notification.js et al.) reads them.
 
 -- Community contributions: users submit products they've checked, the app
 -- owner reviews and approves/rejects, approvals promote the row into
@@ -2348,3 +2351,24 @@ $$;
 
 grant execute on function recommend_place_add(text, uuid, uuid) to anon, authenticated;
 grant execute on function recommend_place_remove(text, uuid, uuid) to anon, authenticated;
+
+-- sync_token-gated device registration — see
+-- migration_2026_09_05_device_tokens_lockdown.sql. Requiring the same
+-- token favorites_*/history_* etc. use means only a device that has
+-- genuinely signed in to this account can register itself as one of its
+-- push targets, which is what delete-account.js's and sync-token.js's
+-- push-code flows were already assuming was true.
+create or replace function register_device_token(p_user_id text, p_token uuid, p_fcm_token text, p_platform text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  insert into device_tokens (user_id, fcm_token, platform, updated_at)
+  select p_user_id, p_fcm_token, p_platform, now()
+  where exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token)
+  on conflict (fcm_token) do update
+    set user_id = excluded.user_id, platform = excluded.platform, updated_at = now();
+$$;
+
+grant execute on function register_device_token(text, uuid, text, text) to anon, authenticated;
