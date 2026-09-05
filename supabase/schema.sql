@@ -518,11 +518,18 @@ alter table ignored_scan_barcodes enable row level security;
 create policy "Public select" on ignored_scan_barcodes
   for select using (true);
 
-create policy "Public insert" on ignored_scan_barcodes
-  for insert with check (true);
+-- is_admin()-gated — see migration_2026_09_05_admin_only_tables_
+-- lockdown.sql. Never written by the app (only admin-panel's "dismiss"
+-- button), so the old "Public insert/delete" was pure over-
+-- permissioning: anyone could insert a barcode here to make a real
+-- popular unclassified product silently disappear from the admin's
+-- review widget. Select stays public — unclassified_scan_counts
+-- (security_invoker = true) needs it for the anon role.
+create policy "Admin insert" on ignored_scan_barcodes
+  for insert with check (is_admin());
 
-create policy "Public delete" on ignored_scan_barcodes
-  for delete using (true);
+create policy "Admin delete" on ignored_scan_barcodes
+  for delete using (is_admin());
 
 -- Powers the admin panel's "Ən çox axtarılan naməlum məhsullar" widget —
 -- scan_events already records every scan regardless of whether the user
@@ -677,8 +684,10 @@ alter table place_category_icons enable row level security;
 create policy "Public read" on place_category_icons
   for select using (true);
 
-create policy "Public update" on place_category_icons
-  for update using (true) with check (true);
+-- is_admin()-gated — see migration_2026_09_05_admin_only_tables_
+-- lockdown.sql. Never written by the app, only admin-panel.
+create policy "Admin update" on place_category_icons
+  for update using (is_admin()) with check (is_admin());
 
 -- Ban/suspend — set from the admin panel's "İstifadəçilər" list;
 -- lib/auth-context.tsx checks this on sign-in/session-restore and signs
