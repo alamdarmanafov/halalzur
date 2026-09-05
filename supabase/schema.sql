@@ -610,6 +610,17 @@ create policy "Public read feedback screenshots" on storage.objects
   for select to public
   using (bucket_id = 'feedback-screenshots');
 
+-- Bucket-level cap — the app itself always uploads image/jpeg (lib/
+-- feedback.ts's uploadScreenshot), but nothing previously stopped a
+-- caller going around the app and using this public-insert bucket to
+-- host arbitrary large files or non-image content directly via the
+-- Storage API with the same anon key. See
+-- migration_2026_09_05_feedback_bucket_limits.sql.
+update storage.buckets
+set file_size_limit = 5242880, -- 5 MB — generous for a device screenshot
+    allowed_mime_types = array['image/jpeg', 'image/png', 'image/webp']
+where id = 'feedback-screenshots';
+
 -- Referral system (lib/referrals.ts, app/referrals.tsx). Each account
 -- gets a short code lazily on first visit to the "Dostunu dəvət et"
 -- screen; a new user enters a friend's code once, and both sides get a
