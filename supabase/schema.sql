@@ -1489,8 +1489,17 @@ on conflict (id) do nothing;
 
 alter table users add column if not exists granted_referral_milestones int[] not null default '{}';
 
+-- Follow-up: milestones changed from 5/10/25 invites to 3/10/20, and the
+-- reward changed from an automatic direct Premium grant to a credited
+-- points balance (days * 10, matching lib/points.ts's
+-- POINTS_PER_PREMIUM_DAY) that the person redeems into Premium themselves
+-- via the existing self-redeem flow (redeemPointsForPremium /
+-- redeem_points_for_premium) — see
+-- migration_2026_09_05_referral_milestones_to_points.sql. Each milestone
+-- still fires exactly once, tracked the same way via
+-- granted_referral_milestones.
 create or replace function grant_referral_milestone_bonus(p_user_id text)
-returns table (granted_days int, new_expires_at timestamptz)
+returns table (granted_points int, milestone_days int)
 language plpgsql
 security definer
 set search_path = public
@@ -1498,16 +1507,14 @@ as $$
 declare
   v_count int;
   v_milestone record;
-  v_current_plan text;
-  v_current_expires timestamptz;
-  v_base timestamptz;
-  v_new_expires timestamptz;
+  v_user_name text;
+  v_points int;
 begin
   select count(*) into v_count from referrals where referrer_id = p_user_id;
 
   -- Must match lib/referrals.ts's REFERRAL_MILESTONES.
   select m.threshold, m.days into v_milestone from (
-    values (5, 30), (10, 60), (25, 180)
+    values (3, 7), (10, 30), (20, 90)
   ) as m(threshold, days)
   where m.threshold <= v_count
     and not (m.threshold = any (
@@ -1520,27 +1527,27 @@ begin
     return;
   end if;
 
-  select plan, premium_expires_at into v_current_plan, v_current_expires from users where id = p_user_id;
+  select name into v_user_name from users where id = p_user_id;
   if not found then
     return;
   end if;
 
-  v_base := case
-    when v_current_plan = 'premium' and v_current_expires is not null and v_current_expires > now()
-    then v_current_expires
-    else now()
-  end;
-  v_new_expires := v_base + (v_milestone.days || ' days')::interval;
+  v_points := v_milestone.days * 10; -- must match lib/points.ts's POINTS_PER_PREMIUM_DAY
+
+  insert into user_points (user_id, user_name, points, updated_at)
+  values (p_user_id, v_user_name, v_points, now())
+  on conflict (user_id) do update
+    set points = user_points.points + v_points, user_name = excluded.user_name, updated_at = now();
+
+  insert into points_log (user_id, user_name, amount) values (p_user_id, v_user_name, v_points);
 
   update users
-  set plan = 'premium',
-      premium_expires_at = v_new_expires,
-      granted_referral_milestones = array_append(coalesce(granted_referral_milestones, '{}'), v_milestone.threshold),
+  set granted_referral_milestones = array_append(coalesce(granted_referral_milestones, '{}'), v_milestone.threshold),
       updated_at = now()
   where id = p_user_id;
 
-  granted_days := v_milestone.days;
-  new_expires_at := v_new_expires;
+  granted_points := v_points;
+  milestone_days := v_milestone.days;
   return next;
 end;
 $$;

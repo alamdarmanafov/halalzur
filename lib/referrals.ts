@@ -4,17 +4,18 @@ import { sendPushNotification } from './pushNotify';
 export const REFERRAL_BONUS_POINTS = 20;
 
 /**
- * On top of the linear points-to-premium-days redemption (lib/points.ts,
- * 10 points = 1 day — two referrals already covers that), hitting a
- * referral count exactly grants a lump-sum Premium bonus automatically,
- * no redemption action needed. Checked only at the moment a referral is
- * redeemed (grantMilestoneBonusIfEarned below), so it fires once, on the
- * exact referral that crosses the threshold.
+ * Hitting a referral count exactly awards a lump sum of points (days *
+ * POINTS_PER_PREMIUM_DAY, see lib/points.ts) — not Premium directly. The
+ * person then redeems those points into Premium themselves whenever they
+ * want, through the same self-redeem flow (redeemPointsForPremium) as any
+ * other earned points. Checked only at the moment a referral is redeemed
+ * (grantMilestoneBonusIfEarned below), so it fires once, on the exact
+ * referral that crosses the threshold.
  */
 export const REFERRAL_MILESTONES: { count: number; premiumDays: number }[] = [
-  { count: 5, premiumDays: 30 },
-  { count: 10, premiumDays: 60 },
-  { count: 25, premiumDays: 180 },
+  { count: 3, premiumDays: 7 },
+  { count: 10, premiumDays: 30 },
+  { count: 20, premiumDays: 90 },
 ];
 
 function requireSupabase() {
@@ -73,27 +74,28 @@ export async function getMyReferrals(userId: string): Promise<ReferralEntry[]> {
 
 /**
  * Calls the grant_referral_milestone_bonus Postgres function (see
- * supabase/migration_2026_09_04_server_side_reward_premium.sql), which
+ * supabase/migration_2026_09_05_referral_milestones_to_points.sql), which
  * recomputes the referral count from the referrals table itself and
  * tracks already-granted milestones server-side — this used to count and
  * grant client-side, writing straight to users.plan via the same open
  * RLS policy real profile edits need, so a crafted request could claim a
  * referral count that was never real. The function is idempotent: safe
  * to call after every redeemReferral, whether or not a milestone was
- * actually just crossed.
+ * actually just crossed. It credits points, not Premium directly — the
+ * person redeems them into Premium themselves from the profile screen.
  */
 async function grantMilestoneBonusIfEarned(referrerId: string): Promise<void> {
   const client = requireSupabase();
   const { data, error } = await client
     .rpc('grant_referral_milestone_bonus', { p_user_id: referrerId })
-    .maybeSingle<{ granted_days: number | null; new_expires_at: string | null }>();
-  if (error || !data || data.granted_days == null) return;
+    .maybeSingle<{ granted_points: number | null; milestone_days: number | null }>();
+  if (error || !data || data.granted_points == null) return;
 
   sendPushNotification(
     referrerId,
-    '🎁 Hədiyyə qazandınız!',
-    `Dostlarınızı dəvət etdiyiniz üçün ${data.granted_days} gün pulsuz Premium hədiyyəmizdir!`,
-    { route: '/referrals' }
+    '🎁 Xal qazandınız!',
+    `Dostlarınızı dəvət etdiyiniz üçün ${data.granted_points} xal (${data.milestone_days} günlük Premium dəyərində) hesabınıza əlavə olundu! Profildən Premium-a çevirə bilərsiniz.`,
+    { route: '/(tabs)/profile' }
   );
 }
 
