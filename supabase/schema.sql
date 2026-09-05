@@ -341,6 +341,32 @@ create policy "Public insert" on users
 create policy "Public update" on users
   for update using (true) with check (true);
 
+-- Per-account token claimed once by whichever device signs in to an
+-- account id first, required by favorites_*/history_* below to gate
+-- favorites/scan_history_backup access now that those tables have no
+-- anon/authenticated policies of their own. See
+-- migration_2026_09_05_sync_token.sql for the full rationale — only
+-- claim_sync_token() (and service_role) may ever write this column, never
+-- the open "Public update" policy above.
+alter table users add column if not exists sync_token uuid;
+revoke update (sync_token) on users from anon, authenticated;
+
+create or replace function claim_sync_token(p_user_id text, p_token uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  with claimed as (
+    update users set sync_token = p_token
+      where id = p_user_id and sync_token is null
+    returning 1
+  )
+  select exists (select 1 from claimed);
+$$;
+
+grant execute on function claim_sync_token(text, uuid) to anon, authenticated;
+
 -- One row per successful scan — powers the admin panel's Dashboard
 -- (daily/weekly/monthly/yearly counts). Write-only from the app; no
 -- user_id column on purpose, this is aggregate usage volume, not a
@@ -383,17 +409,50 @@ create index idx_favorites_user on favorites (user_id);
 
 alter table favorites enable row level security;
 
-create policy "Public select" on favorites
-  for select using (true);
+-- No anon/authenticated policies — user_id alone isn't a real credential
+-- for 'apple-'/'google-' accounts (no Supabase Auth session to check via
+-- auth.uid()), so this table is default-deny and only reachable through
+-- the sync_token-gated favorites_* functions below. See
+-- migration_2026_09_05_sync_token.sql.
 
-create policy "Public insert" on favorites
-  for insert with check (true);
+create or replace function favorites_list(p_user_id text, p_token uuid)
+returns setof favorites
+language sql
+security definer
+set search_path = public
+as $$
+  select f.* from favorites f
+  where f.user_id = p_user_id
+    and exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token)
+  order by f.created_at desc;
+$$;
 
-create policy "Public update" on favorites
-  for update using (true) with check (true);
+create or replace function favorites_upsert(p_user_id text, p_token uuid, p_barcode text, p_data jsonb)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  insert into favorites (user_id, barcode, data)
+  select p_user_id, p_barcode, p_data
+  where exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token)
+  on conflict (user_id, barcode) do update set data = excluded.data;
+$$;
 
-create policy "Public delete" on favorites
-  for delete using (true);
+create or replace function favorites_delete(p_user_id text, p_token uuid, p_barcode text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from favorites f
+  where f.user_id = p_user_id and f.barcode = p_barcode
+    and exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token);
+$$;
+
+grant execute on function favorites_list(text, uuid) to anon, authenticated;
+grant execute on function favorites_upsert(text, uuid, text, jsonb) to anon, authenticated;
+grant execute on function favorites_delete(text, uuid, text) to anon, authenticated;
 
 -- Barcodes the admin has explicitly dismissed from the "Ən çox axtarılan
 -- naməlum məhsullar" widget (e.g. a junk/misread scan, or a product they
@@ -1682,7 +1741,61 @@ create index if not exists idx_scan_history_backup_user on scan_history_backup (
 
 alter table scan_history_backup enable row level security;
 drop policy if exists "Public read/insert/update/delete" on scan_history_backup;
-create policy "Public read/insert/update/delete" on scan_history_backup for all using (true) with check (true);
+
+-- Default-deny, same reasoning as favorites above — only reachable
+-- through the sync_token-gated history_* functions.
+
+create or replace function history_list(p_user_id text, p_token uuid)
+returns setof scan_history_backup
+language sql
+security definer
+set search_path = public
+as $$
+  select h.* from scan_history_backup h
+  where h.user_id = p_user_id
+    and exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token)
+  order by h.scanned_at desc
+  limit 200;
+$$;
+
+create or replace function history_add(p_user_id text, p_token uuid, p_barcode text, p_data jsonb)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  insert into scan_history_backup (user_id, barcode, data, scanned_at)
+  select p_user_id, p_barcode, p_data, now()
+  where exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token)
+  on conflict (user_id, barcode) do update set data = excluded.data, scanned_at = excluded.scanned_at;
+$$;
+
+create or replace function history_remove(p_user_id text, p_token uuid, p_barcode text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from scan_history_backup h
+  where h.user_id = p_user_id and h.barcode = p_barcode
+    and exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token);
+$$;
+
+create or replace function history_clear(p_user_id text, p_token uuid)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from scan_history_backup h
+  where h.user_id = p_user_id
+    and exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token);
+$$;
+
+grant execute on function history_list(text, uuid) to anon, authenticated;
+grant execute on function history_add(text, uuid, text, jsonb) to anon, authenticated;
+grant execute on function history_remove(text, uuid, text) to anon, authenticated;
+grant execute on function history_clear(text, uuid) to anon, authenticated;
 
 -- Broadcast delivery history — admin-panel/lib/broadcast.js already
 -- computes a sent/total count per send; this just persists it instead of

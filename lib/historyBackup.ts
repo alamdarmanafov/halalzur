@@ -1,5 +1,6 @@
 import { CertificationResult } from './types';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { getOrClaimSyncToken } from './syncToken';
 
 /** Same scope as lib/favorites.ts — only real (Apple/Google) accounts sync. */
 function isSyncableUserId(id: string): boolean {
@@ -8,37 +9,43 @@ function isSyncableUserId(id: string): boolean {
 
 type HistoryRow = { data: CertificationResult };
 
+/**
+ * Goes through the history_* RPCs (not a direct table read/write) — see
+ * supabase/migration_2026_09_05_sync_token.sql for why scan_history_backup
+ * has no anon-key policy anymore.
+ */
 export async function fetchRemoteHistory(userId: string): Promise<CertificationResult[] | null> {
   if (!isSupabaseConfigured || !supabase || !isSyncableUserId(userId)) return null;
+  const token = await getOrClaimSyncToken(userId);
+  if (!token) return null;
 
-  const { data, error } = await supabase
-    .from('scan_history_backup')
-    .select('data')
-    .eq('user_id', userId)
-    .order('scanned_at', { ascending: false })
-    .limit(200)
-    .returns<HistoryRow[]>();
-
+  const { data, error } = await supabase.rpc('history_list', { p_user_id: userId, p_token: token });
   if (error || !data) return null;
-  return data.map((row) => row.data);
+  return (data as HistoryRow[]).map((row) => row.data);
 }
 
 export async function syncHistoryAdd(userId: string, result: CertificationResult): Promise<void> {
   if (!isSupabaseConfigured || !supabase || !isSyncableUserId(userId)) return;
-  await supabase
-    .from('scan_history_backup')
-    .upsert(
-      { user_id: userId, barcode: result.barcode, data: result, scanned_at: new Date().toISOString() },
-      { onConflict: 'user_id,barcode' }
-    );
+  const token = await getOrClaimSyncToken(userId);
+  if (!token) return;
+  await supabase.rpc('history_add', {
+    p_user_id: userId,
+    p_token: token,
+    p_barcode: result.barcode,
+    p_data: result,
+  });
 }
 
 export async function syncHistoryRemove(userId: string, barcode: string): Promise<void> {
   if (!isSupabaseConfigured || !supabase || !isSyncableUserId(userId)) return;
-  await supabase.from('scan_history_backup').delete().eq('user_id', userId).eq('barcode', barcode);
+  const token = await getOrClaimSyncToken(userId);
+  if (!token) return;
+  await supabase.rpc('history_remove', { p_user_id: userId, p_token: token, p_barcode: barcode });
 }
 
 export async function syncHistoryClear(userId: string): Promise<void> {
   if (!isSupabaseConfigured || !supabase || !isSyncableUserId(userId)) return;
-  await supabase.from('scan_history_backup').delete().eq('user_id', userId);
+  const token = await getOrClaimSyncToken(userId);
+  if (!token) return;
+  await supabase.rpc('history_clear', { p_user_id: userId, p_token: token });
 }

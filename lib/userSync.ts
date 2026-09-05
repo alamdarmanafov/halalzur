@@ -1,6 +1,7 @@
 import { User } from './types';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { getOrCreateReferralCode } from './referrals';
+import { getOrClaimSyncToken } from './syncToken';
 
 const API_BASE = process.env.EXPO_PUBLIC_ADMIN_API_URL;
 const NOTIFY_SECRET = process.env.EXPO_PUBLIC_NOTIFY_SECRET;
@@ -39,6 +40,12 @@ export async function syncUser(user: User): Promise<void> {
 
   ensureReferralCode(user.id);
   registerCountry(user.id);
+  // Fire-and-forget, right after the `users` row above is guaranteed to
+  // exist — claim_sync_token requires that row, and FavoritesProvider/
+  // history-context also call this lazily on their own, but claiming it
+  // here as early as possible avoids the first-load-after-signup race
+  // where a favorite/history read fires before the row lands.
+  getOrClaimSyncToken(user.id).catch(() => {});
 }
 
 /**
