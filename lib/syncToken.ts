@@ -10,16 +10,32 @@
  *
  * Generated locally and claimed server-side (first-claim-wins, via the
  * claim_sync_token RPC) the first time a device signs in to a given
- * account. A second device signing in to an account that already claimed
- * a token from elsewhere simply won't get one back — see that
- * migration's "known limitation" note — and falls back to local-only
- * favorites/history on that device, same as before this feature existed.
+ * account. A second device (or a reinstall) can't just re-claim an
+ * existing account's token — requestSyncTokenRecovery/
+ * confirmSyncTokenRecovery below cover that case via the same push-code
+ * proof-of-ownership pattern as account deletion.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
 import { supabase, isSupabaseConfigured } from './supabase';
 
 const STORAGE_PREFIX = 'halalzur_sync_token_';
+const API_BASE = process.env.EXPO_PUBLIC_ADMIN_API_URL;
+const NOTIFY_SECRET = process.env.EXPO_PUBLIC_NOTIFY_SECRET;
+
+async function callSyncTokenApi(body: Record<string, unknown>): Promise<Record<string, unknown>> {
+  if (!API_BASE) throw new Error('Bərpa xidməti hazırda əlçatan deyil.');
+  const response = await fetch(`${API_BASE.replace(/\/$/, '')}/api/sync-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-notify-secret': NOTIFY_SECRET ?? '' },
+    body: JSON.stringify(body),
+  });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(typeof json.error === 'string' ? json.error : 'failed');
+  }
+  return json;
+}
 
 const cache = new Map<string, string>();
 
@@ -56,4 +72,30 @@ export async function getOrClaimSyncToken(userId: string): Promise<string | null
   } catch {
     return null;
   }
+}
+
+/**
+ * Recovers a lost sync_token (reinstall, new device) — see this file's
+ * top comment. Asks admin-panel/api/sync-token.js to push a one-time
+ * code to this account's own already-registered device(s); the caller
+ * must then collect that code from the user and call
+ * confirmSyncTokenRecovery next.
+ */
+export async function requestSyncTokenRecovery(userId: string): Promise<void> {
+  await callSyncTokenApi({ userId, action: 'request' });
+}
+
+/**
+ * Completes recovery: generates a fresh token for this device, sends it
+ * alongside the code the user received, and — once the server verifies
+ * the code — stores that token locally so future favorites/history calls
+ * use it. Returns the recovered token, or throws if the code was wrong
+ * or expired.
+ */
+export async function confirmSyncTokenRecovery(userId: string, code: string): Promise<string> {
+  const token = Crypto.randomUUID();
+  await callSyncTokenApi({ userId, action: 'confirm', code, newToken: token });
+  await AsyncStorage.setItem(STORAGE_PREFIX + userId, token);
+  cache.set(userId, token);
+  return token;
 }

@@ -21,15 +21,12 @@
 -- favorites/history read or write via SECURITY DEFINER RPCs (the tables
 -- themselves get no anon/authenticated policies at all — default deny).
 --
--- Known limitation: a device that reinstalls the app (losing its locally
--- stored token) cannot re-claim an existing account's token — that would
--- let anyone who learns the user_id re-claim it too, exactly the hole
--- this migration closes. Recovering cloud-backed favorites/history after
--- a reinstall needs its own proof-of-ownership flow (e.g. a push-code
--- confirmation like admin-panel/api/delete-account.js's apple-/google-
--- path) and is not built yet; until then a reinstalled device simply
--- starts a fresh local-only favorites/history like before this feature
--- existed, rather than silently exposing every account's data.
+-- A device that reinstalls the app (losing its locally stored token)
+-- cannot just re-claim an existing account's token — that would let
+-- anyone who learns the user_id re-claim it too, exactly the hole this
+-- migration closes. Instead it goes through the same push-code
+-- proof-of-ownership pattern as account deletion: see
+-- sync_token_recovery_codes and admin-panel/api/sync-token.js below.
 
 alter table users add column if not exists sync_token uuid;
 
@@ -156,3 +153,19 @@ grant execute on function history_list(text, uuid) to anon, authenticated;
 grant execute on function history_add(text, uuid, text, jsonb) to anon, authenticated;
 grant execute on function history_remove(text, uuid, text) to anon, authenticated;
 grant execute on function history_clear(text, uuid) to anon, authenticated;
+
+-- Backs admin-panel/api/sync-token.js's request/confirm push-code flow —
+-- the way a device that lost its local sync_token (reinstall, new
+-- device) proves it's the legitimate account owner and gets a fresh
+-- token issued, without reopening the hole this migration closes. Same
+-- shape as account_deletion_codes; only ever touched by the service_role
+-- key, same as that table.
+create table if not exists sync_token_recovery_codes (
+  user_id text primary key,
+  code text not null,
+  expires_at timestamptz not null
+);
+
+alter table sync_token_recovery_codes enable row level security;
+-- No anon/authenticated policies — only ever touched by the service_role
+-- key (admin-panel/api/sync-token.js).

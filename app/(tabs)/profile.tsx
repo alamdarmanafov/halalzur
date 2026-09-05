@@ -33,6 +33,7 @@ import { useStreak } from '../../lib/streak-context';
 import { useShoppingList } from '../../lib/shoppingList-context';
 import type { Language, TranslationKey } from '../../lib/i18n';
 import { deleteAccount, confirmAccountDeletion } from '../../lib/deleteAccount';
+import { requestSyncTokenRecovery, confirmSyncTokenRecovery } from '../../lib/syncToken';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 const LANGUAGE_LABEL_KEY: Record<Language, TranslationKey> = {
@@ -64,8 +65,8 @@ export default function ProfileScreen() {
   const { liteMode, setLiteMode } = useLiteMode();
   const { streak } = useStreak();
   const { items: shoppingItems } = useShoppingList();
-  const { history, clear } = useHistory();
-  const { favorites } = useFavorites();
+  const { history, clear, refresh: refreshHistory } = useHistory();
+  const { favorites, refresh: refreshFavorites } = useFavorites();
   const { language, setLanguage, t } = useLanguage();
   const isPremium = user?.plan === 'premium';
   const [points, setPoints] = useState(0);
@@ -73,6 +74,9 @@ export default function ProfileScreen() {
   const [showDeletionCodeModal, setShowDeletionCodeModal] = useState(false);
   const [deletionCode, setDeletionCode] = useState('');
   const [deletionCodeBusy, setDeletionCodeBusy] = useState(false);
+  const [showRestoreCodeModal, setShowRestoreCodeModal] = useState(false);
+  const [restoreCode, setRestoreCode] = useState('');
+  const [restoreCodeBusy, setRestoreCodeBusy] = useState(false);
 
   const loadProfileData = () => {
     if (!user) return;
@@ -151,6 +155,54 @@ export default function ProfileScreen() {
       Alert.alert(t('profileDeleteAccountCodeTitle'), t('profileDeleteAccountCodeInvalid'));
     } finally {
       setDeletionCodeBusy(false);
+    }
+  };
+
+  // Apple-/google- accounts only — a device that lost its local
+  // sync_token (reinstall, new device) can't automatically pull down its
+  // cloud-backed favorites/history (see supabase/migration_2026_09_05_
+  // sync_token.sql); this lets them prove ownership via the same
+  // push-code pattern as account deletion and get a fresh token.
+  const onRequestRestore = () => {
+    if (!user) return;
+    Alert.alert(t('profileRestoreCloudDataConfirmTitle'), t('profileRestoreCloudDataConfirmBody'), [
+      { text: t('productCancel'), style: 'cancel' },
+      {
+        text: t('profileRestoreCloudDataConfirmCta'),
+        onPress: async () => {
+          try {
+            await requestSyncTokenRecovery(user.id);
+            setRestoreCode('');
+            setShowRestoreCodeModal(true);
+          } catch (err: any) {
+            const message =
+              err?.message === 'no_registered_device'
+                ? t('profileRestoreCloudDataNoDevice')
+                : err?.message ?? t('profileRestoreCloudDataFailedTitle');
+            Alert.alert(t('profileRestoreCloudDataFailedTitle'), message);
+          }
+        },
+      },
+    ]);
+  };
+
+  const onConfirmRestoreCode = async () => {
+    if (!user) return;
+    const code = restoreCode.trim();
+    if (!/^\d{6}$/.test(code)) {
+      Alert.alert(t('profileRestoreCloudDataCodeTitle'), t('profileRestoreCloudDataCodeInvalid'));
+      return;
+    }
+    setRestoreCodeBusy(true);
+    try {
+      await confirmSyncTokenRecovery(user.id, code);
+      setShowRestoreCodeModal(false);
+      await Promise.all([refreshFavorites(), refreshHistory()]);
+      Alert.alert(t('profileRestoreCloudDataSuccessTitle'), t('profileRestoreCloudDataSuccessBody'));
+    } catch {
+      Alert.alert(t('profileRestoreCloudDataCodeTitle'), t('profileRestoreCloudDataCodeInvalid'));
+    } finally {
+      setRestoreCodeBusy(false);
     }
   };
 
@@ -268,6 +320,15 @@ export default function ProfileScreen() {
       label: t('profileClearHistory'),
       onPress: () => clear(),
     },
+    ...(user && (user.id.startsWith('apple-') || user.id.startsWith('google-'))
+      ? [
+          {
+            icon: 'cloud-download-outline' as const,
+            label: t('profileRestoreCloudData'),
+            onPress: onRequestRestore,
+          },
+        ]
+      : []),
     {
       icon: 'log-out-outline',
       label: t('profileSignOut'),
@@ -452,6 +513,45 @@ export default function ProfileScreen() {
                 title={t('profileDeleteAccountCodeCta')}
                 onPress={onConfirmDeletionCode}
                 loading={deletionCodeBusy}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal
+        visible={showRestoreCodeModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowRestoreCodeModal(false)}
+      >
+        <KeyboardAvoidingView style={styles.manualBackdrop} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={styles.manualCard}>
+            <Text style={styles.manualTitle}>{t('profileRestoreCloudDataCodeTitle')}</Text>
+            <Text style={styles.manualSubtitle}>{t('profileRestoreCloudDataCodeBody')}</Text>
+            <TextInput
+              value={restoreCode}
+              onChangeText={setRestoreCode}
+              placeholder={t('profileRestoreCloudDataCodePlaceholder')}
+              placeholderTextColor={colors.gray}
+              keyboardType="number-pad"
+              maxLength={6}
+              autoFocus
+              style={styles.manualInput}
+            />
+            <View style={styles.manualActions}>
+              <Pressable
+                style={styles.manualCancelBtn}
+                onPress={() => setShowRestoreCodeModal(false)}
+                disabled={restoreCodeBusy}
+              >
+                <Text style={styles.manualCancelText}>{t('productCancel')}</Text>
+              </Pressable>
+              <Button
+                title={t('profileRestoreCloudDataCodeCta')}
+                onPress={onConfirmRestoreCode}
+                loading={restoreCodeBusy}
                 style={{ flex: 1 }}
               />
             </View>

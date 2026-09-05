@@ -17,6 +17,7 @@ type HistoryContextValue = {
   addScan: (result: CertificationResult) => Promise<void>;
   removeScan: (barcode: string) => Promise<void>;
   clear: () => Promise<void>;
+  refresh: () => Promise<void>;
 };
 
 const HistoryContext = createContext<HistoryContextValue | null>(null);
@@ -68,6 +69,7 @@ export function HistoryProvider({ children }: PropsWithChildren) {
         await AsyncStorage.removeItem(STORAGE_KEY);
         if (user) syncHistoryClear(user.id);
       },
+      refresh: load,
     }),
     [history, isLoading, user]
   );

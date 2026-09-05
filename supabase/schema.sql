@@ -2029,3 +2029,18 @@ as $$
 $$;
 
 grant execute on function get_admin_user_id() to anon, authenticated;
+
+-- Backs admin-panel/api/sync-token.js's request/confirm push-code flow —
+-- lets a device that lost its local sync_token (reinstall, new device;
+-- see migration_2026_09_05_sync_token.sql) prove it's the legitimate
+-- account owner and get a fresh token issued, the same way
+-- account_deletion_codes above lets apple-/google- accounts confirm
+-- deletion without a Supabase Auth session to check.
+create table if not exists sync_token_recovery_codes (
+  user_id text primary key,
+  code text not null,
+  expires_at timestamptz not null
+);
+alter table sync_token_recovery_codes enable row level security;
+-- No anon/authenticated policies — only ever touched by the service_role
+-- key from sync-token.js.
