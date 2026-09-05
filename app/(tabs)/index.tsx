@@ -130,26 +130,24 @@ export default function ScanScreen() {
             <Logo size={34} />
             <Text style={styles.headerTitle}>Halalzur</Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <Pressable
-              style={[styles.torchBtn, torchOn && styles.torchBtnActive]}
-              onPress={() => setTorchOn((v) => !v)}
-              accessibilityLabel={t('a11yTorch')}
-              accessibilityRole="button"
-            >
-              <Ionicons name={torchOn ? 'flash' : 'flash-outline'} size={18} color={torchOn ? colors.primaryDark : colors.white} />
-            </Pressable>
-            <Pressable
-              style={styles.shoppingBtn}
-              onPress={() => router.push(isPremium ? '/shopping-scan' : '/subscription')}
-            >
-              <Ionicons name="cart-outline" size={16} color={colors.white} />
-              <Text style={styles.shoppingBtnText}>{t('subFeatureShoppingScan')}</Text>
-              {!isPremium && <Ionicons name="lock-closed" size={12} color={colors.white} />}
-            </Pressable>
-          </View>
+          <Pressable
+            style={[styles.torchBtn, torchOn && styles.torchBtnActive]}
+            onPress={() => setTorchOn((v) => !v)}
+            accessibilityLabel={t('a11yTorch')}
+            accessibilityRole="button"
+          >
+            <Ionicons name={torchOn ? 'flash' : 'flash-outline'} size={18} color={torchOn ? colors.primaryDark : colors.white} />
+          </Pressable>
         </View>
         <Text style={styles.headerSubtitle}>{t('scanFrameHint')}</Text>
+        <Pressable
+          style={styles.shoppingBtn}
+          onPress={() => router.push(isPremium ? '/shopping-scan' : '/subscription')}
+        >
+          <Ionicons name="cart-outline" size={20} color={colors.white} />
+          <Text style={styles.shoppingBtnText}>{t('subFeatureShoppingScan')}</Text>
+          {!isPremium && <Ionicons name="lock-closed" size={14} color={colors.white} />}
+        </Pressable>
       </LinearGradient>
 
       <View style={styles.frameWrap} pointerEvents="none">
@@ -263,15 +261,18 @@ const styles = StyleSheet.create({
   shoppingBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    justifyContent: 'center',
+    alignSelf: 'center',
+    gap: 6,
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.4)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
     borderRadius: radius.pill,
+    marginTop: spacing.sm,
   },
-  shoppingBtnText: { color: colors.white, fontWeight: '700', fontSize: 11 },
+  shoppingBtnText: { color: colors.white, fontWeight: '700', fontSize: typography.body.fontSize },
   torchBtn: {
     width: 34,
     height: 34,
