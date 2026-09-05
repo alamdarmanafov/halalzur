@@ -436,8 +436,13 @@ create policy "Public insert" on scan_events
 create policy "Public read" on scan_events
   for select using (true);
 
-create policy "Public delete" on scan_events
-  for delete using (true);
+-- is_admin()-gated — see migration_2026_09_05_scan_events_lockdown.sql.
+-- The old "Public delete" had no scoping at all: anyone could wipe the
+-- app's entire scan history, not just one barcode's rows. Only
+-- admin-panel/index.html's dismissUnclassified() legitimately needs
+-- this.
+create policy "Admin delete" on scan_events
+  for delete using (is_admin());
 
 -- Favorites for a signed-in (Apple/Google) account (lib/favorites.ts,
 -- lib/favorites-context.tsx) — lets Favoritlər survive a reinstall or
