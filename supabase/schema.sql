@@ -1489,7 +1489,7 @@ on conflict (id) do nothing;
 
 alter table users add column if not exists granted_referral_milestones int[] not null default '{}';
 
--- Follow-up: reward sizes changed to 7/30/90 days' worth at the same
+-- Follow-up: reward sizes changed to 30/60/90 days' worth at the same
 -- 5/10/25 invite thresholds, and the reward changed from an automatic
 -- direct Premium grant to a credited points balance (days * 10, matching
 -- lib/points.ts's POINTS_PER_PREMIUM_DAY) that the person redeems into
@@ -1514,7 +1514,7 @@ begin
 
   -- Must match lib/referrals.ts's REFERRAL_MILESTONES.
   select m.threshold, m.days into v_milestone from (
-    values (5, 7), (10, 30), (25, 90)
+    values (5, 30), (10, 60), (25, 90)
   ) as m(threshold, days)
   where m.threshold <= v_count
     and not (m.threshold = any (
