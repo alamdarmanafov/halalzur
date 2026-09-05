@@ -190,11 +190,17 @@ alter table user_points enable row level security;
 create policy "Public read" on user_points
   for select using (true);
 
-create policy "Public insert" on user_points
-  for insert with check (true);
+-- Insert/update are is_admin()-gated, not public — see
+-- migration_2026_09_05_points_lockdown.sql: an open write policy here let
+-- anyone forge their own points balance and redeem it for free Premium
+-- via redeem_points_for_premium(). The one legitimate non-admin write
+-- path (the referral bonus) goes through award_referral_points() below
+-- instead, which is SECURITY DEFINER and bypasses this policy.
+create policy "Admin insert" on user_points
+  for insert with check (is_admin());
 
-create policy "Public update" on user_points
-  for update using (true) with check (true);
+create policy "Admin update" on user_points
+  for update using (is_admin()) with check (is_admin());
 
 -- Halal-certified venues (restaurants/cafes/coffee shops) shown on the
 -- Xəritə/Məkanlar tabs. Unlike products, there's no automated sync for
@@ -582,8 +588,11 @@ alter table referrals enable row level security;
 create policy "Public select" on referrals
   for select using (true);
 
-create policy "Public insert" on referrals
-  for insert with check (true);
+-- No insert policy — see redeem_referral_code() further down, which is
+-- the only way a referrals row can be created now (security definer,
+-- bypasses RLS); the removed "Public insert" let anyone insert an
+-- arbitrary {referrer_id, referred_id} pair directly. See
+-- migration_2026_09_05_points_lockdown.sql.
 
 -- "Tövsiyə olunan" flag — lets the admin panel pin specific products to
 -- the front of a future featured/highlighted list without needing a
@@ -1063,7 +1072,9 @@ alter table points_log enable row level security;
 drop policy if exists "Public read" on points_log;
 create policy "Public read" on points_log for select using (true);
 drop policy if exists "Public insert" on points_log;
-create policy "Public insert" on points_log for insert with check (true);
+-- is_admin()-gated, not public — see migration_2026_09_05_points_lockdown.sql;
+-- award_referral_points() below is SECURITY DEFINER and bypasses this.
+create policy "Admin insert" on points_log for insert with check (is_admin());
 
 -- "My brands": a user follows a brand (app/product/[id].tsx's bell icon)
 -- and gets a push when the admin panel changes the halal status of any
@@ -1559,6 +1570,68 @@ begin
 end;
 $$;
 
+-- Replaces lib/referrals.ts's old two-step client flow (insert a
+-- referrals row through its own "Public insert" policy, then award
+-- points through user_points/points_log's now-locked-down policies) with
+-- one atomic function: it looks up the code, rejects a self-referral,
+-- inserts the referrals row itself, and pays out — same pattern as
+-- redeem_promo_code below. The old open "Public insert" on referrals let
+-- anyone insert an arbitrary {referrer_id, referred_id} pair directly,
+-- skipping the "does this code actually exist" check entirely (capped
+-- only by referred_id's unique constraint at one forged referral per
+-- account an attacker controls) — see
+-- migration_2026_09_05_points_lockdown.sql.
+create or replace function redeem_referral_code(p_user_id text, p_code text)
+returns table (referrer_id text, referrer_name text)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_code text := upper(trim(p_code));
+  v_owner_id text;
+  v_owner_name text;
+  v_referred_name text;
+  v_amount constant int := 20; -- must match lib/referrals.ts's REFERRAL_BONUS_POINTS
+begin
+  if v_code = '' then
+    return;
+  end if;
+
+  select id, name into v_owner_id, v_owner_name from users where referral_code = v_code;
+  if v_owner_id is null or v_owner_id = p_user_id then
+    return; -- code not found, or a self-referral attempt
+  end if;
+
+  begin
+    insert into referrals (referrer_id, referred_id) values (v_owner_id, p_user_id);
+  exception when unique_violation then
+    return; -- this account already redeemed a code (referred_id is unique)
+  end;
+
+  select name into v_referred_name from users where id = p_user_id;
+
+  insert into user_points (user_id, user_name, points, updated_at)
+  values (v_owner_id, v_owner_name, v_amount, now())
+  on conflict (user_id) do update
+    set points = user_points.points + v_amount, user_name = excluded.user_name, updated_at = now();
+
+  insert into user_points (user_id, user_name, points, updated_at)
+  values (p_user_id, v_referred_name, v_amount, now())
+  on conflict (user_id) do update
+    set points = user_points.points + v_amount, user_name = excluded.user_name, updated_at = now();
+
+  insert into points_log (user_id, user_name, amount) values (v_owner_id, v_owner_name, v_amount);
+  insert into points_log (user_id, user_name, amount) values (p_user_id, v_referred_name, v_amount);
+
+  referrer_id := v_owner_id;
+  referrer_name := v_owner_name;
+  return next;
+end;
+$$;
+
+grant execute on function redeem_referral_code(text, text) to anon, authenticated;
+
 -- Callable by anon/authenticated (Supabase's default for new functions) —
 -- deliberately not admin-gated, every user needs to trigger their own
 -- reward check. Safe to be public: each function only ever pays out
@@ -1816,7 +1889,13 @@ create table if not exists broadcast_log (
 );
 alter table broadcast_log enable row level security;
 drop policy if exists "Public read/insert" on broadcast_log;
-create policy "Public read/insert" on broadcast_log for all using (true) with check (true);
+-- is_admin()-gated select, no insert policy at all — see
+-- migration_2026_09_05_points_lockdown.sql. This is only ever inserted
+-- by admin-panel/lib/broadcast.js via the service_role key (bypasses RLS
+-- regardless), never from the app, so "Public insert" served no purpose
+-- and "Public read" needlessly exposed every broadcast's content and
+-- delivery counts to anyone holding the anon key.
+create policy "Admin select" on broadcast_log for select using (is_admin());
 
 -- Admin-generated promo codes redeemable for Premium days — mirrors
 -- gift_premium_from_points (migration_2026_09_04_gift_premium.sql) but
@@ -1949,7 +2028,15 @@ create table if not exists refund_log (
 );
 alter table refund_log enable row level security;
 drop policy if exists "Public read/insert/delete" on refund_log;
-create policy "Public read/insert/delete" on refund_log for all using (true) with check (true);
+-- is_admin()-gated — see migration_2026_09_05_points_lockdown.sql. This
+-- table is entirely admin-panel-driven (admin-panel/index.html's refund
+-- tab does the read, insert, and delete all through the admin's own
+-- session) with no legitimate app-side write, so "Public
+-- read/insert/delete" was pure over-permissioning: anyone with the anon
+-- key could forge or delete refund records.
+create policy "Admin select" on refund_log for select using (is_admin());
+create policy "Admin insert" on refund_log for insert with check (is_admin());
+create policy "Admin delete" on refund_log for delete using (is_admin());
 
 -- One row per (platform, transaction id) ever successfully verified by
 -- admin-panel/api/verify-purchase.js / verify-purchase-android.js — those

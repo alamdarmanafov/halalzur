@@ -1,5 +1,4 @@
 import { supabase, isSupabaseConfigured } from './supabase';
-import { awardPoints } from './points';
 import { sendPushNotification } from './pushNotify';
 
 export const REFERRAL_BONUS_POINTS = 20;
@@ -104,36 +103,27 @@ export async function hasRedeemedReferral(userId: string): Promise<boolean> {
   return !!data;
 }
 
-export async function redeemReferralCode(userId: string, userName: string | null, code: string): Promise<void> {
+/**
+ * redeem_referral_code (security definer) does the code lookup,
+ * self-referral check, the referrals insert, and the points award all in
+ * one atomic server-side step — see migration_2026_09_05_points_lockdown.sql
+ * for why that used to be three separate client calls through
+ * (now-closed) open RLS policies, letting a crafted request insert a fake
+ * referral or forge its own points award.
+ */
+export async function redeemReferralCode(userId: string, code: string): Promise<void> {
   const client = requireSupabase();
   const trimmed = code.trim().toUpperCase();
   if (!trimmed) throw new Error('Kod boşdur.');
 
-  const alreadyRedeemed = await hasRedeemedReferral(userId);
-  if (alreadyRedeemed) throw new Error('Siz artıq bir dəvət kodu istifadə etmisiniz.');
-
-  const { data: owner, error: ownerError } = await client
-    .from('users')
-    .select('id, name')
-    .eq('referral_code', trimmed)
-    .maybeSingle();
-  if (ownerError) throw ownerError;
-  if (!owner) throw new Error('Bu kod tapılmadı.');
-  if (owner.id === userId) throw new Error('Öz kodunuzu istifadə edə bilməzsiniz.');
-
-  const { error: insertError } = await client.from('referrals').insert({
-    referrer_id: owner.id,
-    referred_id: userId,
-  });
-  if (insertError) throw insertError;
-
-  await Promise.all([
-    awardPoints(owner.id, owner.name, REFERRAL_BONUS_POINTS),
-    awardPoints(userId, userName, REFERRAL_BONUS_POINTS),
-  ]);
+  const { data, error } = await client
+    .rpc('redeem_referral_code', { p_user_id: userId, p_code: trimmed })
+    .maybeSingle<{ referrer_id: string; referrer_name: string | null }>();
+  if (error) throw error;
+  if (!data) throw new Error('Kod tapılmadı, ya da artıq istifadə etmisiniz.');
 
   // Best-effort, after the referral itself is safely recorded — a
   // milestone-bonus failure should never surface as a failed redemption
   // to the person redeeming the code.
-  grantMilestoneBonusIfEarned(owner.id).catch(() => {});
+  grantMilestoneBonusIfEarned(data.referrer_id).catch(() => {});
 }

@@ -114,7 +114,7 @@ export default function ReferralsScreen() {
     if (!user) return;
     setRedeeming(true);
     try {
-      await redeemReferralCode(user.id, user.name, inputCode);
+      await redeemReferralCode(user.id, inputCode);
       setRedeemed(true);
       setInputCode('');
       Alert.alert(t('referralsSuccessTitle'), `${REFERRAL_BONUS_POINTS} ${t('referralsSuccessBody')}`);
