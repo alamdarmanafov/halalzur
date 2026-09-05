@@ -141,7 +141,7 @@ export default function ScanScreen() {
           accessibilityLabel={t('a11yTorch')}
           accessibilityRole="button"
         >
-          <Ionicons name={torchOn ? 'flash' : 'flash-outline'} size={18} color={torchOn ? colors.primaryDark : colors.white} />
+          <Ionicons name={torchOn ? 'flash' : 'flash-outline'} size={24} color={torchOn ? colors.primaryDark : colors.white} />
         </Pressable>
         {isBusy && (
           <View style={styles.busyBadge}>
@@ -265,8 +265,8 @@ const styles = StyleSheet.create({
   },
   shoppingBtnText: { color: colors.white, fontWeight: '700', fontSize: typography.body.fontSize },
   torchBtn: {
-    width: 34,
-    height: 34,
+    width: 48,
+    height: 48,
     borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
   },
   busyText: { color: colors.white, fontWeight: '600' },
-  bottomOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: spacing.lg, paddingBottom: spacing.xl },
+  bottomOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: spacing.lg, paddingBottom: spacing.xl + spacing.lg },
   quota: { color: colors.surface, textAlign: 'center', marginBottom: spacing.sm, fontSize: typography.small.fontSize },
   manualEntryBtn: {
     flexDirection: 'row',
