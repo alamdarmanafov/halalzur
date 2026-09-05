@@ -3281,6 +3281,15 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     function csvEsc(val) {
       if (val == null) return "";
       var s = Array.isArray(val) ? val.join("; ") : String(val);
+      // CSV/formula injection guard: fields here (user name, feedback
+      // message, product notes, etc.) are self-reported strings nothing
+      // verifies server-side — see this schema's "no real backend auth"
+      // caveat. A value starting with =, +, -, @, or a tab/CR is
+      // interpreted as a formula by Excel/Sheets/LibreOffice on open (e.g.
+      // a HYPERLINK() formula pointed at a phishing page), so prefix a
+      // single quote to force it to be read as plain text, same as the
+      // standard OWASP CSV-injection mitigation.
+      if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
       if (/[",\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
       return s;
     }

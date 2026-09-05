@@ -23,6 +23,7 @@
 import { getMessaging } from 'firebase-admin/messaging';
 import { createClient } from '@supabase/supabase-js';
 import { getFirebaseApp, NOTIFICATION_SOUND } from '../lib/firebaseAdmin.js';
+import { checkRateLimit } from '../lib/rateLimit.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -65,6 +66,25 @@ export default async function handler(req, res) {
 
   try {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+    // NOTIFY_SECRET is a single static value shipped in every app install,
+    // not a per-user credential — title/body/data here are otherwise fully
+    // attacker-controlled, so without this, anyone who extracts it could
+    // spam any userId (enumerable via the public `users` table) with
+    // spoofed push notifications indefinitely. Bound per target userId,
+    // not caller IP, since the actual harm scales with how many pushes one
+    // victim receives, not which IP sent them.
+    const allowed = await checkRateLimit(supabase, {
+      bucket: 'send-notification',
+      identifier: userId,
+      limit: 20,
+      windowSeconds: 3600,
+    });
+    if (!allowed) {
+      res.status(429).json({ error: 'rate_limited' });
+      return;
+    }
+
     const { data: tokens, error } = await supabase
       .from('device_tokens')
       .select('fcm_token')
