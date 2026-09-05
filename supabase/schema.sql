@@ -347,6 +347,47 @@ create policy "Public insert" on users
 create policy "Public update" on users
   for update using (true) with check (true);
 
+-- Row-level "Public update"/"Public insert" above have to stay open for
+-- real self-service edits (name, language, referral_code, last_seen_at,
+-- muted_notification_types) — but that leaves plan/premium_expires_at/
+-- claimed_achievements/banned/ban_reason writable by anyone holding the
+-- public anon key too, which is a direct "PATCH yourself into permanent
+-- free Premium (or un-ban yourself)" hole. See
+-- migration_2026_09_05_users_premium_lockdown.sql for why this needs a
+-- trigger rather than the column-REVOKE technique used for email/
+-- sync_token elsewhere in this file (admin-panel's own admin session and
+-- an ordinary signed-in user's session are both Postgres role
+-- `authenticated` — only is_admin() tells them apart, and only a trigger
+-- can call that and still fall through cleanly for the legitimate
+-- SECURITY DEFINER Premium-grant functions and service_role writes).
+create or replace function protect_premium_fields() returns trigger
+language plpgsql
+as $$
+begin
+  if current_user in ('anon', 'authenticated') and not is_admin() then
+    if TG_OP = 'INSERT' then
+      new.plan := 'free';
+      new.premium_expires_at := null;
+      new.claimed_achievements := '{}';
+      new.banned := false;
+      new.ban_reason := null;
+    else
+      new.plan := old.plan;
+      new.premium_expires_at := old.premium_expires_at;
+      new.claimed_achievements := old.claimed_achievements;
+      new.banned := old.banned;
+      new.ban_reason := old.ban_reason;
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_protect_premium_fields on users;
+create trigger trg_protect_premium_fields
+before insert or update on users
+for each row execute function protect_premium_fields();
+
 -- Per-account token claimed once by whichever device signs in to an
 -- account id first, required by favorites_*/history_* below to gate
 -- favorites/scan_history_backup access now that those tables have no

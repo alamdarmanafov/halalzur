@@ -18,6 +18,19 @@ function isSyncableUserId(id: string): boolean {
 /**
  * Backs the admin panel's "İstifadəçilər" list. See supabase/schema.sql's
  * `users` table comment for the email/password scope caveat.
+ *
+ * Deliberately does NOT write plan/premium_expires_at/claimed_achievements
+ * — those come from `user` (this device's local state), and a client is
+ * never trusted to set its own Premium status. A row's real values are
+ * set server-side only (verify-purchase.js, or the grant_achievement_
+ * premium/redeem_points_for_premium/gift_premium_from_points/
+ * redeem_promo_code security-definer functions), and
+ * migration_2026_09_05_users_premium_lockdown.sql's trigger silently
+ * discards any attempt to set them through this table directly anyway —
+ * so including them here would only let a locally-tampered value get
+ * synced up and then immediately reverted, at best. Local `user.plan`
+ * itself comes back down via fetchRemoteAccountState(), never the other
+ * direction.
  */
 export async function syncUser(user: User): Promise<void> {
   if (!isSupabaseConfigured || !supabase) return;
@@ -29,9 +42,6 @@ export async function syncUser(user: User): Promise<void> {
       id: user.id,
       name: user.name,
       email: user.email,
-      plan: user.plan,
-      premium_expires_at: user.premiumExpiresAt,
-      claimed_achievements: user.claimedAchievements,
       updated_at: now,
       last_seen_at: now,
     },

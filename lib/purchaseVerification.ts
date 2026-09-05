@@ -8,8 +8,8 @@ const NOTIFY_SECRET = process.env.EXPO_PUBLIC_NOTIFY_SECRET;
  * header comment for why this exists (the client used to set
  * users.plan='premium' directly, which anyone holding the public anon key
  * could also do with zero purchase). The caller must treat a purchase as
- * successful only once this resolves true — do not grant Premium locally
- * (setPlan) on the strength of finishTransaction() alone.
+ * successful only once this resolves true — never grant Premium locally
+ * on the strength of finishTransaction() alone.
  */
 export async function verifyApplePurchase(
   userId: string,

@@ -41,7 +41,6 @@ type AuthContextValue = {
   signUpWithEmail: (email: string, password: string, name: string) => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
-  setPlan: (plan: User['plan']) => Promise<void>;
   incrementScanCount: () => Promise<void>;
   refreshPlan: () => Promise<void>;
   grantAchievementPremium: () => Promise<AchievementTier | null>;
@@ -250,12 +249,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
       signOut: async () => {
         await supabase?.auth.signOut();
         await persist(null);
-      },
-      setPlan: async (plan) => {
-        if (!user) return;
-        const next = { ...user, plan };
-        await persist(next);
-        syncUser(next);
       },
       // Free-tier scan quota resets daily rather than persisting a running
       // total, so a user's local date (not a server clock) is the reset key.
