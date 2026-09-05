@@ -826,8 +826,13 @@ alter table audit_log enable row level security;
 create policy "Public read" on audit_log
   for select using (true);
 
-create policy "Public insert" on audit_log
-  for insert with check (true);
+-- is_admin()-gated — see migration_2026_09_05_audit_log_lockdown.sql.
+-- Only admin-panel's logAudit() ever writes this, and an audit trail
+-- anyone can forge entries into is worse than no audit trail: an
+-- attacker could plant misleading rows to confuse investigation of
+-- their own activity, or spam it into uselessness.
+create policy "Admin insert" on audit_log
+  for insert with check (is_admin());
 
 -- Scheduled in-app announcements: if set, the announcement starts
 -- inactive and a cron job (process-scheduled-broadcasts.js, the same
