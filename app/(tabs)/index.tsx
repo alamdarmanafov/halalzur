@@ -132,17 +132,6 @@ export default function ScanScreen() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
             <Pressable
-              style={styles.torchBtn}
-              onPress={() => {
-                setManualBarcode('');
-                setShowManualEntry(true);
-              }}
-              accessibilityLabel={t('manualBarcodeBtn')}
-              accessibilityRole="button"
-            >
-              <Ionicons name="keypad-outline" size={18} color={colors.white} />
-            </Pressable>
-            <Pressable
               style={[styles.torchBtn, torchOn && styles.torchBtnActive]}
               onPress={() => setTorchOn((v) => !v)}
               accessibilityLabel={t('a11yTorch')}
@@ -179,6 +168,18 @@ export default function ScanScreen() {
             {t('scanQuota').replace('{used}', String(scansToday)).replace('{limit}', String(FREE_DAILY_SCAN_LIMIT))}
           </Text>
         )}
+        <Pressable
+          style={styles.manualEntryBtn}
+          onPress={() => {
+            setManualBarcode('');
+            setShowManualEntry(true);
+          }}
+          accessibilityLabel={t('manualBarcodeBtn')}
+          accessibilityRole="button"
+        >
+          <Ionicons name="keypad-outline" size={18} color={colors.primaryDark} />
+          <Text style={styles.manualEntryBtnText}>{t('manualBarcodeBtn')}</Text>
+        </Pressable>
         <Text style={styles.demoLabel}>{t('scanTryDemo')}</Text>
         <View style={styles.demoRow}>
           {DEMO_BARCODES.map((code) => (
@@ -304,6 +305,17 @@ const styles = StyleSheet.create({
   busyText: { color: colors.white, fontWeight: '600' },
   bottomOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: spacing.lg, paddingBottom: spacing.xl },
   quota: { color: colors.surface, textAlign: 'center', marginBottom: spacing.sm, fontSize: typography.small.fontSize },
+  manualEntryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.white,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    marginBottom: spacing.md,
+  },
+  manualEntryBtnText: { color: colors.primaryDark, fontWeight: '700', fontSize: typography.body.fontSize },
   demoLabel: { color: colors.surface, fontSize: typography.small.fontSize, marginBottom: spacing.xs, textAlign: 'center' },
   demoRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, flexWrap: 'wrap' },
   demoChip: {
