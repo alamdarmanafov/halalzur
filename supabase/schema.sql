@@ -1572,7 +1572,7 @@ begin
 
   -- Must match lib/achievements.ts's ACHIEVEMENT_TIERS.
   select t.threshold, t.days into v_tier from (
-    values (1,1), (5,3), (10,7), (20,14), (30,30), (50,90), (75,180), (100,365)
+    values (1,1), (5,7), (10,30), (20,60), (30,90), (50,180), (75,270), (100,365)
   ) as t(threshold, days)
   where t.threshold <= v_count
     and not (t.threshold = any (

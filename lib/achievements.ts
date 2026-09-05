@@ -25,12 +25,12 @@ export function tierLabel(tier: AchievementTier, language: Language): string {
  */
 export const ACHIEVEMENT_TIERS: AchievementTier[] = [
   { threshold: 1, days: 1, label: 'Xoş gəldin bonusu', labelEn: 'Welcome bonus', labelRu: 'Приветственный бонус', labelTr: 'Hoş geldin bonusu' },
-  { threshold: 5, days: 3, label: '3 günlük Premium', labelEn: '3-day Premium', labelRu: '3 дня Premium', labelTr: '3 günlük Premium' },
-  { threshold: 10, days: 7, label: '1 həftəlik Premium', labelEn: '1-week Premium', labelRu: '1 неделя Premium', labelTr: '1 haftalık Premium' },
-  { threshold: 20, days: 14, label: '2 həftəlik Premium', labelEn: '2-week Premium', labelRu: '2 недели Premium', labelTr: '2 haftalık Premium' },
-  { threshold: 30, days: 30, label: '1 aylıq Premium', labelEn: '1-month Premium', labelRu: '1 месяц Premium', labelTr: '1 aylık Premium' },
-  { threshold: 50, days: 90, label: '3 aylıq Premium', labelEn: '3-month Premium', labelRu: '3 месяца Premium', labelTr: '3 aylık Premium' },
-  { threshold: 75, days: 180, label: '6 aylıq Premium', labelEn: '6-month Premium', labelRu: '6 месяцев Premium', labelTr: '6 aylık Premium' },
+  { threshold: 5, days: 7, label: '1 həftəlik Premium', labelEn: '1-week Premium', labelRu: '1 неделя Premium', labelTr: '1 haftalık Premium' },
+  { threshold: 10, days: 30, label: '1 aylıq Premium', labelEn: '1-month Premium', labelRu: '1 месяц Premium', labelTr: '1 aylık Premium' },
+  { threshold: 20, days: 60, label: '2 aylıq Premium', labelEn: '2-month Premium', labelRu: '2 месяца Premium', labelTr: '2 aylık Premium' },
+  { threshold: 30, days: 90, label: '3 aylıq Premium', labelEn: '3-month Premium', labelRu: '3 месяца Premium', labelTr: '3 aylık Premium' },
+  { threshold: 50, days: 180, label: '6 aylıq Premium', labelEn: '6-month Premium', labelRu: '6 месяцев Premium', labelTr: '6 aylık Premium' },
+  { threshold: 75, days: 270, label: '9 aylıq Premium', labelEn: '9-month Premium', labelRu: '9 месяцев Premium', labelTr: '9 aylık Premium' },
   { threshold: 100, days: 365, label: '1 illik Premium', labelEn: '1-year Premium', labelRu: '1 год Premium', labelTr: '1 yıllık Premium' },
 ];
 
