@@ -1497,7 +1497,12 @@ alter table users add column if not exists granted_referral_milestones int[] not
 -- (redeemPointsForPremium / redeem_points_for_premium) — see
 -- migration_2026_09_05_referral_milestones_to_points.sql. Each milestone
 -- still fires exactly once, tracked the same way via
--- granted_referral_milestones.
+-- granted_referral_milestones. The return columns changed from the
+-- original (granted_days, new_expires_at), and Postgres won't let CREATE
+-- OR REPLACE change a function's OUT-parameter row type, so the old
+-- signature is dropped first.
+drop function if exists grant_referral_milestone_bonus(text);
+
 create or replace function grant_referral_milestone_bonus(p_user_id text)
 returns table (granted_points int, milestone_days int)
 language plpgsql

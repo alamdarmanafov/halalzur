@@ -15,6 +15,12 @@
 -- Each milestone still fires exactly once per account, tracked the same
 -- way via users.granted_referral_milestones.
 
+-- Return columns changed (granted_days/new_expires_at → granted_points/
+-- milestone_days), and Postgres won't let CREATE OR REPLACE change a
+-- function's OUT-parameter row type — the old signature must be dropped
+-- first.
+drop function if exists grant_referral_milestone_bonus(text);
+
 create or replace function grant_referral_milestone_bonus(p_user_id text)
 returns table (granted_points int, milestone_days int)
 language plpgsql
