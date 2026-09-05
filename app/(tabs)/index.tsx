@@ -18,7 +18,6 @@ import { hapticForStatus } from '../../lib/haptics';
 import { colors, radius, spacing, typography } from '../../constants/theme';
 
 const FREE_DAILY_SCAN_LIMIT = 3;
-const DEMO_BARCODES = ['8690504048068', '8690506042027', '4006381333931', '5449000000996'];
 
 export default function ScanScreen() {
   const { user, incrementScanCount } = useAuth();
@@ -132,14 +131,6 @@ export default function ScanScreen() {
           </View>
         </View>
         <Text style={styles.headerSubtitle}>{t('scanFrameHint')}</Text>
-        <Pressable
-          style={styles.shoppingBtn}
-          onPress={() => router.push(isPremium ? '/shopping-scan' : '/subscription')}
-        >
-          <Ionicons name="cart-outline" size={20} color={colors.white} />
-          <Text style={styles.shoppingBtnText}>{t('subFeatureShoppingScan')}</Text>
-          {!isPremium && <Ionicons name="lock-closed" size={14} color={colors.white} />}
-        </Pressable>
       </LinearGradient>
 
       <View style={styles.frameWrap} pointerEvents="box-none">
@@ -178,14 +169,14 @@ export default function ScanScreen() {
           <Ionicons name="keypad-outline" size={18} color={colors.primaryDark} />
           <Text style={styles.manualEntryBtnText}>{t('manualBarcodeBtn')}</Text>
         </Pressable>
-        <Text style={styles.demoLabel}>{t('scanTryDemo')}</Text>
-        <View style={styles.demoRow}>
-          {DEMO_BARCODES.map((code) => (
-            <Pressable key={code} style={styles.demoChip} onPress={() => handleBarcode(code)}>
-              <Text style={styles.demoChipText}>{code.slice(-4)}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <Pressable
+          style={styles.shoppingBtn}
+          onPress={() => router.push(isPremium ? '/shopping-scan' : '/subscription')}
+        >
+          <Ionicons name="cart-outline" size={20} color={colors.white} />
+          <Text style={styles.shoppingBtnText}>{t('subFeatureShoppingScan')}</Text>
+          {!isPremium && <Ionicons name="lock-closed" size={14} color={colors.white} />}
+        </Pressable>
       </LinearGradient>
 
       <BrandModal
@@ -318,17 +309,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   manualEntryBtnText: { color: colors.primaryDark, fontWeight: '700', fontSize: typography.body.fontSize },
-  demoLabel: { color: colors.surface, fontSize: typography.small.fontSize, marginBottom: spacing.xs, textAlign: 'center' },
-  demoRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, flexWrap: 'wrap' },
-  demoChip: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.pill,
-  },
-  demoChipText: { color: colors.white, fontWeight: '700' },
   manualBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(11,19,16,0.55)',
