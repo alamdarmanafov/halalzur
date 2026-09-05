@@ -1089,7 +1089,13 @@ create table if not exists brand_follows (
 );
 alter table brand_follows enable row level security;
 drop policy if exists "Public read/insert/delete" on brand_follows;
-create policy "Public read/insert/delete" on brand_follows for all using (true) with check (true);
+-- Select stays public (admin-panel's status-change push looks this up
+-- across all users by brand from its own already-privileged session);
+-- insert/delete moves to brand_follow_add()/brand_follow_remove()
+-- further down — see migration_2026_09_05_community_content_lockdown.sql.
+-- The removed policy let anyone follow/unfollow a brand on anyone's
+-- behalf.
+create policy "Public select" on brand_follows for select using (true);
 
 -- Per-user 1-5 star quality/taste rating (separate from the 👍
 -- "Tövsiyə et" recommendation, which is a plain up-vote with no scale).
@@ -1104,7 +1110,11 @@ create table if not exists product_ratings (
 );
 alter table product_ratings enable row level security;
 drop policy if exists "Public read/insert/update" on product_ratings;
-create policy "Public read/insert/update" on product_ratings for all using (true) with check (true);
+-- Select stays public (aggregate + per-product ratings are shown to
+-- everyone); insert/update moves to rating_upsert() further down — see
+-- migration_2026_09_05_community_content_lockdown.sql. The removed
+-- policy let anyone overwrite any user's rating for any product.
+create policy "Public select" on product_ratings for select using (true);
 
 -- De-dup markers for the two cron-fired per-user pushes (admin-panel/api/
 -- win-back-push.js, recommend-push.js) — each only re-notifies a given
@@ -1658,7 +1668,11 @@ create table if not exists product_review_comments (
 );
 alter table product_review_comments enable row level security;
 drop policy if exists "Public read/insert" on product_review_comments;
-create policy "Public read/insert" on product_review_comments for all using (true) with check (true);
+-- Select stays public (comments are public-facing by design); insert is
+-- sync_token-gated via review_comment_add() further down — see
+-- migration_2026_09_05_community_content_lockdown.sql. The removed
+-- "Public insert" let anyone post a comment as any user_id.
+create policy "Public select" on product_review_comments for select using (true);
 create index if not exists product_review_comments_barcode_idx on product_review_comments (barcode);
 
 create table if not exists product_qa_questions (
@@ -1671,7 +1685,9 @@ create table if not exists product_qa_questions (
 );
 alter table product_qa_questions enable row level security;
 drop policy if exists "Public read/insert" on product_qa_questions;
-create policy "Public read/insert" on product_qa_questions for all using (true) with check (true);
+-- Same treatment as product_review_comments above — insert moves to
+-- qa_question_add() further down.
+create policy "Public select" on product_qa_questions for select using (true);
 create index if not exists product_qa_questions_barcode_idx on product_qa_questions (barcode);
 
 create table if not exists product_qa_answers (
@@ -1684,7 +1700,8 @@ create table if not exists product_qa_answers (
 );
 alter table product_qa_answers enable row level security;
 drop policy if exists "Public read/insert" on product_qa_answers;
-create policy "Public read/insert" on product_qa_answers for all using (true) with check (true);
+-- Same treatment — insert moves to qa_answer_add() further down.
+create policy "Public select" on product_qa_answers for select using (true);
 create index if not exists product_qa_answers_question_id_idx on product_qa_answers (question_id);
 
 -- Supports two new cron-fired pushes (admin-panel/api/cron-jobs.js) and
@@ -2131,3 +2148,94 @@ create table if not exists sync_token_recovery_codes (
 alter table sync_token_recovery_codes enable row level security;
 -- No anon/authenticated policies — only ever touched by the service_role
 -- key from sync-token.js.
+
+-- sync_token-gated writes for the remaining community-content tables —
+-- see migration_2026_09_05_community_content_lockdown.sql. Same pattern
+-- as favorites_*/history_* above; SELECT on these tables stays public
+-- (comments/ratings/Q&A/brand-follows are public-facing by design), only
+-- the writes needed a real per-account check.
+
+create or replace function review_comment_add(
+  p_user_id text, p_token uuid, p_user_name text, p_barcode text, p_comment text
+)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  insert into product_review_comments (user_id, user_name, barcode, comment)
+  select p_user_id, p_user_name, p_barcode, p_comment
+  where exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token);
+$$;
+
+grant execute on function review_comment_add(text, uuid, text, text, text) to anon, authenticated;
+
+create or replace function qa_question_add(
+  p_user_id text, p_token uuid, p_user_name text, p_barcode text, p_question text
+)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  insert into product_qa_questions (user_id, user_name, barcode, question)
+  select p_user_id, p_user_name, p_barcode, p_question
+  where exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token);
+$$;
+
+grant execute on function qa_question_add(text, uuid, text, text, text) to anon, authenticated;
+
+create or replace function qa_answer_add(
+  p_user_id text, p_token uuid, p_user_name text, p_question_id uuid, p_answer text
+)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  insert into product_qa_answers (user_id, user_name, question_id, answer)
+  select p_user_id, p_user_name, p_question_id, p_answer
+  where exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token);
+$$;
+
+grant execute on function qa_answer_add(text, uuid, text, uuid, text) to anon, authenticated;
+
+create or replace function rating_upsert(p_user_id text, p_token uuid, p_barcode text, p_rating smallint)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  insert into product_ratings (user_id, barcode, rating, updated_at)
+  select p_user_id, p_barcode, p_rating, now()
+  where exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token)
+  on conflict (user_id, barcode) do update set rating = excluded.rating, updated_at = now();
+$$;
+
+grant execute on function rating_upsert(text, uuid, text, smallint) to anon, authenticated;
+
+create or replace function brand_follow_add(p_user_id text, p_token uuid, p_brand text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  insert into brand_follows (user_id, brand)
+  select p_user_id, p_brand
+  where exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token)
+  on conflict (user_id, brand) do nothing;
+$$;
+
+create or replace function brand_follow_remove(p_user_id text, p_token uuid, p_brand text)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from brand_follows f
+  where f.user_id = p_user_id and f.brand = p_brand
+    and exists (select 1 from users u where u.id = p_user_id and u.sync_token = p_token);
+$$;
+
+grant execute on function brand_follow_add(text, uuid, text) to anon, authenticated;
+grant execute on function brand_follow_remove(text, uuid, text) to anon, authenticated;

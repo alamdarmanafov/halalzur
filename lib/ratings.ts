@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
+import { getOrClaimSyncToken } from './syncToken';
 
 export type RatingSummary = { average: number; count: number };
 
@@ -25,8 +26,13 @@ export async function getMyRating(userId: string, barcode: string): Promise<numb
 /** Upserts this user's own 1-5 star rating for the barcode. */
 export async function setRating(userId: string, barcode: string, rating: number): Promise<void> {
   if (!isSupabaseConfigured || !supabase) throw new Error('Supabase qoşulmayıb.');
-  const { error } = await supabase
-    .from('product_ratings')
-    .upsert({ user_id: userId, barcode, rating, updated_at: new Date().toISOString() }, { onConflict: 'user_id,barcode' });
+  const token = await getOrClaimSyncToken(userId);
+  if (!token) throw new Error('Sinxronizasiya hazır deyil, bir az sonra cəhd edin.');
+  const { error } = await supabase.rpc('rating_upsert', {
+    p_user_id: userId,
+    p_token: token,
+    p_barcode: barcode,
+    p_rating: rating,
+  });
   if (error) throw error;
 }

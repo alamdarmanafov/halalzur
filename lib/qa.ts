@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
+import { getOrClaimSyncToken } from './syncToken';
 
 export type QaAnswer = {
   id: string;
@@ -61,9 +62,15 @@ export async function askQuestion(userId: string, userName: string | null, barco
   if (!isSupabaseConfigured || !supabase) throw new Error('Supabase qoşulmayıb.');
   const trimmed = question.trim();
   if (!trimmed) return;
-  const { error } = await supabase
-    .from('product_qa_questions')
-    .insert({ user_id: userId, user_name: userName, barcode, question: trimmed });
+  const token = await getOrClaimSyncToken(userId);
+  if (!token) throw new Error('Sinxronizasiya hazır deyil, bir az sonra cəhd edin.');
+  const { error } = await supabase.rpc('qa_question_add', {
+    p_user_id: userId,
+    p_token: token,
+    p_user_name: userName,
+    p_barcode: barcode,
+    p_question: trimmed,
+  });
   if (error) throw error;
 }
 
@@ -76,8 +83,14 @@ export async function answerQuestion(
   if (!isSupabaseConfigured || !supabase) throw new Error('Supabase qoşulmayıb.');
   const trimmed = answer.trim();
   if (!trimmed) return;
-  const { error } = await supabase
-    .from('product_qa_answers')
-    .insert({ user_id: userId, user_name: userName, question_id: questionId, answer: trimmed });
+  const token = await getOrClaimSyncToken(userId);
+  if (!token) throw new Error('Sinxronizasiya hazır deyil, bir az sonra cəhd edin.');
+  const { error } = await supabase.rpc('qa_answer_add', {
+    p_user_id: userId,
+    p_token: token,
+    p_user_name: userName,
+    p_question_id: questionId,
+    p_answer: trimmed,
+  });
   if (error) throw error;
 }

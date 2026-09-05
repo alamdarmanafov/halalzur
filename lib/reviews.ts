@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
+import { getOrClaimSyncToken } from './syncToken';
 
 export type ReviewComment = {
   id: string;
@@ -46,8 +47,14 @@ export async function addReviewComment(
   if (!isSupabaseConfigured || !supabase) throw new Error('Supabase qoşulmayıb.');
   const trimmed = comment.trim();
   if (!trimmed) return;
-  const { error } = await supabase
-    .from('product_review_comments')
-    .insert({ user_id: userId, user_name: userName, barcode, comment: trimmed });
+  const token = await getOrClaimSyncToken(userId);
+  if (!token) throw new Error('Sinxronizasiya hazır deyil, bir az sonra cəhd edin.');
+  const { error } = await supabase.rpc('review_comment_add', {
+    p_user_id: userId,
+    p_token: token,
+    p_user_name: userName,
+    p_barcode: barcode,
+    p_comment: trimmed,
+  });
   if (error) throw error;
 }

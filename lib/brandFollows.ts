@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
+import { getOrClaimSyncToken } from './syncToken';
 
 export async function getFollowedBrands(userId: string): Promise<string[]> {
   if (!isSupabaseConfigured || !supabase) return [];
@@ -20,10 +21,14 @@ export async function isFollowingBrand(userId: string, brand: string): Promise<b
 
 export async function followBrand(userId: string, brand: string): Promise<void> {
   if (!isSupabaseConfigured || !supabase) return;
-  await supabase.from('brand_follows').upsert({ user_id: userId, brand }, { onConflict: 'user_id,brand' });
+  const token = await getOrClaimSyncToken(userId);
+  if (!token) return;
+  await supabase.rpc('brand_follow_add', { p_user_id: userId, p_token: token, p_brand: brand });
 }
 
 export async function unfollowBrand(userId: string, brand: string): Promise<void> {
   if (!isSupabaseConfigured || !supabase) return;
-  await supabase.from('brand_follows').delete().eq('user_id', userId).eq('brand', brand);
+  const token = await getOrClaimSyncToken(userId);
+  if (!token) return;
+  await supabase.rpc('brand_follow_remove', { p_user_id: userId, p_token: token, p_brand: brand });
 }
