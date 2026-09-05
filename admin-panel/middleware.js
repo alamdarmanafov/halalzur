@@ -9,8 +9,9 @@
 // users' phones, gated by NOTIFY_SECRET, not by who's loading the admin
 // UI) — IP-restricting those would break purchase verification for every
 // paying user outside the allowlist. The admin-facing API routes
-// (send-broadcast.js, send-user-notification.js, etc.) already require a
-// verified Supabase Auth admin session (lib/verifyAdmin.js), which is a
+// (send-broadcast.js, and the admin-triggered path through
+// send-notification.js, etc.) already require a verified Supabase Auth
+// admin session (lib/verifyAdmin.js), which is a
 // stronger check than IP anyway. If you ever widen this matcher, make
 // sure it still excludes every route real app users call.
 //

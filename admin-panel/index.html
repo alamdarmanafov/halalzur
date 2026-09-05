@@ -6833,7 +6833,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         var title = "Təqib etdiyiniz marka: " + brand;
         var body = '"' + productName + '" indi ' + (STATUS_LABEL[newStatus] || newStatus);
         followers.forEach(function (f) {
-          fetch("/api/send-user-notification", {
+          fetch("/api/send-notification", {
             method: "POST",
             headers: adminApiHeaders(),
             body: JSON.stringify({ userId: f.user_id, title: title, body: body }),
@@ -9076,7 +9076,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     btn.disabled = true;
     Promise.all(
       ids.map(function (id) {
-        return fetch("/api/send-user-notification", {
+        return fetch("/api/send-notification", {
           method: "POST",
           headers: adminApiHeaders(),
           body: JSON.stringify({ userId: id, title: title.trim(), body: body.trim() }),
@@ -9124,7 +9124,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
           body: { plan: "premium", premium_expires_at: expiresAt, updated_at: new Date().toISOString() },
         }).then(function () {
           logAudit("user_grant_premium", "users", id, "Geri qaytarma təklifi: " + days + " gün");
-          return fetch("/api/send-user-notification", {
+          return fetch("/api/send-notification", {
             method: "POST",
             headers: adminApiHeaders(),
             body: JSON.stringify({ userId: id, title: title, body: body }),
@@ -9437,7 +9437,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     btn.disabled = true;
     var original = btn.textContent;
     btn.textContent = "Göndərilir…";
-    fetch("/api/send-user-notification", {
+    fetch("/api/send-notification", {
       method: "POST",
       headers: adminApiHeaders(),
       body: JSON.stringify({ userId: row.id, title: title.trim(), body: body.trim() }),
@@ -10204,7 +10204,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         // the user actually notices a reply landed, rather than having to
         // remember to re-open that screen.
         if (reply && row.user_id) {
-          fetch("/api/send-user-notification", {
+          fetch("/api/send-notification", {
             method: "POST",
             headers: adminApiHeaders(),
             body: JSON.stringify({

@@ -1,7 +1,20 @@
 // Vercel serverless function — sends a real push notification (via
-// Firebase Cloud Messaging) to one user's registered device(s), for
-// event-triggered notifications (registration, achievements, product/
-// place submissions, premium purchase) the app fires from lib/pushNotify.ts.
+// Firebase Cloud Messaging) to one user's registered device(s). Serves
+// two callers on the same route, since Vercel's Hobby (free) plan caps a
+// deployment at 12 serverless functions and every file under
+// admin-panel/api/ is its own — merging what used to be a separate
+// send-user-notification.js is the standard workaround (see cron-jobs.js
+// for the same pattern applied to scheduled jobs):
+//
+//   1. The app itself (lib/pushNotify.ts), for event-triggered
+//      notifications (registration, achievements, product/place
+//      submissions, premium purchase) — authenticated by the
+//      x-notify-secret header, and rate-limited per target userId since
+//      that secret is a single static value shipped in every app install,
+//      not a per-user credential.
+//   2. The admin panel's Users tab, for a manually-sent one-off push to a
+//      specific user — authenticated by the admin's own Supabase Auth
+//      session (admin-panel/lib/verifyAdmin.js), same as send-broadcast.js.
 //
 // This is the "future send-notification backend" supabase/schema.sql's
 // device_tokens table comment anticipated: that table has no SELECT
@@ -24,6 +37,7 @@ import { getMessaging } from 'firebase-admin/messaging';
 import { createClient } from '@supabase/supabase-js';
 import { getFirebaseApp, NOTIFICATION_SOUND } from '../lib/firebaseAdmin.js';
 import { checkRateLimit } from '../lib/rateLimit.js';
+import { verifyAdmin } from '../lib/verifyAdmin.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -31,10 +45,26 @@ export default async function handler(req, res) {
     return;
   }
 
-  if (!process.env.NOTIFY_SECRET || req.headers['x-notify-secret'] !== process.env.NOTIFY_SECRET) {
-    console.error('send-notification: unauthorized — NOTIFY_SECRET missing or mismatched');
-    res.status(401).json({ error: 'unauthorized' });
-    return;
+  // A request carrying the app's shared secret is the app-triggered path;
+  // anything else must be a logged-in admin. Checking the secret first
+  // means a mismatched/stale header on an admin request can't accidentally
+  // fall through — it's rejected outright rather than silently retried
+  // against verifyAdmin.
+  const hasNotifySecretHeader = 'x-notify-secret' in req.headers;
+  let fromApp = false;
+  if (hasNotifySecretHeader) {
+    if (!process.env.NOTIFY_SECRET || req.headers['x-notify-secret'] !== process.env.NOTIFY_SECRET) {
+      console.error('send-notification: unauthorized — NOTIFY_SECRET missing or mismatched');
+      res.status(401).json({ error: 'unauthorized' });
+      return;
+    }
+    fromApp = true;
+  } else {
+    const admin = await verifyAdmin(req);
+    if (!admin) {
+      res.status(401).json({ error: 'unauthorized' });
+      return;
+    }
   }
 
   const { userId, title, body, data } = req.body || {};
@@ -67,22 +97,21 @@ export default async function handler(req, res) {
   try {
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // NOTIFY_SECRET is a single static value shipped in every app install,
-    // not a per-user credential — title/body/data here are otherwise fully
-    // attacker-controlled, so without this, anyone who extracts it could
-    // spam any userId (enumerable via the public `users` table) with
-    // spoofed push notifications indefinitely. Bound per target userId,
-    // not caller IP, since the actual harm scales with how many pushes one
-    // victim receives, not which IP sent them.
-    const allowed = await checkRateLimit(supabase, {
-      bucket: 'send-notification',
-      identifier: userId,
-      limit: 20,
-      windowSeconds: 3600,
-    });
-    if (!allowed) {
-      res.status(429).json({ error: 'rate_limited' });
-      return;
+    // Only the app-triggered path needs rate limiting — see the comment
+    // above on why (a single static secret, not a per-user credential).
+    // An admin's own authenticated session already can't be replayed by
+    // an outside attacker the same way.
+    if (fromApp) {
+      const allowed = await checkRateLimit(supabase, {
+        bucket: 'send-notification',
+        identifier: userId,
+        limit: 20,
+        windowSeconds: 3600,
+      });
+      if (!allowed) {
+        res.status(429).json({ error: 'rate_limited' });
+        return;
+      }
     }
 
     const { data: tokens, error } = await supabase
