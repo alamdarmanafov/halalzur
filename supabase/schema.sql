@@ -593,8 +593,11 @@ create policy "Public insert" on feedback_reports
 create policy "Public select" on feedback_reports
   for select using (true);
 
-create policy "Public delete" on feedback_reports
-  for delete using (true);
+-- is_admin()-gated — see migration_2026_09_05_feedback_reports_delete_
+-- lockdown.sql. Same reasoning as that update policy above: anyone
+-- could otherwise delete any report, including someone else's.
+create policy "Admin delete" on feedback_reports
+  for delete using (is_admin());
 
 -- is_admin()-gated, not public — see
 -- migration_2026_09_05_feedback_reports_lockdown.sql: with select also
