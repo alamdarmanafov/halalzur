@@ -878,8 +878,8 @@
         <code>unknown</code> (naməlum) — <b>zəruridir</b>, boş qalarsa o sətir əlavə edilmir. Kateqoriya və tərkib istəyə bağlıdır.
       </p>
       <div class="field">
-        <label for="bulkCsvFile">və ya CSV/Excel faylından yüklə (sütun sırası: barkod,ad,marka,kateqoriya,status,tərkib — CSV kimi export edin)</label>
-        <input type="file" id="bulkCsvFile" accept=".csv,text/csv" />
+        <label for="bulkCsvFile">və ya CSV/Excel (.xlsx) faylından yüklə (sütun sırası: barkod,ad,marka,kateqoriya,status,tərkib)</label>
+        <input type="file" id="bulkCsvFile" accept=".csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" />
       </div>
       <div class="field">
         <textarea
@@ -1777,6 +1777,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
   // ---- config ----
   var SUPABASE_URL = "https://szizepjcospoygnjmxwz.supabase.co";
@@ -7194,32 +7195,55 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     return rows;
   }
 
+  // Shared by both the CSV and XLSX paths below — turns a 2D array of
+  // cells (row 0 possibly a header row) into the same pipe-delimited
+  // lines the manual-paste textarea already expects, so bulkAddSubmit's
+  // parsing/validation/insert logic (further down) needs no changes at
+  // all to support file import.
+  function applyBulkRows(rows, sourceLabel) {
+    if (!rows.length) return;
+    // A header row's first cell won't look like a real barcode (digits) —
+    // skip it if so, rather than requiring the user to remove it by hand.
+    var first = rows[0][0];
+    if (first != null && !/^\d+$/.test(String(first).trim())) rows.shift();
+    var lines = rows
+      .filter(function (r) { return r[0] != null && String(r[0]).trim(); })
+      .map(function (r) {
+        return [0, 1, 2, 3, 4, 5]
+          .map(function (i) { return r[i] != null ? String(r[i]).trim() : ""; })
+          .join("|");
+      });
+    document.getElementById("bulkAddInput").value = lines.join("\n");
+    toast(lines.length + " sətir " + sourceLabel + "-dən oxundu — aşağıda yoxlayıb \"Hamısını əlavə et\" düyməsinə basın");
+  }
+
   document.getElementById("bulkCsvFile").addEventListener("change", function () {
     var file = this.files[0];
     if (!file) return;
+    var isExcel = /\.xlsx?$/i.test(file.name);
     var reader = new FileReader();
     reader.onload = function () {
-      var rows = parseCsv(String(reader.result));
-      if (!rows.length) return;
-      // A header row's first cell won't look like a real barcode (digits) —
-      // skip it if so, rather than requiring the user to remove it by hand.
-      if (rows[0][0] && !/^\d+$/.test(rows[0][0].trim())) rows.shift();
-      var lines = rows
-        .filter(function (r) { return r[0] && r[0].trim(); })
-        .map(function (r) {
-          return [
-            (r[0] || "").trim(),
-            (r[1] || "").trim(),
-            (r[2] || "").trim(),
-            (r[3] || "").trim(),
-            (r[4] || "").trim(),
-            (r[5] || "").trim(),
-          ].join("|");
-        });
-      document.getElementById("bulkAddInput").value = lines.join("\n");
-      toast(lines.length + " sətir CSV-dən oxundu — aşağıda yoxlayıb \"Hamısını əlavə et\" düyməsinə basın");
+      if (isExcel) {
+        // XLSX.js is loaded from CDN (see the <script> tag near the top of
+        // <body>) — .xlsx is a zipped binary format, not text, so it needs
+        // a real parser rather than the hand-rolled parseCsv() below.
+        if (typeof XLSX === "undefined") {
+          toast("Excel oxuyucusu yüklənmədi — internet bağlantınızı yoxlayıb səhifəni yeniləyin.");
+          return;
+        }
+        var workbook = XLSX.read(reader.result, { type: "array" });
+        var firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        var rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, blankrows: false, defval: "" });
+        applyBulkRows(rows, "Excel");
+      } else {
+        applyBulkRows(parseCsv(String(reader.result)), "CSV");
+      }
     };
-    reader.readAsText(file);
+    if (isExcel) {
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.readAsText(file);
+    }
   });
 
   document.getElementById("bulkToggleBtn").addEventListener("click", function () {
