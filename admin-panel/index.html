@@ -418,6 +418,12 @@
     <div id="premiumRevenueByPlan"></div>
     <h3 style="margin: 18px 0 8px; font-size: 14px; color: var(--muted);">Platform üzrə</h3>
     <div id="premiumRevenueByPlatform"></div>
+    <h3 style="margin: 18px 0 8px; font-size: 14px; color: var(--muted);">İstifadəçi üzrə (kim neçə dəfə alıb)</h3>
+    <p class="hint">
+      Test/sandbox alışı buraya düşübsə, o sətrin yanındakı "Sil" düyməsi ilə çıxara bilərsiniz — yalnız bu
+      qeydi silir, istifadəçinin Premium statusuna toxunmur.
+    </p>
+    <div id="premiumRevenueByUser"></div>
 
     <div class="panel-head" style="margin-top: 32px;">
       <h2>Refund qeydləri</h2>
@@ -2831,7 +2837,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   }
 
   function loadPremiumRevenue() {
-    sb("purchase_events?select=product_id,estimated_usd_amount,purchased_at")
+    sb("purchase_events?select=id,user_id,product_id,estimated_usd_amount,purchased_at")
       .then(function (rows) {
         rows = rows || [];
         var monthStart = new Date();
@@ -2844,6 +2850,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         var monthUsd = 0;
         var byPlan = {};
         var byPlatform = {};
+        var byUser = {};
 
         rows.forEach(function (r) {
           var amount = Number(r.estimated_usd_amount) || 0;
@@ -2860,6 +2867,11 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
           if (!byPlatform[platform]) byPlatform[platform] = { count: 0, usd: 0 };
           byPlatform[platform].count++;
           byPlatform[platform].usd += amount;
+
+          if (!byUser[r.user_id]) byUser[r.user_id] = { count: 0, usd: 0, rows: [] };
+          byUser[r.user_id].count++;
+          byUser[r.user_id].usd += amount;
+          byUser[r.user_id].rows.push(r);
         });
 
         document.getElementById("revenueTotalCount").textContent = totalCount;
@@ -2874,6 +2886,8 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
           empty.className = "empty-state";
           empty.textContent = "Hələ heç bir Premium alış qeydə alınmayıb.";
           byPlanWrap.appendChild(empty);
+          var byUserWrapEmpty = document.getElementById("premiumRevenueByUser");
+          if (byUserWrapEmpty) byUserWrapEmpty.innerHTML = "";
           return;
         }
         Object.keys(byPlan)
@@ -2907,12 +2921,68 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
             byPlatformWrap.appendChild(row);
           });
         }
+
+        var byUserWrap = document.getElementById("premiumRevenueByUser");
+        if (byUserWrap) {
+          byUserWrap.innerHTML = "";
+          Object.keys(byUser)
+            .sort(function (a, b) { return byUser[b].count - byUser[a].count; })
+            .forEach(function (userId) {
+              var stats = byUser[userId];
+              var card = document.createElement("div");
+              card.className = "place-card";
+              card.style.marginBottom = "8px";
+              var purchasesHtml = stats.rows
+                .slice()
+                .sort(function (a, b) { return new Date(b.purchased_at) - new Date(a.purchased_at); })
+                .map(function (r) {
+                  return (
+                    '<div class="pc-sub" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">' +
+                      '<span>' + esc(PURCHASE_PLAN_LABEL[r.product_id] || r.product_id) +
+                        ' · $' + Number(r.estimated_usd_amount).toFixed(2) +
+                        ' · ' + new Date(r.purchased_at).toLocaleDateString("az-AZ") + '</span>' +
+                      '<button type="button" class="place-delete-btn btn-sm" data-purchase-id="' + r.id + '">Sil</button>' +
+                    '</div>'
+                  );
+                })
+                .join("");
+              card.innerHTML =
+                '<div>' +
+                  '<div class="pc-title">' + esc(userLabel(userId)) + '</div>' +
+                  '<div class="pc-sub">' + stats.count + ' alış · təxmini $' + stats.usd.toFixed(2) + '</div>' +
+                  purchasesHtml +
+                '</div>';
+              card.querySelectorAll('[data-purchase-id]').forEach(function (delBtn) {
+                delBtn.addEventListener("click", function () {
+                  deletePurchaseEvent(delBtn.getAttribute("data-purchase-id"), delBtn);
+                });
+              });
+              byUserWrap.appendChild(card);
+            });
+        }
       })
       .catch(function (err) {
         toast("Gəlir məlumatı yüklənmədi: " + err.message);
       });
   }
   document.getElementById("premiumRevenueRefreshBtn").addEventListener("click", loadPremiumRevenue);
+
+  // Removes one purchase_events row (e.g. a sandbox/test purchase that
+  // polluted the revenue estimate above) — purely a bookkeeping cleanup,
+  // never touches the user's actual users.plan/premium_expires_at.
+  function deletePurchaseEvent(id, btn) {
+    if (!window.confirm("Bu alış qeydi silinsin? (İstifadəçinin Premium statusuna toxunmur, yalnız gəlir hesabatından çıxarılır.)")) return;
+    btn.disabled = true;
+    sb("purchase_events?id=eq." + id, { method: "DELETE", headers: { "Prefer": "return=minimal" } })
+      .then(function () {
+        logAudit("delete_purchase_event", "purchase_events", id, null);
+        loadPremiumRevenue();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+        btn.disabled = false;
+      });
+  }
 
   function loadRefundLog() {
     var wrap = document.getElementById("refundLogList");

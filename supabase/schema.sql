@@ -1106,6 +1106,11 @@ drop policy if exists "Public insert" on purchase_events;
 create policy "Public insert" on purchase_events for insert with check (true);
 drop policy if exists "Public read" on purchase_events;
 create policy "Public read" on purchase_events for select using (true);
+-- No delete policy originally — a sandbox/test purchase had no way to be
+-- removed from the admin panel's revenue dashboard. See
+-- migration_2026_09_08_purchase_events_admin_delete.sql.
+drop policy if exists "Admin delete" on purchase_events;
+create policy "Admin delete" on purchase_events for delete using (is_admin());
 
 -- Registration country, set once via a Vercel function (see
 -- admin-panel/api/register-country.js) that reads Vercel's own
