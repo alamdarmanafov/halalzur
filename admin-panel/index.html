@@ -900,16 +900,26 @@
     </div>
     <div class="place-form" id="importSourceWrap" hidden style="margin-top: 12px;">
       <p class="hint">
-        Wolt-da bir marketin (məs. Araz Almarket, Bravo) səhifə linkini yapışdırın — ad, qiymət və (varsa) barkodu
-        çəkəcək. Bu, yalnız <b>önizləmədir</b> — heç nə avtomatik bazaya yazılmır, halal statusuna toxunulmur.
+        Wolt-da market səhifələrinin (məs. Araz Almarket, Bravo) linklərini — hər sətirdə bir link — yapışdırın.
+        Ad, qiymət, şəkil və (varsa) barkodu çəkəcək. Barkodu olanları görəndən sonra aşağıdakı düymə ilə bazaya
+        <code>status: naməlum</code> kimi əlavə edə bilərsiniz (mövcud barkodlar üstündən yazılmır, halal statusuna
+        toxunulmur — bu, yalnız yeni məhsulun bazada görünməsi üçündür).
       </p>
       <div class="field">
-        <label for="importSourceUrl">Wolt link</label>
-        <input type="text" id="importSourceUrl" placeholder="https://wolt.com/az/aze/baku/venue/araz" />
+        <label for="importSourceUrls">Wolt linkləri (hər sətirdə bir link)</label>
+        <textarea
+          id="importSourceUrls"
+          rows="4"
+          placeholder="https://wolt.com/az/aze/baku/venue/araz
+https://wolt.com/az/aze/baku/venue/bravo-supermarket-bulbul-ave"
+        ></textarea>
       </div>
       <button type="button" class="btn btn-approve" id="importSourceFetchBtn">Çək</button>
       <div class="gate-error" id="importSourceError"></div>
       <div id="importSourceResults" style="margin-top: 12px;"></div>
+      <button type="button" class="btn btn-approve" id="importSourceAddBtn" hidden style="margin-top: 12px;">
+        Barkodlu olanları bazaya əlavə et
+      </button>
     </div>
 
     </div>
@@ -7346,73 +7356,190 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       });
   });
 
+  // "Sütaş Süd 3.2% 1 L" → brand "Sütaş", name "Süd 3.2% 1 L" — Wolt only
+  // gives one combined name string; certified_entries.brand is required
+  // (not null), so this is how a value for it gets derived. First word is
+  // taken as the brand; if that's all there is, the venue name is used as
+  // a fallback so the row is never left with an empty brand.
+  function splitWoltName(full, fallbackBrand) {
+    var rest = (full || "").replace(/\s+/g, " ").trim();
+    var words = rest.split(" ");
+    if (words.length >= 2) return { brand: words[0], name: words.slice(1).join(" ") };
+    return { brand: fallbackBrand || "Wolt", name: rest };
+  }
+
+  var importSourceFetched = []; // [{ venue, venueUrl, items }] from the last "Çək" run
+
   document.getElementById("importSourceToggleBtn").addEventListener("click", function () {
     var wrap = document.getElementById("importSourceWrap");
     wrap.hidden = !wrap.hidden;
   });
 
-  // Preview-only: pulls name/price/barcode/image from a Wolt venue link
-  // via admin-panel/api/import-source.js — nothing here writes to
-  // certified_entries or touches halal status, this is just a look at
-  // what's on the venue's page.
+  // Fetches every pasted Wolt link one at a time (admin-panel/api/
+  // import-source.js does the actual server-side call) and shows a
+  // combined preview — this step alone never writes anything;
+  // importSourceAddBtn's handler further down is the only thing that
+  // inserts rows, and only for items that came back with a barcode.
   document.getElementById("importSourceFetchBtn").addEventListener("click", function () {
     var errorEl = document.getElementById("importSourceError");
     var resultsEl = document.getElementById("importSourceResults");
-    var url = document.getElementById("importSourceUrl").value.trim();
+    var addBtn = document.getElementById("importSourceAddBtn");
+    var urls = document
+      .getElementById("importSourceUrls")
+      .value.split("\n")
+      .map(function (u) { return u.trim(); })
+      .filter(Boolean);
     errorEl.textContent = "";
     resultsEl.innerHTML = "";
-    if (!url) {
-      errorEl.textContent = "Link boşdur.";
+    addBtn.hidden = true;
+    importSourceFetched = [];
+    if (!urls.length) {
+      errorEl.textContent = "Ən azı bir link yazın.";
       return;
     }
+
     var btn = this;
     btn.disabled = true;
     var original = btn.textContent;
-    btn.textContent = "Çəkilir…";
-    fetch("/api/import-source", {
-      method: "POST",
-      headers: adminApiHeaders(),
-      body: JSON.stringify({ url: url }),
-    })
-      .then(function (res) { return res.json().then(function (json) { return { ok: res.ok, json: json }; }); })
-      .then(function (r) {
-        if (!r.ok) throw new Error(r.json.error || "unknown_error");
-        var items = r.json.items || [];
-        if (!items.length) {
-          resultsEl.innerHTML = '<div class="empty-state">Heç bir məhsul tapılmadı.</div>';
-          return;
-        }
-        var header = document.createElement("p");
-        header.className = "hint";
-        header.textContent = (r.json.venue || "Market") + " — " + items.length + " məhsul tapıldı:";
-        resultsEl.appendChild(header);
-        items.slice(0, 200).forEach(function (it) {
-          var row = document.createElement("div");
-          row.className = "place-card";
-          row.style.marginBottom = "8px";
-          row.style.display = "flex";
-          row.style.gap = "10px";
-          row.style.alignItems = "center";
-          var imgHtml = it.image_url
-            ? '<img src="' + esc(it.image_url) + '" style="width:40px; height:40px; object-fit:cover; border-radius:8px; flex-shrink:0;" />'
-            : "";
-          var priceHtml = it.price != null
-            ? it.price.toFixed(2) + " ₼" + (it.regular_price ? ' <s style="opacity:0.6;">' + it.regular_price.toFixed(2) + " ₼</s>" : "")
-            : "qiymət yoxdur";
-          row.innerHTML =
-            imgHtml +
-            '<div>' +
-              '<div class="pc-title">' + esc(it.name) + '</div>' +
-              '<div class="pc-sub">' + priceHtml + (it.barcode ? " · barkod: " + esc(it.barcode) : "") + '</div>' +
-            '</div>';
-          resultsEl.appendChild(row);
+    var errors = [];
+
+    function fetchOne(i) {
+      if (i >= urls.length) return Promise.resolve();
+      btn.textContent = "Çəkilir… (" + (i + 1) + "/" + urls.length + ")";
+      return fetch("/api/import-source", {
+        method: "POST",
+        headers: adminApiHeaders(),
+        body: JSON.stringify({ url: urls[i] }),
+      })
+        .then(function (res) { return res.json().then(function (json) { return { ok: res.ok, json: json }; }); })
+        .then(function (r) {
+          if (!r.ok) throw new Error(r.json.error || "unknown_error");
+          importSourceFetched.push({ venue: r.json.venue || urls[i], venueUrl: urls[i], items: r.json.items || [] });
+        })
+        .catch(function (err) {
+          errors.push(urls[i] + ": " + err.message);
+        })
+        .then(function () { return fetchOne(i + 1); });
+    }
+
+    fetchOne(0)
+      .then(function () {
+        var totalItems = importSourceFetched.reduce(function (n, v) { return n + v.items.length; }, 0);
+        var barcodeItems = [];
+        importSourceFetched.forEach(function (v) {
+          v.items.forEach(function (it) {
+            if (it.barcode) barcodeItems.push({ it: it, venue: v.venue, venueUrl: v.venueUrl });
+          });
         });
-        if (items.length > 200) {
-          var more = document.createElement("p");
-          more.className = "hint";
-          more.textContent = "+ daha " + (items.length - 200) + " məhsul (yalnız ilk 200 göstərilir).";
-          resultsEl.appendChild(more);
+
+        if (!totalItems && !errors.length) {
+          resultsEl.innerHTML = '<div class="empty-state">Heç bir məhsul tapılmadı.</div>';
         }
+
+        if (totalItems) {
+          var header = document.createElement("p");
+          header.className = "hint";
+          header.textContent =
+            importSourceFetched.length + " market, cəmi " + totalItems + " məhsul (bunlardan " +
+            barcodeItems.length + " barkodlu) tapıldı:";
+          resultsEl.appendChild(header);
+
+          barcodeItems.slice(0, 200).forEach(function (entry) {
+            var it = entry.it;
+            var row = document.createElement("div");
+            row.className = "place-card";
+            row.style.marginBottom = "8px";
+            row.style.display = "flex";
+            row.style.gap = "10px";
+            row.style.alignItems = "center";
+            var imgHtml = it.image_url
+              ? '<img src="' + esc(it.image_url) + '" style="width:40px; height:40px; object-fit:cover; border-radius:8px; flex-shrink:0;" />'
+              : "";
+            var priceHtml = it.price != null
+              ? it.price.toFixed(2) + " ₼" + (it.regular_price ? ' <s style="opacity:0.6;">' + it.regular_price.toFixed(2) + " ₼</s>" : "")
+              : "qiymət yoxdur";
+            row.innerHTML =
+              imgHtml +
+              '<div>' +
+                '<div class="pc-title">' + esc(it.name) + '</div>' +
+                '<div class="pc-sub">' + priceHtml + " · barkod: " + esc(it.barcode) + " · " + esc(entry.venue) + '</div>' +
+              '</div>';
+            resultsEl.appendChild(row);
+          });
+          if (barcodeItems.length > 200) {
+            var more = document.createElement("p");
+            more.className = "hint";
+            more.textContent = "+ daha " + (barcodeItems.length - 200) + " barkodlu məhsul (yalnız ilk 200 göstərilir, hamısı əlavə ediləcək).";
+            resultsEl.appendChild(more);
+          }
+          if (barcodeItems.length) addBtn.hidden = false;
+        }
+
+        if (errors.length) errorEl.textContent = errors.join(" | ");
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
+
+  // Inserts every barcode-carrying item from the last fetch as a
+  // status='unknown' product (certifier_id 'wolt' — see
+  // migration_2026_09_09_wolt_certifier_placeholder.sql) — same additive
+  // pattern scripts/sync/run.ts already uses for Open Food Facts/
+  // AzExport: on_conflict=barcode with ignore-duplicates means an
+  // existing barcode (a real certification, or an earlier import) is
+  // never touched or overwritten, only genuinely new barcodes get added.
+  document.getElementById("importSourceAddBtn").addEventListener("click", function () {
+    var errorEl = document.getElementById("importSourceError");
+    var barcodeItems = [];
+    importSourceFetched.forEach(function (v) {
+      v.items.forEach(function (it) {
+        if (it.barcode) barcodeItems.push({ it: it, venue: v.venue, venueUrl: v.venueUrl });
+      });
+    });
+    if (!barcodeItems.length) return;
+
+    // Same barcode from two different venues (or duplicated on one) —
+    // keep the first, PostgREST would otherwise reject the whole batch
+    // on a duplicate key within the same insert.
+    var seen = {};
+    var rows = [];
+    barcodeItems.forEach(function (entry) {
+      if (seen[entry.it.barcode]) return;
+      seen[entry.it.barcode] = true;
+      var sp = splitWoltName(entry.it.name, entry.venue);
+      rows.push({
+        entry_type: "product",
+        barcode: entry.it.barcode,
+        product_name: sp.name,
+        brand: sp.brand,
+        category: null,
+        status: "unknown",
+        certifier_id: "wolt",
+        certificate_number: null,
+        verified_at: null,
+        ingredients: [],
+        notes: null,
+        image_url: entry.it.image_url,
+        source_url: entry.venueUrl,
+      });
+    });
+
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Əlavə edilir…";
+    sb("certified_entries?on_conflict=barcode", {
+      method: "POST",
+      headers: { "Prefer": "resolution=ignore-duplicates,return=minimal" },
+      body: rows,
+    })
+      .then(function () {
+        toast(rows.length + " barkodlu məhsul bazaya əlavə edildi (mövcud barkodlar üstündən yazılmadı)");
+        btn.hidden = true;
+        loadProducts();
+        loadUnclassified();
       })
       .catch(function (err) {
         errorEl.textContent = "Xəta: " + err.message;

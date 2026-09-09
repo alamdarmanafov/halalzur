@@ -1471,6 +1471,14 @@ on conflict (days_inactive) do nothing;
 insert into certifiers (id, name, short_name, country, source_url) values
   ('azexport', 'AzExport.az (açıq baza, hələ yoxlanılmayıb)', 'AzExport', 'Azərbaycan', 'https://azexport.az/')
 on conflict (id) do nothing;
+
+-- Not a certifier — same placeholder role as 'openfoodfacts' and
+-- 'azexport' above: barcoded items pulled from a Wolt venue link
+-- (admin-panel's "Linkdən qiymət çək" import) get inserted as
+-- status='unknown' rows tagged with this id, never a real halal claim.
+insert into certifiers (id, name, short_name, country, source_url) values
+  ('wolt', 'Wolt (market tətbiqi, hələ yoxlanılmayıb)', 'Wolt', 'Azərbaycan', 'https://wolt.com/')
+on conflict (id) do nothing;
 -- Run this in Supabase → SQL Editor. Safe to run more than once.
 --
 -- Closes the smaller, lower-urgency gap flagged in
