@@ -895,6 +895,23 @@
       <div class="gate-error" id="bulkAddError"></div>
     </div>
 
+    <div style="margin-top: 16px;">
+      <button type="button" class="btn" id="importSourceToggleBtn">Linkdən qiymət çək (Wolt/Araz Almarket)</button>
+    </div>
+    <div class="place-form" id="importSourceWrap" hidden style="margin-top: 12px;">
+      <p class="hint">
+        Wolt-da bir marketin (məs. Araz Almarket, Bravo) səhifə linkini yapışdırın — ad, qiymət və (varsa) barkodu
+        çəkəcək. Bu, yalnız <b>önizləmədir</b> — heç nə avtomatik bazaya yazılmır, halal statusuna toxunulmur.
+      </p>
+      <div class="field">
+        <label for="importSourceUrl">Wolt link</label>
+        <input type="text" id="importSourceUrl" placeholder="https://wolt.com/az/aze/baku/venue/araz" />
+      </div>
+      <button type="button" class="btn btn-approve" id="importSourceFetchBtn">Çək</button>
+      <div class="gate-error" id="importSourceError"></div>
+      <div id="importSourceResults" style="margin-top: 12px;"></div>
+    </div>
+
     </div>
 
     <div id="productsTabBrowseList">
@@ -3749,7 +3766,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     var original = btn.textContent;
     btn.textContent = "Yoxlanılır…";
     wrap.textContent = "Yoxlanılır (bir neçə saniyə çəkə bilər)…";
-    fetch("/api/check-certifier-links", {
+    fetch("/api/admin-utils?action=check-certifier-links", {
       method: "POST",
       headers: adminApiHeaders(),
     })
@@ -6759,7 +6776,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     offLookup
       .then(function (offResult) {
         if (offResult) return offResult;
-        return fetch("/api/find-ecodes-ai", {
+        return fetch("/api/admin-utils?action=find-ecodes-ai", {
           method: "POST",
           headers: adminApiHeaders(),
           body: JSON.stringify({ productName: row.product_name || row.brand, brand: row.brand }),
@@ -7326,6 +7343,83 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       .finally(function () {
         btn.disabled = false;
         btn.textContent = "Hamısını əlavə et";
+      });
+  });
+
+  document.getElementById("importSourceToggleBtn").addEventListener("click", function () {
+    var wrap = document.getElementById("importSourceWrap");
+    wrap.hidden = !wrap.hidden;
+  });
+
+  // Preview-only: pulls name/price/barcode/image from a Wolt venue link
+  // via admin-panel/api/import-source.js — nothing here writes to
+  // certified_entries or touches halal status, this is just a look at
+  // what's on the venue's page.
+  document.getElementById("importSourceFetchBtn").addEventListener("click", function () {
+    var errorEl = document.getElementById("importSourceError");
+    var resultsEl = document.getElementById("importSourceResults");
+    var url = document.getElementById("importSourceUrl").value.trim();
+    errorEl.textContent = "";
+    resultsEl.innerHTML = "";
+    if (!url) {
+      errorEl.textContent = "Link boşdur.";
+      return;
+    }
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Çəkilir…";
+    fetch("/api/import-source", {
+      method: "POST",
+      headers: adminApiHeaders(),
+      body: JSON.stringify({ url: url }),
+    })
+      .then(function (res) { return res.json().then(function (json) { return { ok: res.ok, json: json }; }); })
+      .then(function (r) {
+        if (!r.ok) throw new Error(r.json.error || "unknown_error");
+        var items = r.json.items || [];
+        if (!items.length) {
+          resultsEl.innerHTML = '<div class="empty-state">Heç bir məhsul tapılmadı.</div>';
+          return;
+        }
+        var header = document.createElement("p");
+        header.className = "hint";
+        header.textContent = (r.json.venue || "Market") + " — " + items.length + " məhsul tapıldı:";
+        resultsEl.appendChild(header);
+        items.slice(0, 200).forEach(function (it) {
+          var row = document.createElement("div");
+          row.className = "place-card";
+          row.style.marginBottom = "8px";
+          row.style.display = "flex";
+          row.style.gap = "10px";
+          row.style.alignItems = "center";
+          var imgHtml = it.image_url
+            ? '<img src="' + esc(it.image_url) + '" style="width:40px; height:40px; object-fit:cover; border-radius:8px; flex-shrink:0;" />'
+            : "";
+          var priceHtml = it.price != null
+            ? it.price.toFixed(2) + " ₼" + (it.regular_price ? ' <s style="opacity:0.6;">' + it.regular_price.toFixed(2) + " ₼</s>" : "")
+            : "qiymət yoxdur";
+          row.innerHTML =
+            imgHtml +
+            '<div>' +
+              '<div class="pc-title">' + esc(it.name) + '</div>' +
+              '<div class="pc-sub">' + priceHtml + (it.barcode ? " · barkod: " + esc(it.barcode) : "") + '</div>' +
+            '</div>';
+          resultsEl.appendChild(row);
+        });
+        if (items.length > 200) {
+          var more = document.createElement("p");
+          more.className = "hint";
+          more.textContent = "+ daha " + (items.length - 200) + " məhsul (yalnız ilk 200 göstərilir).";
+          resultsEl.appendChild(more);
+        }
+      })
+      .catch(function (err) {
+        errorEl.textContent = "Xəta: " + err.message;
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
       });
   });
 

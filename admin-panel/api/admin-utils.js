@@ -1,0 +1,191 @@
+// Vercel serverless function — two small, unrelated admin-only lookup
+// utilities sharing one route (dispatched by the ?action= query param),
+// same pattern as cron-jobs.js's ?job=. Vercel's Hobby (free) plan caps a
+// deployment at 12 serverless functions and every file under
+// admin-panel/api/ is its own — merging what used to be
+// check-certifier-links.js and find-ecodes-ai.js is the standard
+// workaround, freeing a slot for import-source.js.
+//
+// Each action keeps its own env-var check and try/catch, so one action's
+// failure can't affect the other's — this is really two independent
+// functions sharing one file, not one combined pipeline.
+//
+// Required Vercel environment variables:
+//   SUPABASE_ANON_KEY, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY — shared
+//   OPENAI_API_KEY, OPENAI_MODEL (optional) — find-ecodes-ai only
+//
+// Auth: both actions verify the caller's Supabase Auth token belongs to
+// a real admin (admin-panel/lib/verifyAdmin.js).
+import { verifyAdmin } from '../lib/verifyAdmin.js';
+
+// ---- action=check-certifier-links ----
+// Checks whether each certifier's source_url still resolves. Runs
+// server-side rather than from the browser because a third-party site's
+// CORS policy (or lack of one) can't be relied on for a client-side
+// fetch, and a broken/expired certifier link is otherwise invisible
+// until someone happens to click it.
+async function runCheckCertifierLinks(res) {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_ANON_KEY) {
+    res.status(500).json({ error: 'supabase_not_configured' });
+    return;
+  }
+  try {
+    const listRes = await fetch(
+      `${process.env.SUPABASE_URL}/rest/v1/certifiers?select=id,short_name,source_url&source_url=not.is.null`,
+      { headers: { apikey: process.env.SUPABASE_ANON_KEY, Authorization: `Bearer ${process.env.SUPABASE_ANON_KEY}` } }
+    );
+    if (!listRes.ok) throw new Error(`certifiers list failed: ${listRes.status}`);
+    const certifiers = await listRes.json();
+
+    const results = await Promise.all(
+      certifiers.map(async (c) => {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 8000);
+          const r = await fetch(c.source_url, { method: 'GET', redirect: 'follow', signal: controller.signal });
+          clearTimeout(timeout);
+          return { id: c.id, short_name: c.short_name, source_url: c.source_url, ok: r.ok, status: r.status };
+        } catch (err) {
+          return { id: c.id, short_name: c.short_name, source_url: c.source_url, ok: false, status: null, error: err.message };
+        }
+      })
+    );
+
+    res.status(200).json({ results });
+  } catch (err) {
+    console.error('admin-utils/check-certifier-links: unexpected error', err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// ---- action=find-ecodes-ai ----
+// AI fallback for the admin panel's "E-kodları avtomatik tap" button,
+// used only when Open Food Facts (queried directly from the browser, no
+// server call needed) has no ingredients_text for the barcode.
+//
+// Uses OpenAI's Responses API with its web_search tool to search the web
+// for the product's ingredient list, then extracts E-codes with our own
+// regex from whatever text comes back — the model's own claimed E-code
+// list is never trusted directly, only the raw text it cites, and the
+// admin panel always shows AI-sourced codes as a review list the admin
+// must explicitly confirm before anything is written to the database.
+// The halal status itself is never touched by this — that stays a human
+// (admin) decision, same as every other product edit.
+//
+// NOTE ON THE OPENAI RESPONSE SHAPE: this was written without being able
+// to reach platform.openai.com's current docs (network-blocked in the
+// build environment), so the JSON parsing below is deliberately
+// schema-tolerant — it walks the whole response recursively collecting
+// every string under a "text" key and every string under a "url" key,
+// rather than depending on one exact field path.
+//
+// Degrades gracefully: if OPENAI_API_KEY isn't set, returns
+// { source: "not_configured" } instead of erroring.
+const ECODE_PATTERN = /E\s?\d{3,4}[a-z]?/gi;
+
+function extractECodes(text) {
+  if (!text) return [];
+  const matches = text.match(ECODE_PATTERN) || [];
+  const normalized = matches.map((m) => m.toUpperCase().replace(/\s+/g, ''));
+  return [...new Set(normalized)];
+}
+
+// Recursively collects every string value found under the given key
+// name anywhere in the object/array tree — see the shape-tolerance note
+// above for why this is written this way instead of a fixed field path.
+function collectStrings(node, key, out) {
+  if (node == null) return;
+  if (Array.isArray(node)) {
+    node.forEach((v) => collectStrings(v, key, out));
+    return;
+  }
+  if (typeof node === 'object') {
+    Object.keys(node).forEach((k) => {
+      const v = node[k];
+      if (k === key && typeof v === 'string') out.push(v);
+      else collectStrings(v, key, out);
+    });
+  }
+}
+
+async function runFindEcodesAi(req, res) {
+  const { productName, brand } = req.body || {};
+  if (!productName) {
+    res.status(400).json({ error: 'missing_fields' });
+    return;
+  }
+
+  if (!process.env.OPENAI_API_KEY) {
+    res.status(200).json({ source: 'not_configured', ecodes: [] });
+    return;
+  }
+
+  try {
+    const prompt =
+      `Search the web for the full ingredients/composition list of the food product "${productName}"` +
+      (brand ? ` made by "${brand}"` : '') +
+      `. Report the ingredient list exactly as you find it on a manufacturer, retailer, or ingredient-database page, ` +
+      `including any E-numbers/E-codes (like E471, E322) exactly as written. Name the source URL you found it on. ` +
+      `If you cannot find a real ingredient list for this specific product, say so plainly instead of guessing.`;
+
+    const aiRes = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        tools: [{ type: 'web_search' }],
+        input: prompt,
+      }),
+    });
+
+    if (!aiRes.ok) {
+      const errText = await aiRes.text().catch(() => '');
+      console.error('admin-utils/find-ecodes-ai: OpenAI API error', aiRes.status, errText);
+      res.status(200).json({ source: 'error', ecodes: [] });
+      return;
+    }
+
+    const json = await aiRes.json();
+
+    const texts = [];
+    collectStrings(json, 'text', texts);
+    // The Responses API convenience field, when present, is the
+    // cleanest single source of the final answer text.
+    if (typeof json.output_text === 'string') texts.unshift(json.output_text);
+    const rawText = texts.join('\n').trim();
+
+    const urls = [];
+    collectStrings(json, 'url', urls);
+    const citation = urls.find((u) => /^https?:\/\//i.test(u)) || null;
+
+    const ecodes = extractECodes(rawText);
+    res.status(200).json({ source: 'ai', ecodes, rawText, citation });
+  } catch (err) {
+    console.error('admin-utils/find-ecodes-ai: unexpected error', err);
+    res.status(200).json({ source: 'error', ecodes: [] });
+  }
+}
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'method_not_allowed' });
+    return;
+  }
+  const admin = await verifyAdmin(req);
+  if (!admin) {
+    res.status(401).json({ error: 'unauthorized' });
+    return;
+  }
+
+  const action = req.query.action;
+  if (action === 'check-certifier-links') {
+    await runCheckCertifierLinks(res);
+  } else if (action === 'find-ecodes-ai') {
+    await runFindEcodesAi(req, res);
+  } else {
+    res.status(400).json({ error: 'unknown_action' });
+  }
+}
