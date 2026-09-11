@@ -4032,7 +4032,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     var code = document.getElementById("customEcodeCode").value.trim().toUpperCase().replace(/\s+/g, "");
     // Labels/admins often write just the number ("1422") without the "E"
     // prefix — treat that the same as "E1422" instead of rejecting it.
-    if (/^\d{3,4}[A-Z]?$/.test(code)) code = "E" + code;
+    if (/^\d{3,4}[A-Z]*$/.test(code)) code = "E" + code;
     var name = document.getElementById("customEcodeName").value.trim();
     var category = document.getElementById("customEcodeCategory").value.trim();
     var status = document.getElementById("customEcodeStatus").value;
@@ -4040,10 +4040,6 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
 
     if (!code || !name) {
       errorEl.textContent = "Kod və ad tələb olunur.";
-      return;
-    }
-    if (!ECODE_PATTERN.test(code)) {
-      errorEl.textContent = "Düzgün E-kod formatı deyil (məs. E100 və ya E472a).";
       return;
     }
     if (!status) {
@@ -5806,15 +5802,14 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
 
   document.getElementById("productBulkAddEcodeBtn").addEventListener("click", function () {
     var raw = document.getElementById("productBulkEcodeInput").value.trim();
-    var candidates = raw.split(/[,;\n]+/).map(function (c) { return c.trim().toUpperCase().replace(/\s+/g, ""); }).filter(Boolean);
+    // No format check on purpose — this field is also used to tag products
+    // with plain-text haram/mushbooh ingredient keywords (e.g. "jelatin"),
+    // not just official E-codes, so any non-empty entry is accepted as-is.
+    var candidates = raw.split(/[,;\n]+/).map(function (c) { return c.trim().toUpperCase().replace(/\s+/g, " "); }).filter(Boolean);
     var codes = [];
     var seen = {};
     for (var i = 0; i < candidates.length; i++) {
       var c = candidates[i];
-      if (!ECODE_PATTERN.test(c)) {
-        toast("Düzgün E-kod formatı deyil: " + c + " (məs. E100, E472a)");
-        return;
-      }
       if (!seen[c]) { seen[c] = true; codes.push(c); }
     }
     if (!codes.length) return;
@@ -6905,12 +6900,8 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   function addEcodeToProduct(row, card, input) {
     var raw = input.value.trim();
     if (!raw) return;
-    var code = raw.split(" — ")[0].trim().toUpperCase().replace(/\s+/g, "");
-    if (/^\d{3,4}[A-Z]?$/.test(code)) code = "E" + code;
-    if (!ECODE_PATTERN.test(code)) {
-      toast("Düzgün E-kod formatı deyil (məs. E100)");
-      return;
-    }
+    var code = raw.split(" — ")[0].trim().toUpperCase().replace(/\s+/g, " ");
+    if (/^\d{3,4}[A-Z]*$/.test(code)) code = "E" + code;
     var ingredients = (row.ingredients || []).slice();
     if (ingredients.some(function (ing) { return ing.toUpperCase() === code; })) {
       toast(code + " artıq tərkibdə var");
@@ -7184,12 +7175,8 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     document.getElementById("addProductEcodeBtn").addEventListener("click", function () {
       var raw = ecodeInput.value.trim();
       if (!raw) return;
-      var code = raw.split(" — ")[0].trim().toUpperCase().replace(/\s+/g, "");
-      if (/^\d{3,4}[A-Z]?$/.test(code)) code = "E" + code;
-      if (!ECODE_PATTERN.test(code)) {
-        toast("Düzgün E-kod formatı deyil (məs. E100)");
-        return;
-      }
+      var code = raw.split(" — ")[0].trim().toUpperCase().replace(/\s+/g, " ");
+      if (/^\d{3,4}[A-Z]*$/.test(code)) code = "E" + code;
       var ingredientsField = document.getElementById("productIngredients");
       var parts = ingredientsField.value.split(",").map(function (s) { return s.trim(); }).filter(Boolean);
       if (parts.some(function (p) { return p.toUpperCase() === code; })) {
