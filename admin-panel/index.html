@@ -827,7 +827,9 @@
         </div>
         <div class="field">
           <label for="productCategory">Kateqoriya</label>
-          <input type="text" id="productCategory" placeholder="Məs. Şirniyyat" />
+          <select id="productCategory">
+            <option value="">— Kateqoriya seçin —</option>
+          </select>
         </div>
         <div class="field">
           <label for="productStatus">Status</label>
@@ -4817,7 +4819,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       '</div>' +
       '<div class="field" style="margin-top:10px; max-width:220px;">' +
         '<label>Kateqoriya</label>' +
-        '<input type="text" data-role="category-input" placeholder="Məs. Şirniyyat" />' +
+        '<select data-role="category-input"></select>' +
       '</div>' +
       '<div class="sc-actions">' +
         '<button class="btn btn-approve" data-action="approve">Təsdiqlə (+' + POINTS_PER_APPROVAL + ' xal)</button>' +
@@ -4832,7 +4834,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     // submissions land here empty — the app's Products tab can only filter
     // by category chip when this is a real value, so let the admin fill it
     // in before approving instead of it staying blank forever.
-    card.querySelector('[data-role="category-input"]').value = row.category || "";
+    populateCategorySelect(card.querySelector('[data-role="category-input"]'), row.category || "");
 
     card.querySelector('[data-action="approve"]').addEventListener("click", function (e) {
       var chosenStatus = card.querySelector('[data-role="status-select"]').value;
@@ -5561,23 +5563,42 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       }
     });
 
-    // Bulk "kateqoriyasını dəyiş" needs its own option set — it sets a
-    // category, so unlike the filters above it has no "Hamısı"/"Kateqoriyası
-    // yoxdur" pseudo-entries, only a real category (or nothing selected).
-    // Was previously a free-text input, letting a typo or an ad-hoc name
+    // The bulk "kateqoriyasını dəyiş" field and the "Məhsul əlavə et" form's
+    // own Kateqoriya field set a category rather than filter by one, so
+    // (unlike productCategoryFilter/editProductCategoryFilter above) they
+    // get no "Hamısı"/"Kateqoriyası yoxdur" pseudo-entries — just the real
+    // list. Both were free-text inputs, letting a typo or an ad-hoc name
     // create a category that doesn't exist anywhere else in the app.
-    var bulkSelect = document.getElementById("productBulkCategoryInput");
-    var bulkPrevious = bulkSelect.value;
-    bulkSelect.innerHTML = '<option value="">— Kateqoriya seçin —</option>';
-    categories.forEach(function (row) {
+    populateCategorySelect(document.getElementById("productBulkCategoryInput"), document.getElementById("productBulkCategoryInput").value);
+    populateCategorySelect(document.getElementById("productCategory"), document.getElementById("productCategory").value);
+  }
+
+  // Fills a single product card's own "Kateqoriya" <select> with the same
+  // real category list as productCategoryFilter (populated above, well
+  // before any product card renders — loadCategories() runs on app init).
+  // Was a free-text input, so a typo saved straight to the product instead
+  // of being caught — same bug the bulk category-assign field had. If the
+  // product's current category isn't one of the real ones (old typo data,
+  // or a category since renamed/deleted), it's kept as an extra selected
+  // option instead of silently discarded.
+  function populateCategorySelect(select, currentValue) {
+    var realOptions = [].slice.call(document.getElementById("productCategoryFilter").options)
+      .map(function (o) { return o.value; })
+      .filter(function (v) { return v && v !== "__none__"; });
+    select.innerHTML = '<option value="">— Kateqoriya seçin —</option>';
+    realOptions.forEach(function (label) {
       var opt = document.createElement("option");
-      opt.value = row.label;
-      opt.textContent = row.label;
-      bulkSelect.appendChild(opt);
+      opt.value = label;
+      opt.textContent = label;
+      select.appendChild(opt);
     });
-    if ([].slice.call(bulkSelect.options).some(function (o) { return o.value === bulkPrevious; })) {
-      bulkSelect.value = bulkPrevious;
+    if (currentValue && realOptions.indexOf(currentValue) === -1) {
+      var opt = document.createElement("option");
+      opt.value = currentValue;
+      opt.textContent = currentValue + " (siyahıda yoxdur)";
+      select.appendChild(opt);
     }
+    select.value = currentValue || "";
   }
 
   function buildCategoryCard(row) {
@@ -6528,7 +6549,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
           '</div>' +
           '<div class="field" style="flex:1 1 160px; margin:0;">' +
             '<label>Kateqoriya</label>' +
-            '<input type="text" data-role="edit-category" placeholder="Məs. Süd məhsulları" />' +
+            '<select data-role="edit-category"></select>' +
           '</div>' +
           '<div class="field" style="flex:1 1 200px; margin:0;">' +
             '<label>Şəkil linki</label>' +
@@ -6568,7 +6589,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     card.querySelector('[data-role="edit-product-name"]').value = row.product_name || "";
     card.querySelector('[data-role="edit-brand"]').value = row.brand || "";
     card.querySelector('[data-role="edit-status"]').value = row.status || "unknown";
-    card.querySelector('[data-role="edit-category"]').value = row.category || "";
+    populateCategorySelect(card.querySelector('[data-role="edit-category"]'), row.category || "");
     card.querySelector('[data-role="edit-image"]').value = row.image_url || "";
     card.querySelector('[data-role="edit-admin-note"]').value = row.admin_note || "";
     applyStatusSuggestionToCard(row, card);
