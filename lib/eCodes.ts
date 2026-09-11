@@ -30,12 +30,12 @@ export const ECODE_STATUS_LABEL_KEY: Record<ECodeStatus, TranslationKey> = {
  * text can't distinguish them anyway.
  */
 export const E_CODES: ECodeEntry[] = [
-  { code: "E100", name: "Curcumin", category: "Rəngləndirici", status: "halal", note: "Zərdəçal mənşəli sarı rəng — Bitki mənşəli." },
+  { code: "E100", name: "Curcumin", category: "Rəngləndirici", status: "halal", note: "Zərdəçal (Curcuma longa) kökündən alınan sarı-narıncı rəngləyicidir — tərkibindəki kurkumin piqmenti bitki mənşəlidir. Adətən xardal, pendir, kərə yağı, çips və içkilərdə istifadə olunur. Heyvan mənşəli tərkib hissəsi olmadığı üçün bütün sertifikat orqanları tərəfindən halal qəbul edilir." },
   { code: "E101", name: "Riboflavins", category: "Rəngləndirici / vitamin", status: "halal", note: "Vitamin B2 — Mənbə/istehsal üsulu yoxlanıla bilər." },
   { code: "E102", name: "Tartrazine", category: "Rəngləndirici", status: "halal", note: "Sarı sintetik rəng." },
   { code: "E104", name: "Quinoline Yellow", category: "Rəngləndirici", status: "halal", note: "Sarı rəng." },
   { code: "E110", name: "Sunset Yellow FCF", category: "Rəngləndirici", status: "halal", note: "Narıncı-sarı sintetik rəng." },
-  { code: "E120", name: "Carminic acid / Carmine", category: "Rəngləndirici", status: "haram", note: "Koşenil həşəratından alınan qırmızı rəng — Həşərat mənşəli." },
+  { code: "E120", name: "Carminic acid / Carmine", category: "Rəngləndirici", status: "haram", note: "Koşenil (Dactylopius coccus) adlı həşəratın dişi fərdlərinin qurudulub əzilməsi ilə alınan qırmızı rəngləyicidir (digər adları: Karmin, Natural Red 4, Crimson Lake, Cochineal Extract). İçki, şirniyyat, kolbasa/sosis, yoğurt və kosmetikada (məs. dodaq boyası) istifadə olunur. Həşərat mənşəli olduğuna görə GIMDES və əksər halal sertifikat orqanları tərəfindən haram sayılır — həşəratların hökmü barədə fəqihlər arasında fərqli baxışlar olsa da, tətbiqdəki status ehtiyatlı (əksəriyyət) mövqeyi əks etdirir." },
   { code: "E122", name: "Azorubine / Carmoisine", category: "Rəngləndirici", status: "halal", note: "Qırmızı sintetik rəng." },
   { code: "E123", name: "Amaranth", category: "Rəngləndirici", status: "halal", note: "Qırmızı rəng." },
   { code: "E124", name: "Ponceau 4R / Cochineal Red A", category: "Rəngləndirici", status: "halal", note: "Qırmızı sintetik rəng." },
