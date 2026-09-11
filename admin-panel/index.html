@@ -3828,6 +3828,10 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   // category/note detail to show and edit.
   var CUSTOM_ECODE_ROWS = [];
   var ecodeVirtualList = null;
+  // code -> {card, index} for the currently rendered rows, so the inline
+  // edit form (buildEcodeCard) can tell the virtual list its own row grew
+  // taller — same pattern as userCardsByRowId/remeasureUserCard below.
+  var ecodeCardsByCode = {};
 
   function loadCustomEcodes() {
     sb("custom_ecodes?order=code.asc&select=*")
@@ -3917,44 +3921,154 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       return;
     }
     empty.hidden = true;
+    ecodeCardsByCode = {};
     if (!ecodeVirtualList) {
       ecodeVirtualList = createVirtualList(container, {
         estimatedHeight: 110,
-        renderRow: function (entry) { return buildEcodeCard(entry); },
+        renderRow: function (entry, index) {
+          var card = buildEcodeCard(entry);
+          ecodeCardsByCode[entry.code] = { card: card, index: index };
+          return card;
+        },
       });
     }
     ecodeVirtualList.setItems(list);
   }
 
+  // Called after an E-code card's inline edit form opens/closes (changing
+  // its own height) so the virtual list's row offsets stay accurate —
+  // same pattern as remeasureUserCard for the "Ətraflı" detail panel.
+  function remeasureEcodeCard(code) {
+    var entry = ecodeCardsByCode[code];
+    if (entry && ecodeVirtualList) ecodeVirtualList.remeasure(entry.index);
+  }
+
+  function getDistinctEcodeCategories() {
+    var set = {};
+    ECODE_DETAILS.forEach(function (e) { if (e.category) set[e.category] = true; });
+    CUSTOM_ECODE_ROWS.forEach(function (e) { if (e.category) set[e.category] = true; });
+    return Object.keys(set).sort();
+  }
+
+  // Free-text category on custom_ecodes (no separate categories table for
+  // E-codes, unlike products) — offers the existing spread instead of a
+  // blank field, with a "+ Yeni..." escape hatch for a genuinely new one.
+  function populateEcodeCategorySelect(select, currentValue) {
+    var categories = getDistinctEcodeCategories();
+    select.innerHTML = '<option value="">— Kateqoriya seçin —</option>';
+    categories.forEach(function (label) {
+      var opt = document.createElement("option");
+      opt.value = label;
+      opt.textContent = label;
+      select.appendChild(opt);
+    });
+    if (currentValue && categories.indexOf(currentValue) === -1) {
+      var opt = document.createElement("option");
+      opt.value = currentValue;
+      opt.textContent = currentValue + " (siyahıda yoxdur)";
+      select.appendChild(opt);
+    }
+    var addNewOpt = document.createElement("option");
+    addNewOpt.value = CATEGORY_ADD_NEW_VALUE;
+    addNewOpt.textContent = "+ Yeni kateqoriya əlavə et…";
+    select.appendChild(addNewOpt);
+    select.value = currentValue || "";
+    select.dataset.previousValue = currentValue || "";
+    if (select.dataset.addNewBound) return;
+    select.dataset.addNewBound = "1";
+    select.addEventListener("change", function () {
+      if (select.value !== CATEGORY_ADD_NEW_VALUE) return;
+      var name = window.prompt("Yeni kateqoriya adı:");
+      name = name ? name.trim() : "";
+      if (!name) {
+        select.value = select.dataset.previousValue || "";
+        return;
+      }
+      populateEcodeCategorySelect(select, name);
+    });
+  }
+
   function buildEcodeCard(entry) {
     var card = document.createElement("div");
     card.className = "place-card";
+    card.style.flexDirection = "column";
+    card.style.alignItems = "stretch";
     var badge = entry.pureCustom
       ? '<span class="status-pill halal">Sizin əlavəniz</span>'
       : entry.overridden
         ? '<span class="status-pill mushbooh">Dəyişdirilib</span>'
         : '<span class="status-pill" style="background:var(--surface-2); color:var(--ink-muted);">Daxili</span>';
     card.innerHTML =
-      '<div style="flex:1; min-width:0;">' +
-        '<div class="pc-title">' + esc(entry.code) + ' — ' + esc(entry.name) + '</div>' +
-        '<div class="pc-sub">' + (ECODE_STATUS_LABEL[entry.status] || entry.status) +
-          (entry.category ? ' · ' + esc(entry.category) : '') +
+      '<div style="display:flex; gap:12px;">' +
+        '<div style="flex:1; min-width:0;">' +
+          '<div class="pc-title">' + esc(entry.code) + ' — ' + esc(entry.name) + '</div>' +
+          '<div class="pc-sub">' + (ECODE_STATUS_LABEL[entry.status] || entry.status) +
+            (entry.category ? ' · ' + esc(entry.category) : '') +
+          '</div>' +
+          (entry.note ? '<div class="pc-note">' + esc(entry.note) + '</div>' : '') +
         '</div>' +
-        (entry.note ? '<div class="pc-note">' + esc(entry.note) + '</div>' : '') +
+        '<div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; flex-shrink:0;">' +
+          badge +
+          '<div style="display:flex; gap:6px;">' +
+            '<button type="button" class="btn btn-sm" data-action="edit-ecode">Redaktə et</button>' +
+            (entry.id
+              ? '<button type="button" class="place-delete-btn btn-sm" data-action="revert-ecode">' +
+                  (entry.pureCustom ? 'Sil' : 'Defolta qaytar') +
+                '</button>'
+              : '') +
+          '</div>' +
+        '</div>' +
       '</div>' +
-      '<div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end; flex-shrink:0;">' +
-        badge +
-        '<div style="display:flex; gap:6px;">' +
-          '<button type="button" class="btn btn-sm" data-action="edit-ecode">Redaktə et</button>' +
-          (entry.id
-            ? '<button type="button" class="place-delete-btn btn-sm" data-action="revert-ecode">' +
-                (entry.pureCustom ? 'Sil' : 'Defolta qaytar') +
-              '</button>'
-            : '') +
+      '<form data-role="ecode-edit-form" hidden style="margin-top:12px; display:flex; flex-direction:column; gap:10px;">' +
+        '<div class="field-grid">' +
+          '<div class="field">' +
+            '<label>Ad</label>' +
+            '<input type="text" data-role="edit-ecode-name" required />' +
+          '</div>' +
+          '<div class="field">' +
+            '<label>Kateqoriya</label>' +
+            '<select data-role="edit-ecode-category"></select>' +
+          '</div>' +
+          '<div class="field">' +
+            '<label>Status</label>' +
+            '<select data-role="edit-ecode-status" required>' +
+              '<option value="halal">Halal</option>' +
+              '<option value="mushbooh">Şübhəli</option>' +
+              '<option value="haram">Haram</option>' +
+              '<option value="depends">Mənbəyindən asılıdır</option>' +
+            '</select>' +
+          '</div>' +
+          '<div class="field field-wide">' +
+            '<label>Haqqında (nə üçün bu status, mənbəyi, harda istifadə olunur)</label>' +
+            '<textarea data-role="edit-ecode-note" rows="3"></textarea>' +
+          '</div>' +
         '</div>' +
-      '</div>';
-    card.querySelector('[data-action="edit-ecode"]').addEventListener("click", function (e) {
-      editEcode(entry, e.target);
+        '<div style="display:flex; gap:8px;">' +
+          '<button type="submit" class="btn btn-approve" data-action="save-ecode">Yadda saxla</button>' +
+          '<button type="button" class="btn" data-action="cancel-edit-ecode">Ləğv et</button>' +
+        '</div>' +
+      '</form>';
+
+    var form = card.querySelector('[data-role="ecode-edit-form"]');
+    var openEdit = function () {
+      card.querySelector('[data-role="edit-ecode-name"]').value = entry.name || "";
+      populateEcodeCategorySelect(card.querySelector('[data-role="edit-ecode-category"]'), entry.category || "");
+      card.querySelector('[data-role="edit-ecode-status"]').value = entry.status || "halal";
+      card.querySelector('[data-role="edit-ecode-note"]').value = entry.note || "";
+      form.hidden = false;
+      remeasureEcodeCard(entry.code);
+      card.querySelector('[data-role="edit-ecode-name"]').focus();
+    };
+    var closeEdit = function () {
+      form.hidden = true;
+      remeasureEcodeCard(entry.code);
+    };
+
+    card.querySelector('[data-action="edit-ecode"]').addEventListener("click", openEdit);
+    card.querySelector('[data-action="cancel-edit-ecode"]').addEventListener("click", closeEdit);
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      saveEcodeEdit(entry, card, form, closeEdit);
     });
     var revertBtn = card.querySelector('[data-action="revert-ecode"]');
     if (revertBtn) {
@@ -3972,39 +4086,33 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   // row. Either way this is one upsert keyed on the unique `code` column
   // (needs the "Public update" policy on custom_ecodes — see
   // supabase/migration_2026_09_02_custom_ecodes_update.sql).
-  function editEcode(entry, btn) {
-    var newName = window.prompt('"' + entry.code + '" üçün ad:', entry.name || "");
-    if (newName === null || !newName.trim()) return;
-    var newCategory = window.prompt('Kateqoriya (istəyə bağlı):', entry.category || "");
-    if (newCategory === null) return;
-    var newStatus = window.prompt(
-      'Status — dəqiq bu sözlərdən biri: halal, haram, mushbooh, depends',
-      entry.status || "halal"
-    );
-    if (newStatus === null) return;
-    newStatus = newStatus.trim().toLowerCase();
-    if (["halal", "haram", "mushbooh", "depends"].indexOf(newStatus) === -1) {
-      toast('Status "halal", "haram", "mushbooh" və ya "depends" olmalıdır');
+  function saveEcodeEdit(entry, card, form, closeEdit) {
+    var newName = form.querySelector('[data-role="edit-ecode-name"]').value.trim();
+    if (!newName) {
+      toast("Ad boş ola bilməz");
       return;
     }
-    var newNote = window.prompt('Haqqında (qeyd, istəyə bağlı):', entry.note || "");
-    if (newNote === null) return;
+    var newCategory = form.querySelector('[data-role="edit-ecode-category"]').value.trim();
+    var newStatus = form.querySelector('[data-role="edit-ecode-status"]').value;
+    var newNote = form.querySelector('[data-role="edit-ecode-note"]').value.trim();
 
+    var btn = form.querySelector('[data-action="save-ecode"]');
     btn.disabled = true;
     sb("custom_ecodes?on_conflict=code", {
       method: "POST",
       headers: { "Prefer": "resolution=merge-duplicates,return=minimal" },
       body: {
         code: entry.code,
-        name: newName.trim(),
-        category: newCategory.trim() || null,
+        name: newName,
+        category: newCategory || null,
         status: newStatus,
-        note: newNote.trim() || null,
+        note: newNote || null,
       },
     })
       .then(function () {
         toast("Yeniləndi: " + entry.code);
-        logAudit("edit_ecode", "custom_ecodes", entry.code, newName.trim());
+        logAudit("edit_ecode", "custom_ecodes", entry.code, newName);
+        closeEdit();
         loadCustomEcodes();
       })
       .catch(function (err) {
