@@ -715,7 +715,9 @@
           <button type="button" class="btn" id="productBulkSetStatusBtn" disabled>Seçilənlərin statusunu dəyiş</button>
         </div>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-          <input type="text" id="productBulkCategoryInput" placeholder="Məs. Süd məhsulları" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; width: 180px;" />
+          <select id="productBulkCategoryInput" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; min-width: 180px;">
+            <option value="">— Kateqoriya seçin —</option>
+          </select>
           <button type="button" class="btn" id="productBulkSetCategoryBtn" disabled>Seçilənlərin kateqoriyasını dəyiş</button>
         </div>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
@@ -5558,6 +5560,24 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         select.value = previous;
       }
     });
+
+    // Bulk "kateqoriyasını dəyiş" needs its own option set — it sets a
+    // category, so unlike the filters above it has no "Hamısı"/"Kateqoriyası
+    // yoxdur" pseudo-entries, only a real category (or nothing selected).
+    // Was previously a free-text input, letting a typo or an ad-hoc name
+    // create a category that doesn't exist anywhere else in the app.
+    var bulkSelect = document.getElementById("productBulkCategoryInput");
+    var bulkPrevious = bulkSelect.value;
+    bulkSelect.innerHTML = '<option value="">— Kateqoriya seçin —</option>';
+    categories.forEach(function (row) {
+      var opt = document.createElement("option");
+      opt.value = row.label;
+      opt.textContent = row.label;
+      bulkSelect.appendChild(opt);
+    });
+    if ([].slice.call(bulkSelect.options).some(function (o) { return o.value === bulkPrevious; })) {
+      bulkSelect.value = bulkPrevious;
+    }
   }
 
   function buildCategoryCard(row) {
