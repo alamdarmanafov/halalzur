@@ -26,6 +26,7 @@ import { lookupBarcode, STATUS_DESC_KEY, getHalalAlternatives, getDistinctBrands
 import { PRODUCT_CATEGORIES, getProductCategories } from '../../lib/categories';
 import { extractECodesFromText, searchECodes, ECODE_STATUS_LABEL_KEY } from '../../lib/eCodes';
 import { extractHaramKeywords, HaramKeywordStatus } from '../../lib/haramKeywords';
+import { isNonHalalSlaughterCountry } from '../../lib/nonHalalSlaughterCountries';
 import { translateECodeCategory } from '../../lib/eCodeTranslations';
 import { recognizeIngredientText } from '../../lib/ocr';
 import { hasInternetConnection } from '../../lib/network';
@@ -392,6 +393,15 @@ export default function ProductDetailScreen() {
     ],
     [detectedECodes, detectedKeywords]
   );
+  // Premium-only extra reason: the product's admin-entered origin country
+  // is one where meat typically isn't halal-slaughtered. Free users never
+  // see this (isPremium gate) — the E-code/keyword reason above stays
+  // free for everyone, this is purely additive on top of it. Doesn't
+  // touch product.status itself, same as every other reason card here.
+  const originCountryReason =
+    isPremium && isNonHalalSlaughterCountry(product?.originCountry)
+      ? t('productOriginCountryReason').replace('{country}', product!.originCountry!)
+      : null;
   // A halal-status product can still contain a source-dependent
   // ("yellow") E-code or named ingredient — E471, E322, gelatin, etc. —
   // that isn't itself grounds for a haram/mushbooh verdict but is worth
@@ -753,15 +763,19 @@ export default function ProductDetailScreen() {
           </View>
         </View>
 
-        {(product.status === 'haram' || product.status === 'mushbooh') && flaggedIngredients.length > 0 && (
-          <View style={styles.reasonCard}>
-            <Ionicons name="alert-circle" size={18} color={STATUS_TINT[product.status]} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.reasonTitle}>{t('productWhyFlaggedTitle')}</Text>
-              <Text style={styles.reasonText}>{flaggedIngredients.join(', ')}</Text>
+        {(product.status === 'haram' || product.status === 'mushbooh') &&
+          (flaggedIngredients.length > 0 || originCountryReason) && (
+            <View style={styles.reasonCard}>
+              <Ionicons name="alert-circle" size={18} color={STATUS_TINT[product.status]} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.reasonTitle}>{t('productWhyFlaggedTitle')}</Text>
+                {flaggedIngredients.length > 0 && (
+                  <Text style={styles.reasonText}>{flaggedIngredients.join(', ')}</Text>
+                )}
+                {originCountryReason && <Text style={styles.reasonText}>{originCountryReason}</Text>}
+              </View>
             </View>
-          </View>
-        )}
+          )}
 
         {product.status !== 'haram' &&
           product.status !== 'mushbooh' &&

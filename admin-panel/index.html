@@ -832,6 +832,10 @@
           </select>
         </div>
         <div class="field">
+          <label for="productOriginCountry">Mənşə ölkəsi (istəyə bağlı)</label>
+          <input type="text" id="productOriginCountry" placeholder="Məs. Rusiya, Almaniya, Azərbaycan" />
+        </div>
+        <div class="field">
           <label for="productStatus">Status</label>
           <select id="productStatus" required>
             <option value="">— Status seçin —</option>
@@ -6551,6 +6555,10 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
             '<label>Kateqoriya</label>' +
             '<select data-role="edit-category"></select>' +
           '</div>' +
+          '<div class="field" style="flex:1 1 160px; margin:0;">' +
+            '<label>Mənşə ölkəsi</label>' +
+            '<input type="text" data-role="edit-origin-country" placeholder="Məs. Rusiya, Almaniya" />' +
+          '</div>' +
           '<div class="field" style="flex:1 1 200px; margin:0;">' +
             '<label>Şəkil linki</label>' +
             '<div style="display:flex; gap:6px; flex-wrap:wrap;">' +
@@ -6590,6 +6598,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     card.querySelector('[data-role="edit-brand"]').value = row.brand || "";
     card.querySelector('[data-role="edit-status"]').value = row.status || "unknown";
     populateCategorySelect(card.querySelector('[data-role="edit-category"]'), row.category || "");
+    card.querySelector('[data-role="edit-origin-country"]').value = row.origin_country || "";
     card.querySelector('[data-role="edit-image"]').value = row.image_url || "";
     card.querySelector('[data-role="edit-admin-note"]').value = row.admin_note || "";
     applyStatusSuggestionToCard(row, card);
@@ -6620,9 +6629,10 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       }
       var newStatus = card.querySelector('[data-role="edit-status"]').value;
       var newCategory = card.querySelector('[data-role="edit-category"]').value.trim();
+      var newOriginCountry = card.querySelector('[data-role="edit-origin-country"]').value.trim();
       var newImageUrl = card.querySelector('[data-role="edit-image"]').value.trim();
       var newAdminNote = card.querySelector('[data-role="edit-admin-note"]').value.trim();
-      updateProduct(row, card, e.target, newStatus, newCategory, newImageUrl, newAdminNote, newProductName, newBrand);
+      updateProduct(row, card, e.target, newStatus, newCategory, newOriginCountry, newImageUrl, newAdminNote, newProductName, newBrand);
     });
     card.querySelector('[data-action="delete-product"]').addEventListener("click", function (e) {
       deleteProduct(row, card, e.target);
@@ -7003,7 +7013,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       .catch(function () {});
   }
 
-  function updateProduct(row, card, btn, status, category, imageUrl, adminNote, productName, brand) {
+  function updateProduct(row, card, btn, status, category, originCountry, imageUrl, adminNote, productName, brand) {
     btn.disabled = true;
     var originalText = btn.textContent;
     btn.textContent = "Yadda saxlanır…";
@@ -7014,6 +7024,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       brand: brand,
       status: status,
       category: category || null,
+      origin_country: originCountry || null,
       image_url: imageUrl || null,
       admin_note: adminNote || null,
       updated_at: new Date().toISOString(),
@@ -7133,6 +7144,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     var name = document.getElementById("productName").value.trim();
     var brand = document.getElementById("productBrand").value.trim();
     var category = document.getElementById("productCategory").value.trim();
+    var originCountry = document.getElementById("productOriginCountry").value.trim();
     var status = document.getElementById("productStatus").value;
     var certNumber = document.getElementById("productCertNumber").value.trim();
     var imageUrl = document.getElementById("productImageUrl").value.trim();
@@ -7168,6 +7180,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         ingredients: ingredientsRaw ? ingredientsRaw.split(",").map(function (s) { return s.trim(); }).filter(Boolean) : [],
         notes: note || null,
         image_url: imageUrl || null,
+        origin_country: originCountry || null,
       },
     })
       .then(function () {

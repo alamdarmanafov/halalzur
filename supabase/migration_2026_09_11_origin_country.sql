@@ -1,0 +1,13 @@
+-- Run this in Supabase → SQL Editor. Safe to run more than once.
+--
+-- Adds certified_entries.origin_country — where the product is actually
+-- made (admin-entered, free text, e.g. "Rusiya", "Almaniya"), distinct
+-- from certifiers.country which is the CERTIFYING BODY's country, not
+-- the product's. Drives a new Premium-only reason on the product detail
+-- screen: when a haram/mushbooh product's origin_country matches a
+-- country in lib/nonHalalSlaughterCountries.ts (currently Russia and
+-- Germany), Premium users see an extra short reason explaining that
+-- animals in that country typically aren't halal-slaughtered — on top
+-- of whatever E-code/ingredient reason already shows for everyone.
+-- Never affects the product's status itself, only this explanatory text.
+alter table certified_entries add column if not exists origin_country text;

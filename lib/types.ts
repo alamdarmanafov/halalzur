@@ -23,6 +23,11 @@ export type CertificationResult = {
   // Real product photo, when a source (Open Food Facts, UPCitemdb) has
   // one — imageEmoji stays as the fallback when this is null.
   imageUrl?: string | null;
+  // Where the product is actually made (admin-entered) — NOT the
+  // certifying body's country (that's certifier.country). Drives a
+  // Premium-only reason on the product screen when it's a country where
+  // meat typically isn't halal-slaughtered (lib/nonHalalSlaughterCountries.ts).
+  originCountry?: string | null;
 };
 
 export type SubscriptionPlan = 'free' | 'premium';

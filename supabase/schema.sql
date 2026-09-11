@@ -36,6 +36,9 @@ create table certified_entries (
   notes text,
   image_url text,                   -- product photo — from Open Food Facts on import, or pasted by an admin
   source_url text,                  -- link back to the certifier's own listing, for transparency
+  origin_country text,              -- where the product is made (admin-entered) — drives the app's Premium-only
+                                     -- "made in a country where slaughter isn't typically halal" reason, separate
+                                     -- from certifier_id's country (the certifying body, not the product's origin)
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
