@@ -6533,6 +6533,10 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
           '<div data-role="ecode-auto-result" style="margin-top:8px;"></div>' +
         '</div>' +
         '<div style="display:flex; flex-wrap:wrap; gap:12px;">' +
+          '<div class="field" style="flex:1 1 160px; margin:0;">' +
+            '<label>Barkod</label>' +
+            '<input type="text" inputmode="numeric" data-role="edit-barcode" placeholder="Barkod" />' +
+          '</div>' +
           '<div class="field" style="flex:1 1 200px; margin:0;">' +
             '<label>Məhsul adı</label>' +
             '<input type="text" data-role="edit-product-name" placeholder="Məhsul adı" />' +
@@ -6594,6 +6598,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         '</div>' +
       '</div>';
 
+    card.querySelector('[data-role="edit-barcode"]').value = row.barcode || "";
     card.querySelector('[data-role="edit-product-name"]').value = row.product_name || "";
     card.querySelector('[data-role="edit-brand"]').value = row.brand || "";
     card.querySelector('[data-role="edit-status"]').value = row.status || "unknown";
@@ -6621,6 +6626,11 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       card.querySelector('[data-role="status-suggestion"]').hidden = true;
     });
     card.querySelector('[data-action="save-product"]').addEventListener("click", function (e) {
+      var newBarcode = card.querySelector('[data-role="edit-barcode"]').value.trim();
+      if (row.barcode && !newBarcode) {
+        toast("Barkod boş ola bilməz");
+        return;
+      }
       var newProductName = card.querySelector('[data-role="edit-product-name"]').value.trim();
       var newBrand = card.querySelector('[data-role="edit-brand"]').value.trim();
       if (!newBrand) {
@@ -6632,7 +6642,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       var newOriginCountry = card.querySelector('[data-role="edit-origin-country"]').value.trim();
       var newImageUrl = card.querySelector('[data-role="edit-image"]').value.trim();
       var newAdminNote = card.querySelector('[data-role="edit-admin-note"]').value.trim();
-      updateProduct(row, card, e.target, newStatus, newCategory, newOriginCountry, newImageUrl, newAdminNote, newProductName, newBrand);
+      updateProduct(row, card, e.target, newStatus, newCategory, newOriginCountry, newImageUrl, newAdminNote, newProductName, newBrand, newBarcode);
     });
     card.querySelector('[data-action="delete-product"]').addEventListener("click", function (e) {
       deleteProduct(row, card, e.target);
@@ -7013,7 +7023,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       .catch(function () {});
   }
 
-  function updateProduct(row, card, btn, status, category, originCountry, imageUrl, adminNote, productName, brand) {
+  function updateProduct(row, card, btn, status, category, originCountry, imageUrl, adminNote, productName, brand, barcode) {
     btn.disabled = true;
     var originalText = btn.textContent;
     btn.textContent = "Yadda saxlanır…";
@@ -7029,6 +7039,13 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       admin_note: adminNote || null,
       updated_at: new Date().toISOString(),
     };
+    // barcode is optional here (company-level entries have none) — only
+    // touch it when the field actually holds something, and only send it
+    // when it changed (idx_certified_entries_barcode_unique means writing
+    // the same value back is harmless, but skipping it avoids a pointless
+    // PATCH field on every save).
+    var barcodeChanged = barcode !== undefined && barcode !== (row.barcode || "");
+    if (barcodeChanged) body.barcode = barcode || null;
     // A product still carrying the raw Open Food Facts import's certifier
     // + notes ("Open Food Facts açıq bazasından idxal edilib — halal
     // statusu hələ yoxlanılmayıb") while ALSO showing a real status the
@@ -7064,6 +7081,9 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         if (row.product_name !== productName || row.brand !== brand) {
           logAudit("edit_product_name", "certified_entries", row.id, prevLabel + " → " + (productName || brand));
         }
+        if (barcodeChanged) {
+          logAudit("edit_barcode", "certified_entries", row.id, (row.barcode || "—") + " → " + (barcode || "—"));
+        }
         if (justReviewed) {
           logAudit("clear_off_import_note", "certified_entries", row.id, (productName || brand) + " → halalzur");
         }
@@ -7071,8 +7091,10 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         row.brand = brand;
         row.status = status;
         row.category = category || null;
+        row.origin_country = originCountry || null;
         row.image_url = imageUrl || null;
         row.admin_note = adminNote || null;
+        if (barcodeChanged) row.barcode = barcode || null;
         if (justReviewed) {
           row.certifier_id = "halalzur";
           row.notes = null;
@@ -7083,7 +7105,11 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         reloadActiveProductsList();
       })
       .catch(function (err) {
-        toast("Xəta: " + err.message);
+        toast(
+          /duplicate key|already exists/i.test(err.message)
+            ? "Bu barkod artıq başqa məhsulda istifadə olunur"
+            : "Xəta: " + err.message
+        );
         btn.disabled = false;
         btn.textContent = originalText;
       });
