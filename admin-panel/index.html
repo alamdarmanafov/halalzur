@@ -832,8 +832,10 @@
           </select>
         </div>
         <div class="field">
-          <label for="productOriginCountry">Mənşə ölkəsi (istəyə bağlı)</label>
-          <input type="text" id="productOriginCountry" placeholder="Məs. Rusiya, Almaniya, Azərbaycan" />
+          <label for="productOriginCountry">İstehsalçı ölkə (istəyə bağlı)</label>
+          <select id="productOriginCountry">
+            <option value="">— Ölkə seçin —</option>
+          </select>
         </div>
         <div class="field">
           <label for="productStatus">Status</label>
@@ -5585,6 +5587,8 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   // product's current category isn't one of the real ones (old typo data,
   // or a category since renamed/deleted), it's kept as an extra selected
   // option instead of silently discarded.
+  var CATEGORY_ADD_NEW_VALUE = "__add_new__";
+
   function populateCategorySelect(select, currentValue) {
     var realOptions = [].slice.call(document.getElementById("productCategoryFilter").options)
       .map(function (o) { return o.value; })
@@ -5602,8 +5606,88 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       opt.textContent = currentValue + " (siyahıda yoxdur)";
       select.appendChild(opt);
     }
+    var addNewOpt = document.createElement("option");
+    addNewOpt.value = CATEGORY_ADD_NEW_VALUE;
+    addNewOpt.textContent = "+ Yeni kateqoriya əlavə et…";
+    select.appendChild(addNewOpt);
+    select.value = currentValue || "";
+    // Tracks what to revert to if "+ Yeni kateqoriya əlavə et…" is picked
+    // and then cancelled — kept on the element itself (not a closure var)
+    // since the listener below binds only once but this function re-runs
+    // on every repopulate with a different currentValue each time.
+    select.dataset.categoryPreviousValue = currentValue || "";
+    if (select.dataset.categoryAddNewBound) return;
+    select.dataset.categoryAddNewBound = "1";
+    select.addEventListener("change", function () {
+      if (select.value !== CATEGORY_ADD_NEW_VALUE) return;
+      var name = window.prompt("Yeni kateqoriya adı:");
+      name = name ? name.trim() : "";
+      if (!name) {
+        select.value = select.dataset.categoryPreviousValue || "";
+        return;
+      }
+      sb("product_categories", {
+        method: "POST",
+        headers: { "Prefer": "return=minimal" },
+        body: { label: name, sort_order: 0 },
+      })
+        .then(function () {
+          toast("Kateqoriya əlavə edildi: " + name);
+          logAudit("add_category", "product_categories", null, { label: name });
+        })
+        .catch(function (err) {
+          // A duplicate here just means the category already exists under
+          // that name (e.g. this select's own list was stale) — still fine
+          // to select it, so only a real failure reverts the field.
+          if (!/duplicate key|already exists/i.test(err.message)) {
+            toast("Xəta: " + err.message);
+            select.value = select.dataset.categoryPreviousValue || "";
+            throw err;
+          }
+        })
+        .then(function () {
+          loadCategories();
+          populateCategorySelect(select, name);
+        })
+        .catch(function () {});
+    });
+  }
+
+  // Fixed list (not DB-backed, unlike categories) for the "İstehsalçı ölkə"
+  // selects — was free text, same typo-risk the category field had. Keep
+  // this in sync with lib/nonHalalSlaughterCountries.ts's Azerbaijani
+  // labels — that's what decides which of these trigger the app's
+  // Premium-only "not typically halal-slaughtered" reason.
+  var PRODUCT_ORIGIN_COUNTRIES = [
+    "Azərbaycan", "Türkiyə", "İran", "Gürcüstan", "Rusiya", "Ukrayna",
+    "Almaniya", "Fransa", "Polşa", "Belçika", "İtaliya", "İspaniya",
+    "Niderland", "Böyük Britaniya", "İsveçrə", "Avstriya", "İsveç",
+    "Norveç", "Danimarka", "Finlandiya", "Yunanıstan", "Portuqaliya",
+    "Çexiya", "Macarıstan", "Rumıniya", "Bolqarıstan", "Serbiya", "Xorvatiya",
+    "Yaponiya", "Çin", "Cənubi Koreya",
+    "ABŞ", "Kanada", "Braziliya", "Hindistan",
+    "Səudiyyə Ərəbistanı", "BƏƏ", "Malayziya", "İndoneziya", "Pakistan",
+  ];
+
+  // Same "keep an old free-typed value as an extra option" behavior as
+  // populateCategorySelect, for data saved before this was a fixed list.
+  function populateOriginCountrySelect(select, currentValue) {
+    select.innerHTML = '<option value="">— Ölkə seçin —</option>';
+    PRODUCT_ORIGIN_COUNTRIES.forEach(function (label) {
+      var opt = document.createElement("option");
+      opt.value = label;
+      opt.textContent = label;
+      select.appendChild(opt);
+    });
+    if (currentValue && PRODUCT_ORIGIN_COUNTRIES.indexOf(currentValue) === -1) {
+      var opt = document.createElement("option");
+      opt.value = currentValue;
+      opt.textContent = currentValue + " (siyahıda yoxdur)";
+      select.appendChild(opt);
+    }
     select.value = currentValue || "";
   }
+  populateOriginCountrySelect(document.getElementById("productOriginCountry"), "");
 
   function buildCategoryCard(row) {
     var card = document.createElement("div");
@@ -6560,8 +6644,8 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
             '<select data-role="edit-category"></select>' +
           '</div>' +
           '<div class="field" style="flex:1 1 160px; margin:0;">' +
-            '<label>Mənşə ölkəsi</label>' +
-            '<input type="text" data-role="edit-origin-country" placeholder="Məs. Rusiya, Almaniya" />' +
+            '<label>İstehsalçı ölkə</label>' +
+            '<select data-role="edit-origin-country"></select>' +
           '</div>' +
           '<div class="field" style="flex:1 1 200px; margin:0;">' +
             '<label>Şəkil linki</label>' +
@@ -6603,7 +6687,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     card.querySelector('[data-role="edit-brand"]').value = row.brand || "";
     card.querySelector('[data-role="edit-status"]').value = row.status || "unknown";
     populateCategorySelect(card.querySelector('[data-role="edit-category"]'), row.category || "");
-    card.querySelector('[data-role="edit-origin-country"]').value = row.origin_country || "";
+    populateOriginCountrySelect(card.querySelector('[data-role="edit-origin-country"]'), row.origin_country || "");
     card.querySelector('[data-role="edit-image"]').value = row.image_url || "";
     card.querySelector('[data-role="edit-admin-note"]').value = row.admin_note || "";
     applyStatusSuggestionToCard(row, card);

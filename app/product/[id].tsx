@@ -26,7 +26,7 @@ import { lookupBarcode, STATUS_DESC_KEY, getHalalAlternatives, getDistinctBrands
 import { PRODUCT_CATEGORIES, getProductCategories } from '../../lib/categories';
 import { extractECodesFromText, searchECodes, ECODE_STATUS_LABEL_KEY } from '../../lib/eCodes';
 import { extractHaramKeywords, HaramKeywordStatus } from '../../lib/haramKeywords';
-import { isNonHalalSlaughterCountry } from '../../lib/nonHalalSlaughterCountries';
+import { isNonHalalSlaughterCountry, withAzLocativeSuffix } from '../../lib/nonHalalSlaughterCountries';
 import { translateECodeCategory } from '../../lib/eCodeTranslations';
 import { recognizeIngredientText } from '../../lib/ocr';
 import { hasInternetConnection } from '../../lib/network';
@@ -398,10 +398,13 @@ export default function ProductDetailScreen() {
   // see this (isPremium gate) — the E-code/keyword reason above stays
   // free for everyone, this is purely additive on top of it. Doesn't
   // touch product.status itself, same as every other reason card here.
-  const originCountryReason =
-    isPremium && isNonHalalSlaughterCountry(product?.originCountry)
-      ? t('productOriginCountryReason').replace('{country}', product!.originCountry!)
-      : null;
+  const originCountryFlagged = isPremium && isNonHalalSlaughterCountry(product?.originCountry);
+  const originCountryReason = originCountryFlagged
+    ? t('productOriginCountryReason').replace(
+        '{country}',
+        language === 'az' ? withAzLocativeSuffix(product!.originCountry!) : product!.originCountry!
+      )
+    : null;
   // A halal-status product can still contain a source-dependent
   // ("yellow") E-code or named ingredient — E471, E322, gelatin, etc. —
   // that isn't itself grounds for a haram/mushbooh verdict but is worth
@@ -773,6 +776,11 @@ export default function ProductDetailScreen() {
                   <Text style={styles.reasonText}>{flaggedIngredients.join(', ')}</Text>
                 )}
                 {originCountryReason && <Text style={styles.reasonText}>{originCountryReason}</Text>}
+                {originCountryFlagged && (
+                  <Text style={styles.reasonText}>
+                    {t('productOriginCountryLabel')} {product.originCountry}
+                  </Text>
+                )}
               </View>
             </View>
           )}
