@@ -719,8 +719,8 @@
           <button type="button" class="btn" id="productBulkSetCategoryBtn" disabled>Seçilənlərin kateqoriyasını dəyiş</button>
         </div>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-          <input type="text" id="productBulkEcodeInput" placeholder="Məs. E471" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; width: 120px;" />
-          <button type="button" class="btn" id="productBulkAddEcodeBtn" disabled>Seçilənlərə E-kod əlavə et</button>
+          <input type="text" id="productBulkEcodeInput" placeholder="Məs. E471, E100, E503ii" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; width: 220px;" />
+          <button type="button" class="btn" id="productBulkAddEcodeBtn" disabled>Seçilənlərə E-kod(lar) əlavə et</button>
         </div>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
           <input type="text" id="productBulkImageInput" placeholder="Şəkil linki (boş = şəkli sil)" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; flex: 1; min-width: 200px;" />
@@ -5806,14 +5806,21 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
 
   document.getElementById("productBulkAddEcodeBtn").addEventListener("click", function () {
     var raw = document.getElementById("productBulkEcodeInput").value.trim();
-    var code = raw.toUpperCase().replace(/\s+/g, "");
-    if (!ECODE_PATTERN.test(code)) {
-      toast("Düzgün E-kod formatı deyil (məs. E100)");
-      return;
+    var candidates = raw.split(/[,;\n]+/).map(function (c) { return c.trim().toUpperCase().replace(/\s+/g, ""); }).filter(Boolean);
+    var codes = [];
+    var seen = {};
+    for (var i = 0; i < candidates.length; i++) {
+      var c = candidates[i];
+      if (!ECODE_PATTERN.test(c)) {
+        toast("Düzgün E-kod formatı deyil: " + c + " (məs. E100, E472a)");
+        return;
+      }
+      if (!seen[c]) { seen[c] = true; codes.push(c); }
     }
+    if (!codes.length) return;
     var ids = Object.keys(selectedProductIds);
     if (!ids.length) return;
-    if (!window.confirm(code + " " + ids.length + " məhsula əlavə edilsin?")) return;
+    if (!window.confirm(codes.join(", ") + " — " + ids.length + " məhsula əlavə edilsin?")) return;
 
     var btn = this;
     btn.disabled = true;
@@ -5827,8 +5834,13 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         return Promise.all(
           (rows || []).map(function (row) {
             var ingredients = (row.ingredients || []).slice();
-            if (ingredients.some(function (i) { return i.toUpperCase() === code; })) return null;
-            ingredients.push(code);
+            var existing = {};
+            ingredients.forEach(function (i) { existing[i.toUpperCase()] = true; });
+            var added = false;
+            codes.forEach(function (code) {
+              if (!existing[code]) { ingredients.push(code); existing[code] = true; added = true; }
+            });
+            if (!added) return null;
             return sb("certified_entries?id=eq." + row.id, {
               method: "PATCH",
               headers: { "Prefer": "return=minimal" },
@@ -5838,7 +5850,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         );
       })
       .then(function () {
-        toast(code + " seçilən məhsullara əlavə edildi");
+        toast(codes.join(", ") + " seçilən məhsullara əlavə edildi");
         document.getElementById("productBulkEcodeInput").value = "";
         reloadActiveProductsList();
       })
