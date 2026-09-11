@@ -6900,18 +6900,35 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   function addEcodeToProduct(row, card, input) {
     var raw = input.value.trim();
     if (!raw) return;
-    var code = raw.split(" — ")[0].trim().toUpperCase().replace(/\s+/g, " ");
-    if (/^\d{3,4}[A-Z]*$/.test(code)) code = "E" + code;
+    // Accepts several codes at once separated by comma/semicolon/newline
+    // (e.g. pasted "E420, E330, E322") instead of jamming them into one
+    // ingredient string, which would lose each code's own status color.
+    var candidates = raw.split(/[,;\n]+/).map(function (c) {
+      var code = c.split(" — ")[0].trim().toUpperCase().replace(/\s+/g, " ");
+      if (/^\d{3,4}[A-Z]*$/.test(code)) code = "E" + code;
+      return code;
+    }).filter(Boolean);
+    if (!candidates.length) return;
+
     var ingredients = (row.ingredients || []).slice();
-    if (ingredients.some(function (ing) { return ing.toUpperCase() === code; })) {
-      toast(code + " artıq tərkibdə var");
-      input.value = "";
+    var existing = {};
+    ingredients.forEach(function (ing) { existing[ing.toUpperCase()] = true; });
+    var added = [];
+    var skipped = [];
+    candidates.forEach(function (code) {
+      if (existing[code]) { skipped.push(code); return; }
+      ingredients.push(code);
+      existing[code] = true;
+      added.push(code);
+    });
+
+    input.value = "";
+    if (!added.length) {
+      toast(skipped.join(", ") + " artıq tərkibdə var");
       return;
     }
-    ingredients.push(code);
-    input.value = "";
     saveIngredients(row, card, ingredients);
-    toast(code + " əlavə edildi");
+    toast(added.join(", ") + " əlavə edildi" + (skipped.length ? " (" + skipped.join(", ") + " artıq var idi)" : ""));
   }
 
   function removeIngredientFromProduct(row, card, index) {
@@ -7175,19 +7192,33 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     document.getElementById("addProductEcodeBtn").addEventListener("click", function () {
       var raw = ecodeInput.value.trim();
       if (!raw) return;
-      var code = raw.split(" — ")[0].trim().toUpperCase().replace(/\s+/g, " ");
-      if (/^\d{3,4}[A-Z]*$/.test(code)) code = "E" + code;
+      var candidates = raw.split(/[,;\n]+/).map(function (c) {
+        var code = c.split(" — ")[0].trim().toUpperCase().replace(/\s+/g, " ");
+        if (/^\d{3,4}[A-Z]*$/.test(code)) code = "E" + code;
+        return code;
+      }).filter(Boolean);
+      if (!candidates.length) return;
+
       var ingredientsField = document.getElementById("productIngredients");
       var parts = ingredientsField.value.split(",").map(function (s) { return s.trim(); }).filter(Boolean);
-      if (parts.some(function (p) { return p.toUpperCase() === code; })) {
-        toast(code + " artıq tərkibdə var");
-        ecodeInput.value = "";
-        return;
-      }
-      parts.push(code);
+      var existing = {};
+      parts.forEach(function (p) { existing[p.toUpperCase()] = true; });
+      var added = [];
+      var skipped = [];
+      candidates.forEach(function (code) {
+        if (existing[code]) { skipped.push(code); return; }
+        parts.push(code);
+        existing[code] = true;
+        added.push(code);
+      });
+
       ingredientsField.value = parts.join(", ");
       ecodeInput.value = "";
-      toast(code + " əlavə edildi");
+      if (!added.length) {
+        toast(skipped.join(", ") + " artıq tərkibdə var");
+        return;
+      }
+      toast(added.join(", ") + " əlavə edildi" + (skipped.length ? " (" + skipped.join(", ") + " artıq var idi)" : ""));
       refreshProductStatusSuggestion();
     });
   })();
