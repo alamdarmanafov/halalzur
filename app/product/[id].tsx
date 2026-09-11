@@ -351,7 +351,7 @@ export default function ProductDetailScreen() {
       return;
     }
     let cancelled = false;
-    getHalalAlternatives(product.category, product.barcode, isPremium ? 3 : 1).then((results) => {
+    getHalalAlternatives(product.category, product.barcode, isPremium ? 8 : 1).then((results) => {
       if (!cancelled) setAlternatives(results);
     });
     return () => {
@@ -836,24 +836,34 @@ export default function ProductDetailScreen() {
             <Text style={styles.eCodeIntro}>
               {t('productHalalAlternativesFound').replace('{n}', String(alternatives.length))}
             </Text>
-            {alternatives.map((alt) => (
-              <Pressable
-                key={alt.barcode}
-                style={styles.altCard}
-                onPress={() => router.push({ pathname: '/product/[id]', params: { id: alt.barcode } })}
-              >
-                <Text style={styles.altEmoji}>{alt.imageEmoji}</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.altName} numberOfLines={1}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.altRow}
+            >
+              {alternatives.map((alt) => (
+                <Pressable
+                  key={alt.barcode}
+                  style={styles.altCard}
+                  onPress={() => router.push({ pathname: '/product/[id]', params: { id: alt.barcode } })}
+                >
+                  <View style={styles.altImageWrap}>
+                    {alt.imageUrl && !liteMode ? (
+                      <Image source={{ uri: alt.imageUrl }} style={styles.altImage} resizeMode="contain" />
+                    ) : (
+                      <Text style={styles.altEmoji}>{alt.imageEmoji}</Text>
+                    )}
+                  </View>
+                  <Text style={styles.altName} numberOfLines={2}>
                     {alt.productName}
                   </Text>
                   <Text style={styles.altBrand} numberOfLines={1}>
                     {alt.brand}
                   </Text>
-                </View>
-                <StatusBadge status={alt.status} size="sm" />
-              </Pressable>
-            ))}
+                  <StatusBadge status={alt.status} size="sm" />
+                </Pressable>
+              ))}
+            </ScrollView>
             {!isPremium && (
               <Pressable onPress={() => router.push('/subscription')}>
                 <Text style={styles.altFreeNote}>{t('productHalalAlternativesFreeNote')}</Text>
@@ -1422,17 +1432,23 @@ const styles = StyleSheet.create({
   },
   lockedTitle: { ...typography.body, color: colors.black, fontWeight: '700' },
   lockedBody: { ...typography.small, color: colors.gray, marginTop: 2, lineHeight: 17 },
+  altRow: { gap: spacing.sm, paddingRight: spacing.lg },
   altCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+    width: 128,
     backgroundColor: colors.surface,
     borderRadius: radius.md,
     padding: spacing.sm,
-    marginBottom: spacing.xs,
+    gap: 4,
   },
-  altEmoji: { fontSize: 24 },
-  altName: { ...typography.body, color: colors.black, fontWeight: '700' },
+  altImageWrap: {
+    width: '100%',
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  altImage: { width: '100%', height: '100%' },
+  altEmoji: { fontSize: 32 },
+  altName: { ...typography.small, color: colors.black, fontWeight: '700', minHeight: 32 },
   altBrand: { ...typography.small, color: colors.gray },
   altFreeNote: { ...typography.small, color: colors.primaryDark, fontWeight: '600', marginTop: spacing.xs, textDecorationLine: 'underline' },
   eCodeIntro: { ...typography.small, color: colors.gray, marginBottom: spacing.sm, lineHeight: 18 },
