@@ -738,6 +738,10 @@
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
           <button type="button" class="btn" id="productBulkRenewDateBtn" disabled>Seçilənlərin yoxlama tarixini bu günə yenilə</button>
         </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <button type="button" class="btn" id="productBulkOffLookupBtn" disabled title="Hər barkodu Open Food Facts açıq bazasından axtarır — tapılan məhsulların kateqoriyasını VƏ istehsalçı ölkəsini avtomatik dolduru. Yalnız OFF-da olan barkodlar üçün işləyir, yerli/regional Wolt məhsullarının çoxu tapılmaya bilər.">🔍 Barkoda görə OFF-dan kateqoriya + ölkə tap</button>
+          <span id="productBulkOffLookupProgress" class="pc-note" style="margin:0;"></span>
+        </div>
       </div>
     </div>
 
@@ -5975,6 +5979,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     document.getElementById("productBulkSetCategoryBtn").disabled = count === 0;
     document.getElementById("productBulkGuessCategoryBtn").disabled = count === 0;
     document.getElementById("productBulkSetOriginCountryBtn").disabled = count === 0;
+    document.getElementById("productBulkOffLookupBtn").disabled = count === 0;
   }
 
   document.getElementById("productBulkSetStatusBtn").addEventListener("click", function () {
@@ -6146,6 +6151,191 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
       .finally(function () {
         btn.disabled = false;
         btn.textContent = original;
+      });
+  });
+
+  // Open Food Facts' categories_tags/origins_tags/manufacturing_places_tags
+  // come back as "en:something" slugs — strip the language prefix and
+  // match against these keyword lists (word-boundary style, same idea as
+  // CATEGORY_GUESS_RULES/guessCategoryForName above, just against OFF's
+  // English taxonomy instead of our own Azerbaijani product names).
+  var OFF_CATEGORY_TAG_KEYWORDS = {
+    "Şirniyyat": ["confectioner", "chocolate", "candy", "candies", "sweet", "dessert", "biscuit", "cookie"],
+    "Çörək": ["bread", "bakery", "baked"],
+    "İçki": ["beverage", "drink", "juice", "soda", "water", "tea", "coffee", "cola"],
+    "Süd məhsulları": ["dairy", "dairies", "cheese", "yogurt", "yoghurt", "milk", "cream"],
+    "Ət məhsulları": ["meat", "meats", "sausage", "poultry", "beef", "chicken", "ham"],
+    "Konservlər": ["canned", "preserve", "preserved"],
+    "Dondurulmuş məhsullar": ["frozen", "ice-cream", "ice-creams"],
+    "Souslar": ["sauce", "sauces", "condiment", "ketchup", "mayonnaise"],
+    "Qəlyanaltılar": ["snack", "snacks", "chip", "chips", "crisp", "crisps"],
+    "Dənli məhsullar": ["cereal", "cereals", "grain", "grains"],
+    "Uşaq qidası": ["baby", "babies", "infant"],
+    "Makaron və düyü": ["pasta", "pastas", "noodle", "noodles", "rice", "rices"],
+    "Yağlar": ["oil", "oils", "fat", "fats", "butter"],
+    "Ədviyyat": ["spice", "spices", "herb", "herbs"],
+    "Kosmetika": ["cosmetic", "cosmetics", "hygiene", "care"],
+  };
+
+  // Covers the same PRODUCT_ORIGIN_COUNTRIES list — only entries actually
+  // useful here (a country OFF might tag) need a slug mapping.
+  var OFF_COUNTRY_TAG_TO_LABEL = {
+    "azerbaijan": "Azərbaycan", "turkey": "Türkiyə", "iran": "İran",
+    "georgia": "Gürcüstan", "russia": "Rusiya", "ukraine": "Ukrayna",
+    "germany": "Almaniya", "france": "Fransa", "poland": "Polşa",
+    "belgium": "Belçika", "italy": "İtaliya", "spain": "İspaniya",
+    "netherlands": "Niderland", "united-kingdom": "Böyük Britaniya",
+    "switzerland": "İsveçrə", "austria": "Avstriya", "sweden": "İsveç",
+    "norway": "Norveç", "denmark": "Danimarka", "finland": "Finlandiya",
+    "greece": "Yunanıstan", "portugal": "Portuqaliya", "czech-republic": "Çexiya",
+    "hungary": "Macarıstan", "romania": "Rumıniya", "bulgaria": "Bolqarıstan",
+    "serbia": "Serbiya", "croatia": "Xorvatiya", "japan": "Yaponiya",
+    "china": "Çin", "south-korea": "Cənubi Koreya", "united-states": "ABŞ",
+    "canada": "Kanada", "brazil": "Braziliya", "india": "Hindistan",
+    "saudi-arabia": "Səudiyyə Ərəbistanı", "united-arab-emirates": "BƏƏ",
+    "malaysia": "Malayziya", "indonesia": "İndoneziya", "pakistan": "Pakistan",
+  };
+
+  function stripOffTagPrefix(tag) {
+    var i = tag.indexOf(":");
+    return (i === -1 ? tag : tag.slice(i + 1)).replace(/-/g, " ");
+  }
+
+  function guessCategoryFromOffTags(tags, realLabels) {
+    var matched = {};
+    (tags || []).forEach(function (tag) {
+      var text = stripOffTagPrefix(tag);
+      var tokens = text.split(/\s+/).filter(Boolean);
+      Object.keys(OFF_CATEGORY_TAG_KEYWORDS).forEach(function (label) {
+        if (realLabels.indexOf(label) === -1) return;
+        if (OFF_CATEGORY_TAG_KEYWORDS[label].some(function (kw) { return tokens.indexOf(kw) !== -1; })) {
+          matched[label] = true;
+        }
+      });
+    });
+    var labels = Object.keys(matched);
+    return labels.length === 1 ? labels[0] : null;
+  }
+
+  // origins_tags/manufacturing_places_tags (where it was actually made) is
+  // what matters for the halal-slaughter-origin reason, not countries_tags
+  // (where it's sold) — prefer origin data and only fall back to
+  // manufacturing place, never to countries_tags.
+  function guessOriginCountryFromOff(product) {
+    var candidates = (product.origins_tags || []).concat(product.manufacturing_places_tags || []);
+    for (var i = 0; i < candidates.length; i++) {
+      var slug = stripOffTagPrefix(candidates[i]).replace(/\s+/g, "-");
+      if (OFF_COUNTRY_TAG_TO_LABEL[slug]) return OFF_COUNTRY_TAG_TO_LABEL[slug];
+    }
+    return null;
+  }
+
+  // Runs `worker` over `items` with at most `limit` in flight at once —
+  // OFF is a free public API with no key, so this stays polite instead of
+  // firing hundreds of requests at once.
+  function runWithConcurrency(items, limit, worker) {
+    var index = 0;
+    var results = new Array(items.length);
+    return new Promise(function (resolve) {
+      var active = 0;
+      function pump() {
+        if (index >= items.length && active === 0) { resolve(results); return; }
+        while (active < limit && index < items.length) {
+          (function (i) {
+            active++;
+            worker(items[i], i)
+              .then(function (r) { results[i] = r; })
+              .catch(function () { results[i] = null; })
+              .finally(function () { active--; pump(); });
+          })(index);
+          index++;
+        }
+      }
+      pump();
+    });
+  }
+
+  document.getElementById("productBulkOffLookupBtn").addEventListener("click", function () {
+    var ids = Object.keys(selectedProductIds);
+    if (!ids.length) return;
+    if (!window.confirm(ids.length + " məhsulun barkodu Open Food Facts-da axtarılacaq (yalnız oradakı barkodlar üçün nəticə olacaq). Davam edilsin?")) return;
+
+    var realLabels = [].slice.call(document.getElementById("productCategoryFilter").options)
+      .map(function (o) { return o.value; })
+      .filter(function (v) { return v && v !== "__none__"; });
+
+    var btn = this;
+    var progressEl = document.getElementById("productBulkOffLookupProgress");
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Yoxlanılır…";
+
+    sb("certified_entries?select=id,barcode&id=in.(" + ids.join(",") + ")")
+      .then(function (rows) {
+        var withBarcode = (rows || []).filter(function (r) { return r.barcode; });
+        var noBarcode = ids.length - withBarcode.length;
+        var done = 0;
+        progressEl.textContent = "0/" + withBarcode.length;
+
+        return runWithConcurrency(withBarcode, 6, function (row) {
+          return fetch(
+            "https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(row.barcode) +
+              ".json?fields=status,categories_tags,origins_tags,manufacturing_places_tags"
+          )
+            .then(function (res) { return res.ok ? res.json() : null; })
+            .then(function (data) {
+              done++;
+              progressEl.textContent = done + "/" + withBarcode.length;
+              if (!data || data.status !== 1 || !data.product) return null;
+              var category = guessCategoryFromOffTags(data.product.categories_tags, realLabels);
+              var originCountry = guessOriginCountryFromOff(data.product);
+              if (!category && !originCountry) return null;
+              var body = { updated_at: new Date().toISOString() };
+              if (category) body.category = category;
+              if (originCountry) body.origin_country = originCountry;
+              return sb("certified_entries?id=eq." + row.id, {
+                method: "PATCH",
+                headers: { "Prefer": "return=minimal" },
+                body: body,
+              }).then(function () {
+                return { category: !!category, originCountry: !!originCountry };
+              });
+            })
+            .catch(function () {
+              done++;
+              progressEl.textContent = done + "/" + withBarcode.length;
+              return null;
+            });
+        }).then(function (results) {
+          var categoryCount = 0, originCount = 0, foundCount = 0;
+          results.forEach(function (r) {
+            if (!r) return;
+            foundCount++;
+            if (r.category) categoryCount++;
+            if (r.originCountry) originCount++;
+          });
+          var notFound = withBarcode.length - foundCount;
+          toast(
+            foundCount + " məhsul OFF-da tapıldı (" + categoryCount + " kateqoriya, " + originCount + " ölkə dolduruldu)" +
+            "; " + notFound + " OFF-da tapılmadı" +
+            (noBarcode ? "; " + noBarcode + " barkodsuz idi (keçildi)" : "") + "."
+          );
+          logAudit(
+            "bulk_off_lookup",
+            "certified_entries",
+            null,
+            foundCount + "/" + withBarcode.length + " OFF-dan tapıldı (" + categoryCount + " kateqoriya, " + originCount + " ölkə)"
+          );
+          reloadActiveProductsList();
+        });
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+        progressEl.textContent = "";
       });
   });
 
