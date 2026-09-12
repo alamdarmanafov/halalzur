@@ -739,7 +739,7 @@
           <button type="button" class="btn" id="productBulkRenewDateBtn" disabled>Seçilənlərin yoxlama tarixini bu günə yenilə</button>
         </div>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-          <button type="button" class="btn" id="productBulkOffLookupBtn" disabled title="Hər barkodu Open Food Facts açıq bazasından axtarır — tapılan məhsulların kateqoriyasını VƏ istehsalçı ölkəsini avtomatik dolduru. Yalnız OFF-da olan barkodlar üçün işləyir, yerli/regional Wolt məhsullarının çoxu tapılmaya bilər.">🔍 Barkoda görə OFF-dan kateqoriya + ölkə tap</button>
+          <button type="button" class="btn" id="productBulkOffLookupBtn" disabled title="Hər barkodu Open Food Facts açıq bazasından axtarır — tapılan məhsulların kateqoriyasını VƏ istehsalçı ölkəsini avtomatik dolduru (ölkə üçün əvvəlcə 'harada istehsal olunub', tapılmasa 'harada satılır' məlumatına baxır). Yalnız OFF-da olan barkodlar üçün işləyir, yerli/regional Wolt məhsullarının çoxu tapılmaya bilər.">🔍 Barkoda görə OFF-dan kateqoriya + ölkə tap</button>
           <span id="productBulkOffLookupProgress" class="pc-note" style="margin:0;"></span>
         </div>
       </div>
@@ -6193,22 +6193,29 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   // match against these keyword lists (word-boundary style, same idea as
   // CATEGORY_GUESS_RULES/guessCategoryForName above, just against OFF's
   // English taxonomy instead of our own Azerbaijani product names).
+  // OFF's canonical taxonomy tends to use PLURAL nouns ("en:beverages",
+  // "en:cheeses", "en:breads") — the original version of this list was
+  // mostly singular and silently missed most real tags. Every entry likely
+  // to appear as its own token (after "-"→" " splitting) should be listed
+  // in whichever form(s) OFF actually uses; a hyphenated multi-word entry
+  // here would never match since tokens are split on whitespace, so those
+  // are written as separate single words instead.
   var OFF_CATEGORY_TAG_KEYWORDS = {
-    "Şirniyyat": ["confectioner", "chocolate", "candy", "candies", "sweet", "dessert", "biscuit", "cookie"],
-    "Çörək": ["bread", "bakery", "baked"],
-    "İçki": ["beverage", "drink", "juice", "soda", "water", "tea", "coffee", "cola"],
-    "Süd məhsulları": ["dairy", "dairies", "cheese", "yogurt", "yoghurt", "milk", "cream"],
-    "Ət məhsulları": ["meat", "meats", "sausage", "poultry", "beef", "chicken", "ham"],
-    "Konservlər": ["canned", "preserve", "preserved"],
-    "Dondurulmuş məhsullar": ["frozen", "ice-cream", "ice-creams"],
-    "Souslar": ["sauce", "sauces", "condiment", "ketchup", "mayonnaise"],
-    "Qəlyanaltılar": ["snack", "snacks", "chip", "chips", "crisp", "crisps"],
-    "Dənli məhsullar": ["cereal", "cereals", "grain", "grains"],
-    "Uşaq qidası": ["baby", "babies", "infant"],
+    "Şirniyyat": ["confectioner", "confectioneries", "confectionery", "chocolate", "chocolates", "candy", "candies", "sweet", "sweets", "dessert", "desserts", "biscuit", "biscuits", "cookie", "cookies", "cake", "cakes", "pastry", "pastries", "wafer", "wafers"],
+    "Çörək": ["bread", "breads", "bakery", "baked"],
+    "İçki": ["beverage", "beverages", "drink", "drinks", "juice", "juices", "soda", "sodas", "water", "waters", "tea", "teas", "coffee", "coffees", "cola", "colas", "lemonade", "lemonades"],
+    "Süd məhsulları": ["dairy", "dairies", "cheese", "cheeses", "yogurt", "yogurts", "yoghurt", "yoghurts", "milk", "milks", "cream", "creams"],
+    "Ət məhsulları": ["meat", "meats", "sausage", "sausages", "poultry", "beef", "chicken", "ham", "hams"],
+    "Konservlər": ["canned", "preserve", "preserves", "preserved"],
+    "Dondurulmuş məhsullar": ["frozen", "sorbet", "sorbets"],
+    "Souslar": ["sauce", "sauces", "condiment", "condiments", "ketchup", "ketchups", "mayonnaise", "mayonnaises", "dressing", "dressings"],
+    "Qəlyanaltılar": ["snack", "snacks", "chip", "chips", "crisp", "crisps", "cracker", "crackers"],
+    "Dənli məhsullar": ["cereal", "cereals", "grain", "grains", "muesli", "mueslis", "granola", "granolas", "oat", "oats"],
+    "Uşaq qidası": ["baby", "babies", "infant", "infants", "toddler", "toddlers"],
     "Makaron və düyü": ["pasta", "pastas", "noodle", "noodles", "rice", "rices"],
-    "Yağlar": ["oil", "oils", "fat", "fats", "butter"],
+    "Yağlar": ["oil", "oils", "fat", "fats", "butter", "butters", "margarine", "margarines"],
     "Ədviyyat": ["spice", "spices", "herb", "herbs"],
-    "Kosmetika": ["cosmetic", "cosmetics", "hygiene", "care"],
+    "Kosmetika": ["cosmetic", "cosmetics", "hygiene", "toiletry", "toiletries", "care"],
   };
 
   // Covers the same PRODUCT_ORIGIN_COUNTRIES list — only entries actually
@@ -6252,16 +6259,26 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   }
 
   // origins_tags/manufacturing_places_tags (where it was actually made) is
-  // what matters for the halal-slaughter-origin reason, not countries_tags
-  // (where it's sold) — prefer origin data and only fall back to
-  // manufacturing place, never to countries_tags.
+  // what matters for the halal-slaughter-origin reason, so those are tried
+  // first. They're the rarer, more carefully-entered OFF fields though —
+  // most products that have ANY country data at all only carry
+  // countries_tags (where it's SOLD, entered for every product OFF lists,
+  // not just ones someone bothered to also tag with real origin data).
+  // Used only as a last resort, and only when the product is tagged as
+  // sold in exactly ONE of our known countries — a product sold across
+  // many countries gives no real origin signal, so that case is skipped
+  // rather than guessed.
   function guessOriginCountryFromOff(product) {
-    var candidates = (product.origins_tags || []).concat(product.manufacturing_places_tags || []);
-    for (var i = 0; i < candidates.length; i++) {
-      var slug = stripOffTagPrefix(candidates[i]).replace(/\s+/g, "-");
+    var strong = (product.origins_tags || []).concat(product.manufacturing_places_tags || []);
+    for (var i = 0; i < strong.length; i++) {
+      var slug = stripOffTagPrefix(strong[i]).replace(/\s+/g, "-");
       if (OFF_COUNTRY_TAG_TO_LABEL[slug]) return OFF_COUNTRY_TAG_TO_LABEL[slug];
     }
-    return null;
+    var soldIn = (product.countries_tags || [])
+      .map(function (t) { return OFF_COUNTRY_TAG_TO_LABEL[stripOffTagPrefix(t).replace(/\s+/g, "-")]; })
+      .filter(Boolean);
+    var uniqueSoldIn = soldIn.filter(function (c, i) { return soldIn.indexOf(c) === i; });
+    return uniqueSoldIn.length === 1 ? uniqueSoldIn[0] : null;
   }
 
   // Runs `worker` over `items` with at most `limit` in flight at once —
@@ -6316,16 +6333,16 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         return runWithConcurrency(withBarcode, 6, function (row) {
           return fetch(
             "https://world.openfoodfacts.org/api/v2/product/" + encodeURIComponent(row.barcode) +
-              ".json?fields=status,categories_tags,origins_tags,manufacturing_places_tags"
+              ".json?fields=status,categories_tags,origins_tags,manufacturing_places_tags,countries_tags"
           )
             .then(function (res) { return res.ok ? res.json() : null; })
             .then(function (data) {
               done++;
               progressEl.textContent = done + "/" + withBarcode.length;
-              if (!data || data.status !== 1 || !data.product) return null;
+              if (!data || data.status !== 1 || !data.product) return { foundInOff: false };
               var category = guessCategoryFromOffTags(data.product.categories_tags, realLabels);
               var originCountry = guessOriginCountryFromOff(data.product);
-              if (!category && !originCountry) return null;
+              if (!category && !originCountry) return { foundInOff: true, category: false, originCountry: false };
               var body = { updated_at: new Date().toISOString() };
               if (category) body.category = category;
               if (originCountry) body.origin_country = originCountry;
@@ -6334,33 +6351,37 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
                 headers: { "Prefer": "return=minimal" },
                 body: body,
               }).then(function () {
-                return { category: !!category, originCountry: !!originCountry };
+                return { foundInOff: true, category: !!category, originCountry: !!originCountry };
               });
             })
             .catch(function () {
               done++;
               progressEl.textContent = done + "/" + withBarcode.length;
-              return null;
+              return { foundInOff: false };
             });
         }).then(function (results) {
-          var categoryCount = 0, originCount = 0, foundCount = 0;
+          var categoryCount = 0, originCount = 0, foundInOffCount = 0, matchedCount = 0;
           results.forEach(function (r) {
             if (!r) return;
-            foundCount++;
+            if (r.foundInOff) foundInOffCount++;
             if (r.category) categoryCount++;
             if (r.originCountry) originCount++;
+            if (r.category || r.originCountry) matchedCount++;
           });
-          var notFound = withBarcode.length - foundCount;
+          var notInOff = withBarcode.length - foundInOffCount;
+          var foundButNoMatch = foundInOffCount - matchedCount;
           toast(
-            foundCount + " məhsul OFF-da tapıldı (" + categoryCount + " kateqoriya, " + originCount + " ölkə dolduruldu)" +
-            "; " + notFound + " OFF-da tapılmadı" +
+            foundInOffCount + " barkod OFF-da tapıldı, " + matchedCount + "-i uyğunlaşdırıldı (" +
+            categoryCount + " kateqoriya, " + originCount + " ölkə dolduruldu)" +
+            "; " + notInOff + " OFF-da ümumiyyətlə yoxdur" +
+            (foundButNoMatch ? "; " + foundButNoMatch + " OFF-da var amma uyğun kateqoriya/ölkə formatı yoxdur" : "") +
             (noBarcode ? "; " + noBarcode + " barkodsuz idi (keçildi)" : "") + "."
           );
           logAudit(
             "bulk_off_lookup",
             "certified_entries",
             null,
-            foundCount + "/" + withBarcode.length + " OFF-dan tapıldı (" + categoryCount + " kateqoriya, " + originCount + " ölkə)"
+            foundInOffCount + "/" + withBarcode.length + " OFF-da tapıldı, " + matchedCount + " uyğunlaşdırıldı (" + categoryCount + " kateqoriya, " + originCount + " ölkə)"
           );
           reloadActiveProductsList();
         });
