@@ -5192,6 +5192,32 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     };
   }
 
+  function chunkArray(arr, size) {
+    var out = [];
+    for (var i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  }
+
+  // Every bulk action below filters certified_entries by "id=in.(...)" —
+  // joining the FULL id list into one URL. That was fine when a selection
+  // meant a few dozen products, but "Filterə uyğun hamısını seç" can now
+  // pull thousands, and a URL with thousands of UUIDs fails outright
+  // (too long for the request to even go through). This runs `fn` over
+  // `ids` in chunks instead, one request per chunk, in sequence — merging
+  // returned arrays for SELECT-style calls, or just resolving once for
+  // PATCH/DELETE calls where `fn` returns null. Every "id=in.(...)" bulk
+  // call should go through this, not join(",") directly.
+  function withIdChunks(ids, chunkSize, fn) {
+    var chunks = chunkArray(ids, chunkSize || 300);
+    return chunks.reduce(function (chain, chunk) {
+      return chain.then(function (acc) {
+        return fn(chunk).then(function (result) {
+          return Array.isArray(result) ? acc.concat(result) : acc;
+        });
+      });
+    }, Promise.resolve([]));
+  }
+
   // Fetches every id matching the current filter, across all pages — used
   // by "Filterə uyğun hamısını seç" so bulk actions can apply to the whole
   // filtered set, not just whatever page happens to be on screen. Paginates
@@ -6011,19 +6037,23 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     var requests = [];
     if (otherIds.length) {
       requests.push(
-        sb("certified_entries?id=in.(" + otherIds.join(",") + ")", {
-          method: "PATCH",
-          headers: { "Prefer": "return=minimal" },
-          body: { status: status, updated_at: new Date().toISOString() },
+        withIdChunks(otherIds, 300, function (chunk) {
+          return sb("certified_entries?id=in.(" + chunk.join(",") + ")", {
+            method: "PATCH",
+            headers: { "Prefer": "return=minimal" },
+            body: { status: status, updated_at: new Date().toISOString() },
+          });
         })
       );
     }
     if (offIds.length) {
       requests.push(
-        sb("certified_entries?id=in.(" + offIds.join(",") + ")", {
-          method: "PATCH",
-          headers: { "Prefer": "return=minimal" },
-          body: { status: status, certifier_id: "halalzur", notes: null, updated_at: new Date().toISOString() },
+        withIdChunks(offIds, 300, function (chunk) {
+          return sb("certified_entries?id=in.(" + chunk.join(",") + ")", {
+            method: "PATCH",
+            headers: { "Prefer": "return=minimal" },
+            body: { status: status, certifier_id: "halalzur", notes: null, updated_at: new Date().toISOString() },
+          });
         })
       );
     }
@@ -6104,7 +6134,9 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     var original = btn.textContent;
     btn.textContent = "Oxunur…";
 
-    sb("certified_entries?select=id,product_name&id=in.(" + ids.join(",") + ")")
+    withIdChunks(ids, 300, function (chunk) {
+      return sb("certified_entries?select=id,product_name&id=in.(" + chunk.join(",") + ")");
+    })
       .then(function (rows) {
         var byCategory = {};
         var unmatched = 0;
@@ -6123,10 +6155,12 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         return labels
           .reduce(function (chain, label) {
             return chain.then(function () {
-              return sb("certified_entries?id=in.(" + byCategory[label].join(",") + ")", {
-                method: "PATCH",
-                headers: { "Prefer": "return=minimal" },
-                body: { category: label, updated_at: new Date().toISOString() },
+              return withIdChunks(byCategory[label], 300, function (chunk) {
+                return sb("certified_entries?id=in.(" + chunk.join(",") + ")", {
+                  method: "PATCH",
+                  headers: { "Prefer": "return=minimal" },
+                  body: { category: label, updated_at: new Date().toISOString() },
+                });
               });
             });
           }, Promise.resolve())
@@ -6270,7 +6304,9 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     var original = btn.textContent;
     btn.textContent = "Yoxlanılır…";
 
-    sb("certified_entries?select=id,barcode&id=in.(" + ids.join(",") + ")")
+    withIdChunks(ids, 300, function (chunk) {
+      return sb("certified_entries?select=id,barcode&id=in.(" + chunk.join(",") + ")");
+    })
       .then(function (rows) {
         var withBarcode = (rows || []).filter(function (r) { return r.barcode; });
         var noBarcode = ids.length - withBarcode.length;
@@ -6353,10 +6389,12 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     btn.disabled = true;
     var original = btn.textContent;
     btn.textContent = "Yenilənir…";
-    sb("certified_entries?id=in.(" + ids.join(",") + ")", {
-      method: "PATCH",
-      headers: { "Prefer": "return=minimal" },
-      body: { category: category, updated_at: new Date().toISOString() },
+    withIdChunks(ids, 300, function (chunk) {
+      return sb("certified_entries?id=in.(" + chunk.join(",") + ")", {
+        method: "PATCH",
+        headers: { "Prefer": "return=minimal" },
+        body: { category: category, updated_at: new Date().toISOString() },
+      });
     })
       .then(function () {
         toast(ids.length + " məhsulun kateqoriyası dəyişdi");
@@ -6387,10 +6425,12 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     btn.disabled = true;
     var original = btn.textContent;
     btn.textContent = "Yenilənir…";
-    sb("certified_entries?id=in.(" + ids.join(",") + ")", {
-      method: "PATCH",
-      headers: { "Prefer": "return=minimal" },
-      body: { origin_country: originCountry, updated_at: new Date().toISOString() },
+    withIdChunks(ids, 300, function (chunk) {
+      return sb("certified_entries?id=in.(" + chunk.join(",") + ")", {
+        method: "PATCH",
+        headers: { "Prefer": "return=minimal" },
+        body: { origin_country: originCountry, updated_at: new Date().toISOString() },
+      });
     })
       .then(function () {
         toast(ids.length + " məhsulun istehsalçı ölkəsi dəyişdi");
@@ -6456,7 +6496,9 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     // Each row's ingredients array is different, so this can't be a single
     // bulk PATCH — read each selected row's current array, then write the
     // merged one back.
-    sb("certified_entries?id=in.(" + ids.join(",") + ")&select=id,ingredients")
+    withIdChunks(ids, 300, function (chunk) {
+      return sb("certified_entries?id=in.(" + chunk.join(",") + ")&select=id,ingredients");
+    })
       .then(function (rows) {
         return Promise.all(
           (rows || []).map(function (row) {
@@ -6500,10 +6542,12 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     btn.disabled = true;
     var original = btn.textContent;
     btn.textContent = "Yenilənir…";
-    sb("certified_entries?id=in.(" + ids.join(",") + ")", {
-      method: "PATCH",
-      headers: { "Prefer": "return=minimal" },
-      body: { image_url: url || null, updated_at: new Date().toISOString() },
+    withIdChunks(ids, 300, function (chunk) {
+      return sb("certified_entries?id=in.(" + chunk.join(",") + ")", {
+        method: "PATCH",
+        headers: { "Prefer": "return=minimal" },
+        body: { image_url: url || null, updated_at: new Date().toISOString() },
+      });
     })
       .then(function () {
         toast("Şəkil yeniləndi: " + ids.length + " məhsul");
@@ -6528,10 +6572,12 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     btn.disabled = true;
     var original = btn.textContent;
     btn.textContent = "Yenilənir…";
-    sb("certified_entries?id=in.(" + ids.join(",") + ")", {
-      method: "PATCH",
-      headers: { "Prefer": "return=minimal" },
-      body: { verified_at: new Date().toISOString().slice(0, 10), updated_at: new Date().toISOString() },
+    withIdChunks(ids, 300, function (chunk) {
+      return sb("certified_entries?id=in.(" + chunk.join(",") + ")", {
+        method: "PATCH",
+        headers: { "Prefer": "return=minimal" },
+        body: { verified_at: new Date().toISOString().slice(0, 10), updated_at: new Date().toISOString() },
+      });
     })
       .then(function () {
         toast("Yoxlama tarixi yeniləndi: " + ids.length + " məhsul");
@@ -6657,10 +6703,12 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     var btn = document.getElementById("productBulkDeleteBtn");
     btn.disabled = true;
     btn.textContent = "Silinir…";
-    sb("certified_entries?id=in.(" + ids.join(",") + ")", {
-      method: "PATCH",
-      headers: { "Prefer": "return=minimal" },
-      body: { deleted_at: new Date().toISOString() },
+    withIdChunks(ids, 300, function (chunk) {
+      return sb("certified_entries?id=in.(" + chunk.join(",") + ")", {
+        method: "PATCH",
+        headers: { "Prefer": "return=minimal" },
+        body: { deleted_at: new Date().toISOString() },
+      });
     })
       .then(function () {
         toast(ids.length + " məhsul zibil qutusuna köçürüldü");
