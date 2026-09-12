@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, FlatList, Act
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { searchProducts, lookupBarcode } from '../lib/certification';
+import { searchProducts, lookupBarcode, displayCertifier } from '../lib/certification';
 import { getRatingSummary, RatingSummary } from '../lib/ratings';
 import { extractECodesFromText } from '../lib/eCodes';
 import { useHistory } from '../lib/history-context';
@@ -193,8 +193,8 @@ export default function CompareScreen() {
             label={t('compareRowCertifier')}
             colors={colors}
             styles={styles}
-            valueA={<Text style={styles.cellText}>{productA.certifier?.shortName ?? t('compareValueUnknown')}</Text>}
-            valueB={<Text style={styles.cellText}>{productB.certifier?.shortName ?? t('compareValueUnknown')}</Text>}
+            valueA={<Text style={styles.cellText}>{displayCertifier(productA.certifier)?.shortName ?? t('compareValueUnknown')}</Text>}
+            valueB={<Text style={styles.cellText}>{displayCertifier(productB.certifier)?.shortName ?? t('compareValueUnknown')}</Text>}
           />
           <CompareRow
             label={t('compareRowVerifiedAt')}

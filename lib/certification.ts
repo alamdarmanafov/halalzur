@@ -6,6 +6,24 @@ import { lookupUpcItemDb } from './upcItemDb';
 import { TranslationKey } from './i18n';
 
 /**
+ * 'openfoodfacts' / 'azexport' / 'wolt' are placeholder `certifiers` rows
+ * (see migration_2026_09_02_azexport_certifier.sql,
+ * migration_2026_09_09_wolt_certifier_placeholder.sql, schema.sql) used
+ * only to tag WHERE a status='unknown' imported row's data came from —
+ * never a real halal certification. An admin can later hand-edit that
+ * row's status to halal/haram/mushbooh without ever clearing certifier_id,
+ * so the raw DB value can't be trusted as "who certified this" — always
+ * read `product.certifier` through `displayCertifier()` before showing it
+ * as a certifying body.
+ */
+const IMPORT_SOURCE_CERTIFIER_IDS = new Set(['openfoodfacts', 'azexport', 'wolt']);
+
+export function displayCertifier(certifier: Certifier | null): Certifier | null {
+  if (!certifier || IMPORT_SOURCE_CERTIFIER_IDS.has(certifier.id)) return null;
+  return certifier;
+}
+
+/**
  * Local demo/offline dataset — used only as a dev fallback while the
  * Supabase project (supabase/schema.sql) isn't configured yet, or if a
  * request to it fails. Once EXPO_PUBLIC_SUPABASE_URL / _ANON_KEY are set,

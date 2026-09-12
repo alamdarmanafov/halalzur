@@ -22,7 +22,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { captureRef } from 'react-native-view-shot';
-import { lookupBarcode, STATUS_DESC_KEY, getHalalAlternatives, getDistinctBrands } from '../../lib/certification';
+import { lookupBarcode, STATUS_DESC_KEY, getHalalAlternatives, getDistinctBrands, displayCertifier } from '../../lib/certification';
 import { PRODUCT_CATEGORIES, getProductCategories } from '../../lib/categories';
 import { extractECodesFromText, searchECodes, ECODE_STATUS_LABEL_KEY } from '../../lib/eCodes';
 import { extractHaramKeywords, HaramKeywordStatus } from '../../lib/haramKeywords';
@@ -402,6 +402,10 @@ export default function ProductDetailScreen() {
   // see this (isPremium gate) — the E-code/keyword reason above stays
   // free for everyone, this is purely additive on top of it. Doesn't
   // touch product.status itself, same as every other reason card here.
+  // 'wolt'/'openfoodfacts'/'azexport' certifier rows are import-source
+  // tags, not real certifying bodies — never present one as if it
+  // verified this product (see lib/certification.ts's displayCertifier).
+  const shownCertifier = displayCertifier(product?.certifier ?? null);
   const originCountryFlagged = isPremium && isNonHalalSlaughterCountry(product?.originCountry);
   const originCountryReason = originCountryFlagged
     ? t('productOriginCountryReason').replace(
@@ -757,11 +761,11 @@ export default function ProductDetailScreen() {
           <Ionicons name="shield-checkmark" size={22} color={tint} />
           <View style={{ flex: 1 }}>
             <Text style={styles.certifierTitle}>
-              {product.certifier ? product.certifier.shortName : t('productCertifierNotFoundTitle')}
+              {shownCertifier ? shownCertifier.shortName : t('productCertifierNotFoundTitle')}
             </Text>
             <Text style={styles.certifierBody}>
-              {product.certifier
-                ? `${product.certifier.name} (${product.certifier.country})`
+              {shownCertifier
+                ? `${shownCertifier.name} (${shownCertifier.country})`
                 : t('productCertifierNotFoundBody')}
             </Text>
             {product.certificateNumber && (
@@ -770,8 +774,8 @@ export default function ProductDetailScreen() {
             {product.verifiedAt && (
               <Text style={styles.certNumber}>{t('productVerifiedAt')} {product.verifiedAt}</Text>
             )}
-            {product.certifier?.sourceUrl && (
-              <Pressable onPress={() => Linking.openURL(product.certifier!.sourceUrl!)} hitSlop={8}>
+            {shownCertifier?.sourceUrl && (
+              <Pressable onPress={() => Linking.openURL(shownCertifier.sourceUrl!)} hitSlop={8}>
                 <Text style={styles.sourceLink}>{t('productViewSource')}</Text>
               </Pressable>
             )}
