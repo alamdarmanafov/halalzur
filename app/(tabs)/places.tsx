@@ -35,7 +35,8 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { Button } from '../../components/Button';
 import { BrandModal } from '../../components/BrandModal';
 import { sendPushNotification } from '../../lib/pushNotify';
-import { colors, radius, spacing, typography } from '../../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../../constants/theme';
+import { useThemeColors } from '../../lib/theme-context';
 import { TranslationKey } from '../../lib/i18n';
 
 const SUBMIT_CATEGORIES: PlaceCategory[] = ['restoran', 'kafe', 'coffee_shop', 'sirniyyat', 'qessabxana', 'market'];
@@ -67,6 +68,8 @@ function openInMaps(place: Place, t: (key: TranslationKey) => string) {
 export default function PlacesScreen() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const categoryLabel = (cat: PlaceCategory) => t(CATEGORY_LABEL_KEY[cat]);
   const FILTERS: { key: PlaceCategory | 'hamısı'; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { key: 'hamısı', label: t('placesCategoryAll'), icon: 'apps-outline' },
@@ -405,7 +408,7 @@ export default function PlacesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white, paddingHorizontal: spacing.lg },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', marginTop: spacing.md, gap: spacing.md },
   title: { ...typography.h1, color: colors.primaryDark },

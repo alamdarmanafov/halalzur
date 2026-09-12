@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { Redirect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -6,11 +6,14 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useAuth } from '../lib/auth-context';
 import { hasSeenOnboarding } from '../lib/onboarding';
 import { Logo } from '../components/Logo';
-import { colors, spacing, typography } from '../constants/theme';
+import { spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 export default function Index() {
   const { user, isLoading } = useAuth();
   const [seenOnboarding, setSeenOnboarding] = useState<boolean | null>(null);
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   useEffect(() => {
     hasSeenOnboarding().then(setSeenOnboarding);
@@ -42,7 +45,7 @@ export default function Index() {
   return <Redirect href={user ? '/(tabs)/products' : '/(auth)/welcome'} />;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   splash: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   splashWordmark: {
     ...typography.h2,

@@ -1,14 +1,18 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../lib/i18n-context';
 import { useShoppingList } from '../lib/shoppingList-context';
-import { colors, radius, spacing, typography } from '../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 export default function ShoppingListScreen() {
   const { t } = useLanguage();
   const { items, toggleBought, removeItem, clearBought } = useShoppingList();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const boughtCount = items.filter((i) => i.bought).length;
 
   return (
@@ -70,7 +74,7 @@ export default function ShoppingListScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white },
   header: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Alert, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -8,7 +8,8 @@ import { useAuth } from '../lib/auth-context';
 import { useLanguage } from '../lib/i18n-context';
 import { submitFeedback } from '../lib/feedback';
 import { Button } from '../components/Button';
-import { colors, radius, spacing, typography } from '../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 export default function FeedbackScreen() {
   const { user } = useAuth();
@@ -18,6 +19,8 @@ export default function FeedbackScreen() {
   const [image, setImage] = useState<string | null>(screenshot ?? null);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -123,7 +126,7 @@ export default function FeedbackScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white },
   header: {
     flexDirection: 'row',

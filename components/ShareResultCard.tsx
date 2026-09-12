@@ -9,6 +9,10 @@ import { colors, radius, spacing, typography } from '../constants/theme';
 // Darker, opaque tints of StatusBadge's palette — the badge's own pale
 // tints read fine on a white screen background but wash out once this
 // becomes a standalone shared image with no surrounding chrome.
+// Deliberately NOT theme-aware: this card is a fixed branded artifact
+// shared outside the app (Instagram/TikTok story) and must always render
+// with the same colors regardless of the viewer's own dark/light setting
+// — see the component comment below.
 const CARD_STYLE: Record<HalalStatus, { bg: string; icon: string }> = {
   halal: { bg: colors.primaryDark, icon: '✓' },
   haram: { bg: '#7A1F1F', icon: '!' },
@@ -33,7 +37,9 @@ const CARD_HEIGHT = 640;
  * Rendered off-screen (see product/[id].tsx) and captured with
  * react-native-view-shot for the "share as image" action — not meant to
  * be shown on screen directly, so it carries its own fixed size/colors
- * instead of adapting to the surrounding layout.
+ * instead of adapting to the surrounding layout (including app-wide dark
+ * mode — this always uses the static light-mode `colors`, never the
+ * theme hook).
  */
 export const ShareResultCard = forwardRef<View, Props>(function ShareResultCard(
   { productName, brand, status },

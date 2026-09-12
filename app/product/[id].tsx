@@ -53,19 +53,23 @@ import { StatusBadge } from '../../components/StatusBadge';
 import { ECodeCard } from '../../components/ECodeCard';
 import { ShareResultCard } from '../../components/ShareResultCard';
 import { Button } from '../../components/Button';
-import { colors, radius, spacing, typography } from '../../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../../constants/theme';
+import { useThemeColors } from '../../lib/theme-context';
 
 // unknown shares mushbooh's yellow tint — see components/StatusBadge.tsx
-const STATUS_TINT: Record<CertificationResult['status'], string> = {
+const makeStatusTint = (colors: ThemeColors): Record<CertificationResult['status'], string> => ({
   halal: colors.primary,
   haram: colors.danger,
   mushbooh: colors.warning,
   unknown: colors.warning,
-};
+});
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const STATUS_TINT = useMemo(() => makeStatusTint(colors), [colors]);
   const { t, language } = useLanguage();
   const { liteMode } = useLiteMode();
   const isPremium = user?.plan === 'premium';
@@ -692,6 +696,14 @@ export default function ProductDetailScreen() {
             <Text style={styles.shareCardLinkText}>{t('shareCardAction')}</Text>
           </Pressable>
           <Pressable
+            onPress={() => router.push({ pathname: '/compare', params: { barcode: product.barcode } })}
+            style={styles.shareCardLink}
+            hitSlop={6}
+          >
+            <Ionicons name="swap-horizontal-outline" size={15} color={colors.primaryDark} />
+            <Text style={styles.shareCardLinkText}>{t('profileCompare')}</Text>
+          </Pressable>
+          <Pressable
             onPress={onToggleRecommend}
             disabled={recommending}
             style={[styles.recommendPill, recommended && styles.recommendPillActive]}
@@ -1265,7 +1277,7 @@ export default function ProductDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.xl },
   offlineTitle: { ...typography.h3, color: colors.black, marginTop: spacing.md, textAlign: 'center' },

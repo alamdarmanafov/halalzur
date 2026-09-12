@@ -1,8 +1,9 @@
-import { ReactNode } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Rect } from 'react-native-svg';
 import { Logo } from '../Logo';
-import { colors, radius } from '../../constants/theme';
+import { radius, ThemeColors } from '../../constants/theme';
+import { useThemeColors } from '../../lib/theme-context';
 
 const BAR_WIDTHS = [3, 6, 2, 4, 2, 7, 3, 5, 2, 6, 4, 3, 6, 2, 4, 3];
 
@@ -22,6 +23,8 @@ function Barcode() {
 }
 
 export function ScanIllustration() {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.wrap}>
       <View style={styles.phone}>
@@ -47,7 +50,7 @@ export function ScanIllustration() {
 const CORNER = 22;
 const CORNER_T = 3;
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   wrap: { width: 220, height: 260, alignItems: 'center', justifyContent: 'center' },
   phone: {
     width: 200,

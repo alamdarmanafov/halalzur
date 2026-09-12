@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { Pressable, Text, StyleSheet, ActivityIndicator, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors, radius, spacing, typography } from '../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 type ButtonProps = {
   title: string;
@@ -19,6 +21,8 @@ export function Button({
   disabled = false,
   style,
 }: ButtonProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const isDisabled = disabled || loading;
 
   if (variant === 'primary') {
@@ -60,7 +64,7 @@ export function Button({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   base: {
     height: 52,
     borderRadius: radius.md,

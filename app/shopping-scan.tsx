@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, FlatList } from 'react-native';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,7 +16,8 @@ import { logScanEvent } from '../lib/scanEvents';
 import { hasInternetConnection } from '../lib/network';
 import { hapticForStatus } from '../lib/haptics';
 import { CertificationResult } from '../lib/types';
-import { colors, radius, spacing, typography } from '../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 /**
  * Premium-only: scan a whole basket of products in one continuous
@@ -29,6 +30,8 @@ export default function ShoppingScanScreen() {
   const { incrementScanCount } = useAuth();
   const { addScan, history } = useHistory();
   const { t } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [permission, requestPermission] = useCameraPermissions();
   const [items, setItems] = useState<CertificationResult[]>([]);
   const [isBusy, setIsBusy] = useState(false);
@@ -226,7 +229,7 @@ export default function ShoppingScanScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.black },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   permissionWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },

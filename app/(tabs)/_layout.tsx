@@ -1,4 +1,4 @@
-import { Fragment, useEffect } from 'react';
+import { Fragment, useEffect, useMemo } from 'react';
 import { router, Tabs, usePathname } from 'expo-router';
 import { Pressable, StyleSheet, GestureResponderEvent, AccessibilityState, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,7 +12,8 @@ import { useLanguage } from '../../lib/i18n-context';
 import { AnnouncementModal } from '../../components/AnnouncementModal';
 import { WelcomeModal } from '../../components/WelcomeModal';
 import { WhatsNewModal } from '../../components/WhatsNewModal';
-import { colors, radius } from '../../constants/theme';
+import { radius, ThemeColors } from '../../constants/theme';
+import { useThemeColors } from '../../lib/theme-context';
 
 const TAB_ICON_SIZE = 24;
 
@@ -23,6 +24,8 @@ type ScanTabButtonProps = {
 
 function ScanTabButton({ onPress, accessibilityState }: ScanTabButtonProps) {
   const focused = !!accessibilityState?.selected;
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <Pressable onPress={onPress} style={styles.scanWrap} accessibilityRole="button">
       <LinearGradient
@@ -41,6 +44,8 @@ export default function TabsLayout() {
   const { user, justRegistered } = useAuth();
   const pathname = usePathname();
   const { t } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   useEffect(() => {
     const unsubscribeShake = onShake(async () => {
@@ -148,7 +153,7 @@ export default function TabsLayout() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   scanWrap: {
     flex: 1,
     alignItems: 'center',

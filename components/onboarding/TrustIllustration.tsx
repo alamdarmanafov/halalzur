@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Logo } from '../Logo';
 import { useLanguage } from '../../lib/i18n-context';
-import { colors, radius, spacing, typography } from '../../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../../constants/theme';
+import { useThemeColors } from '../../lib/theme-context';
 
 const PINS = [
   { top: 18, left: 34 },
@@ -13,6 +15,8 @@ const PINS = [
 
 export function TrustIllustration() {
   const { t } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.wrap}>
       <View style={styles.globeDisc}>
@@ -40,7 +44,7 @@ export function TrustIllustration() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   wrap: { width: 220, height: 260, alignItems: 'center', justifyContent: 'center' },
   globeDisc: {
     width: 200,

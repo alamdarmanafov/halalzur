@@ -9,6 +9,9 @@ type LogoProps = {
 /**
  * Halalzur brand mark: scan-corner brackets around an "H", with a
  * checkmark standing in for the second upright — "scan it, it's verified".
+ * Deliberately NOT theme-aware, like the app's brand `gradients` — this is
+ * a fixed logo, not adaptive UI chrome, so it always uses the static
+ * light-mode brand colors regardless of dark/light mode.
  */
 export function Logo({ size = 96, variant = 'icon' }: LogoProps) {
   const r = size * 0.22;

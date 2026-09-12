@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useNetworkState } from 'expo-network';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../lib/i18n-context';
-import { colors, spacing, typography } from '../constants/theme';
+import { spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 /**
  * Always-mounted banner: certification results must come from a live
@@ -12,6 +14,8 @@ import { colors, spacing, typography } from '../constants/theme';
 export function OfflineBanner() {
   const network = useNetworkState();
   const { t } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const isOffline = network.isConnected === false || network.isInternetReachable === false;
 
   if (!isOffline) return null;
@@ -24,7 +28,7 @@ export function OfflineBanner() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   banner: {
     position: 'absolute',
     top: 0,

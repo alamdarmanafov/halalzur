@@ -34,7 +34,8 @@ import { useShoppingList } from '../../lib/shoppingList-context';
 import type { Language, TranslationKey } from '../../lib/i18n';
 import { deleteAccount, confirmAccountDeletion } from '../../lib/deleteAccount';
 import { requestSyncTokenRecovery, confirmSyncTokenRecovery } from '../../lib/syncToken';
-import { colors, radius, spacing, typography } from '../../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../../constants/theme';
+import { useTheme, ThemeMode } from '../../lib/theme-context';
 
 const LANGUAGE_LABEL_KEY: Record<Language, TranslationKey> = {
   az: 'profileLanguageAz',
@@ -52,6 +53,12 @@ type MenuItem = {
 
 const DATE_LOCALE: Record<Language, string> = { az: 'az-AZ', en: 'en-US', ru: 'ru-RU', tr: 'tr-TR' };
 
+const THEME_MODE_LABEL_KEY: Record<ThemeMode, TranslationKey> = {
+  system: 'themeModeSystem',
+  light: 'themeModeLight',
+  dark: 'themeModeDark',
+};
+
 function formatExpiryDate(iso: string, language: Language): string {
   return new Date(iso).toLocaleDateString(DATE_LOCALE[language], {
     day: 'numeric',
@@ -63,6 +70,8 @@ function formatExpiryDate(iso: string, language: Language): string {
 export default function ProfileScreen() {
   const { user, signOut, refreshPlan, redeemPointsForPremium } = useAuth();
   const { liteMode, setLiteMode } = useLiteMode();
+  const { mode: themeMode, setMode: setThemeMode, colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const { streak } = useStreak();
   const { items: shoppingItems } = useShoppingList();
   const { history, clear, refresh: refreshHistory } = useHistory();
@@ -289,6 +298,24 @@ export default function ProfileScreen() {
             },
           }))
         ),
+    },
+    {
+      icon: themeMode === 'dark' ? 'moon' : themeMode === 'light' ? 'sunny-outline' : 'contrast-outline',
+      label: `${t('profileAppearance')}: ${t(THEME_MODE_LABEL_KEY[themeMode])}`,
+      onPress: () =>
+        Alert.alert(
+          t('profileAppearanceTitle'),
+          undefined,
+          (['system', 'light', 'dark'] as const).map((mode) => ({
+            text: t(THEME_MODE_LABEL_KEY[mode]),
+            onPress: () => setThemeMode(mode),
+          }))
+        ),
+    },
+    {
+      icon: 'swap-horizontal-outline',
+      label: t('profileCompare'),
+      onPress: () => router.push('/compare'),
     },
     {
       icon: 'book-outline',
@@ -562,7 +589,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white, paddingHorizontal: spacing.lg },
   title: { ...typography.h1, color: colors.primaryDark, marginTop: spacing.md, marginBottom: spacing.lg },
   userCard: {

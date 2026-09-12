@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -5,10 +6,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { Logo } from '../../components/Logo';
 import { Leaf } from '../../components/Leaf';
 import { useLanguage } from '../../lib/i18n-context';
-import { colors, radius, spacing, typography } from '../../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../../constants/theme';
+import { useThemeColors } from '../../lib/theme-context';
 
 export default function WelcomeScreen() {
   const { t } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const goToLogin = () => router.push('/(auth)/login');
   const goToRegister = () => router.push('/(auth)/register');
 
@@ -54,7 +58,7 @@ export default function WelcomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.white },
   leafTopLeft: { position: 'absolute', top: 70, left: -10, opacity: 0.9 },
   leafRight: { position: 'absolute', top: '32%', right: -14, opacity: 0.85 },

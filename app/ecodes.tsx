@@ -6,12 +6,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { searchECodes } from '../lib/eCodes';
 import { useLanguage } from '../lib/i18n-context';
 import { ECodeCard } from '../components/ECodeCard';
-import { colors, radius, spacing, typography } from '../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 export default function ECodesScreen() {
   const { t } = useLanguage();
   const [query, setQuery] = useState('');
   const results = useMemo(() => searchECodes(query), [query]);
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -53,7 +56,7 @@ export default function ECodesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white, paddingHorizontal: spacing.lg },
   header: {
     flexDirection: 'row',

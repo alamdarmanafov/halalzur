@@ -1,10 +1,14 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../../lib/i18n-context';
-import { colors, radius, spacing, typography } from '../../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../../constants/theme';
+import { useThemeColors } from '../../lib/theme-context';
 
 export function CheckIllustration() {
   const { t } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const FIELDS: [string, string][] = [
     [t('illustrationStatus'), 'Halal'],
     [t('illustrationCertificate'), 'HS123456'],
@@ -54,7 +58,7 @@ export function CheckIllustration() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   wrap: { width: 240, height: 260, alignItems: 'center', justifyContent: 'center' },
   shieldWrap: { position: 'absolute', left: 6, top: 60, alignItems: 'center', justifyContent: 'center' },
   shieldCheck: { position: 'absolute' },

@@ -11,6 +11,28 @@ export const colors = {
   warning: '#E0A62B',
 } as const;
 
+export type ThemeColors = { [K in keyof typeof colors]: string };
+
+// Same semantic tokens as `colors` (white=page background, black=primary
+// text, surface=card background) resolved to a dark palette — every screen
+// keeps using colors.white/colors.black/etc. unchanged, only the source of
+// `colors` becomes theme-aware (see lib/theme-context.tsx).
+export const darkColors: ThemeColors = {
+  primaryDark: '#34D399',
+  primary: '#22C55E',
+  accent: '#9BFF3D',
+  surface: '#16211C',
+  white: '#0B1310',
+  black: '#F1F5F2',
+  gray: '#93A79B',
+  grayLight: '#3A4A41',
+  danger: '#FF6B6B',
+  warning: '#FBBF24',
+};
+
+// Brand gradients intentionally stay fixed to the light palette in both
+// themes — hero/header art keeps its brand-green identity regardless of
+// the surrounding screen's light/dark mode.
 export const gradients = {
   brand: [colors.primaryDark, colors.primary, colors.accent] as const,
   card: [colors.primaryDark, colors.primary] as const,

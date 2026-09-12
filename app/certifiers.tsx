@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -5,7 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../lib/i18n-context';
 import { CERTIFIERS } from '../lib/certifiers';
 import { TranslationKey } from '../lib/i18n';
-import { colors, radius, spacing, typography } from '../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 const CERTIFIER_DESC_KEY: Record<string, TranslationKey> = {
   gimdes: 'certifierDescGimdes',
@@ -17,6 +19,8 @@ const CERTIFIER_DESC_KEY: Record<string, TranslationKey> = {
 
 export default function CertifiersScreen() {
   const { t } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -54,7 +58,7 @@ export default function CertifiersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white },
   header: {
     flexDirection: 'row',

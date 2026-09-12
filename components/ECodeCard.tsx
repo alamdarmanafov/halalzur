@@ -1,19 +1,24 @@
+import { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ECodeEntry } from '../lib/types';
 import { ECODE_STATUS_LABEL_KEY } from '../lib/eCodes';
 import { translateECodeCategory, translateECodeNote } from '../lib/eCodeTranslations';
 import { useLanguage } from '../lib/i18n-context';
-import { colors, radius, spacing, typography } from '../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
-const STATUS_COLOR: Record<ECodeEntry['status'], string> = {
+const makeStatusColor = (colors: ThemeColors): Record<ECodeEntry['status'], string> => ({
   halal: colors.primary,
   haram: colors.danger,
   mushbooh: colors.warning,
   depends: colors.gray,
-};
+});
 
 export function ECodeCard({ entry }: { entry: ECodeEntry }) {
   const { t, language } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
+  const STATUS_COLOR = useMemo(() => makeStatusColor(colors), [colors]);
   const tint = STATUS_COLOR[entry.status];
   return (
     <View style={[styles.card, { borderColor: tint }]}>
@@ -31,7 +36,7 @@ export function ECodeCard({ entry }: { entry: ECodeEntry }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     borderWidth: 1.5,
     borderRadius: radius.md,

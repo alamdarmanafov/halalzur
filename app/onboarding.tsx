@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,8 @@ import { TrustIllustration } from '../components/onboarding/TrustIllustration';
 import { markOnboardingSeen } from '../lib/onboarding';
 import { useLanguage } from '../lib/i18n-context';
 import { TranslationKey } from '../lib/i18n';
-import { colors, radius, spacing, typography } from '../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 const SLIDE_META = [
   { step: '01', eyebrow: 'SCAN', titleKey: 'onboard1Title', descKey: 'onboard1Desc', Illustration: ScanIllustration },
@@ -32,6 +33,8 @@ export default function OnboardingScreen() {
   const { t } = useLanguage();
   const scrollRef = useRef<ScrollView>(null);
   const [index, setIndex] = useState(0);
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const SLIDES = SLIDE_META.map((s) => ({ ...s, title: t(s.titleKey), desc: t(s.descKey) }));
   const isLast = index === SLIDES.length - 1;
 
@@ -116,7 +119,7 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.white },
   header: {
     flexDirection: 'row',

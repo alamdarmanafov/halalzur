@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -30,11 +30,14 @@ import {
 import { getPoints } from '../lib/submissions';
 import { giftPremiumFromPoints, POINTS_PER_PREMIUM_DAY } from '../lib/points';
 import { Button } from '../components/Button';
-import { colors, radius, spacing, typography } from '../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 export default function ReferralsScreen() {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [loading, setLoading] = useState(true);
   const [code, setCode] = useState<string | null>(null);
   const [redeemed, setRedeemed] = useState(false);
@@ -259,7 +262,7 @@ export default function ReferralsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white },
   loadingBox: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: {

@@ -1,8 +1,10 @@
+import { useMemo } from 'react';
 import { Modal, View, Text, StyleSheet, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from './Button';
 import { Logo } from './Logo';
-import { colors, radius, spacing, typography } from '../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 type BrandModalProps = {
   visible: boolean;
@@ -14,6 +16,8 @@ type BrandModalProps = {
 };
 
 export function BrandModal({ visible, title, body, ctaLabel, onCta, onClose }: BrandModalProps) {
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   if (!visible) return null;
 
   return (
@@ -35,7 +39,7 @@ export function BrandModal({ visible, title, body, ctaLabel, onCta, onClose }: B
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(11,19,16,0.55)',

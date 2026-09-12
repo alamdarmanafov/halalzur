@@ -1,16 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getActiveHoliday, holidayMessage } from '../lib/islamicCalendar';
 import { useLanguage } from '../lib/i18n-context';
-import { colors, radius, spacing, typography } from '../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 const DISMISS_KEY = 'halalzur.dismissedHolidayBanner';
 
 export function HolidayBanner() {
   const { language } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [visible, setVisible] = useState(false);
   const holiday = getActiveHoliday();
 
@@ -44,7 +47,7 @@ export function HolidayBanner() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   banner: {
     flexDirection: 'row',
     alignItems: 'center',

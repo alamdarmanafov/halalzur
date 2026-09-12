@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { router } from 'expo-router';
@@ -15,7 +15,8 @@ import { lookupBarcode } from '../../lib/certification';
 import { logScanEvent } from '../../lib/scanEvents';
 import { hasInternetConnection } from '../../lib/network';
 import { hapticForStatus } from '../../lib/haptics';
-import { colors, radius, spacing, typography } from '../../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../../constants/theme';
+import { useThemeColors } from '../../lib/theme-context';
 
 const FREE_DAILY_SCAN_LIMIT = 3;
 
@@ -24,6 +25,8 @@ export default function ScanScreen() {
   const { addScan, history } = useHistory();
   const { recordScan } = useStreak();
   const { t } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [permission, requestPermission] = useCameraPermissions();
   const [isBusy, setIsBusy] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
@@ -234,7 +237,7 @@ export default function ScanScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.black },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   permissionWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },

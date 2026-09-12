@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,11 +9,14 @@ import { TextField } from '../../components/TextField';
 import { Button } from '../../components/Button';
 import { useAuth, GoogleSignInUnavailableError } from '../../lib/auth-context';
 import { useLanguage } from '../../lib/i18n-context';
-import { colors, spacing, typography } from '../../constants/theme';
+import { spacing, typography, ThemeColors } from '../../constants/theme';
+import { useThemeColors } from '../../lib/theme-context';
 
 export default function RegisterScreen() {
   const { signInWithApple, signInWithGoogle, signUpWithEmail } = useAuth();
   const { t } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -135,7 +138,7 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.white },
   scroll: { flexGrow: 1, padding: spacing.lg, paddingTop: 60 },
   backBtn: {

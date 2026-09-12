@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -10,11 +10,14 @@ import { ACHIEVEMENT_TIERS, highestUnclaimedTier, tierLabel } from '../lib/achie
 import { sendPushNotification } from '../lib/pushNotify';
 import { maybeRequestReview } from '../lib/reviewPrompt';
 import { BrandModal } from '../components/BrandModal';
-import { colors, radius, spacing, typography } from '../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 export default function AchievementsScreen() {
   const { user, grantAchievementPremium } = useAuth();
   const { t, language } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [approvedCount, setApprovedCount] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [unlocked, setUnlocked] = useState<{ label: string } | null>(null);
@@ -130,7 +133,7 @@ export default function AchievementsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white },
   header: {
     flexDirection: 'row',

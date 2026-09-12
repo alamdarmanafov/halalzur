@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -7,7 +7,8 @@ import { useAuth } from '../lib/auth-context';
 import { useLanguage } from '../lib/i18n-context';
 import { TranslationKey } from '../lib/i18n';
 import { fetchMutedNotificationTypes, syncMutedNotificationTypes } from '../lib/userSync';
-import { colors, radius, spacing, typography } from '../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 type NotifType = 'winback' | 'recommend' | 'category_digest';
 const TYPES: NotifType[] = ['winback', 'recommend', 'category_digest'];
@@ -17,6 +18,8 @@ export default function NotificationPreferencesScreen() {
   const { t } = useLanguage();
   const [muted, setMuted] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   useEffect(() => {
     if (!user) return;
@@ -74,7 +77,7 @@ export default function NotificationPreferencesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white },
   header: {
     flexDirection: 'row',

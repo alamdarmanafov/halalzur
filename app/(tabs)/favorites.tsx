@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -6,11 +6,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFavorites } from '../../lib/favorites-context';
 import { useLanguage } from '../../lib/i18n-context';
 import { StatusBadge } from '../../components/StatusBadge';
-import { colors, radius, spacing, typography } from '../../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../../constants/theme';
+import { useThemeColors } from '../../lib/theme-context';
 
 export default function FavoritesScreen() {
   const { favorites, refresh } = useFavorites();
   const { t } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = async () => {
@@ -64,7 +67,7 @@ export default function FavoritesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white, paddingHorizontal: spacing.lg },
   title: { ...typography.h1, color: colors.primaryDark, marginTop: spacing.md },
   card: {

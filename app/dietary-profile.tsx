@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -6,7 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../lib/i18n-context';
 import { useDietaryProfile } from '../lib/dietaryProfile-context';
 import { DietaryTag, AllergenTag, DIETARY_TAG_LABEL_KEY, ALLERGEN_TAG_LABEL_KEY } from '../lib/dietaryKeywords';
-import { colors, radius, spacing, typography } from '../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 const DIET_TAGS: DietaryTag[] = ['vegan', 'dairy_free', 'sugar_free', 'gluten_free'];
 const ALLERGEN_TAGS: AllergenTag[] = ['nuts', 'milk', 'gluten', 'eggs', 'soy', 'fish'];
@@ -16,6 +17,8 @@ export default function DietaryProfileScreen() {
   const { dietaryTags, allergenTags, blockedBrands, toggleDietaryTag, toggleAllergenTag, addBlockedBrand, removeBlockedBrand } =
     useDietaryProfile();
   const [brandInput, setBrandInput] = useState('');
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -92,7 +95,7 @@ export default function DietaryProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white },
   header: {
     flexDirection: 'row',

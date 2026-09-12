@@ -6,6 +6,7 @@ import { AuthProvider } from '../lib/auth-context';
 import { HistoryProvider } from '../lib/history-context';
 import { FavoritesProvider } from '../lib/favorites-context';
 import { LanguageProvider } from '../lib/i18n-context';
+import { ThemeProvider, useTheme } from '../lib/theme-context';
 import { LiteModeProvider } from '../lib/liteMode-context';
 import { DietaryProfileProvider } from '../lib/dietaryProfile-context';
 import { StreakProvider } from '../lib/streak-context';
@@ -25,6 +26,7 @@ loadCustomHaramKeywords();
 function RootLayout() {
   return (
     <View ref={rootViewRef} style={{ flex: 1 }} collapsable={false}>
+    <ThemeProvider>
     <LanguageProvider>
       <AuthProvider>
         <HistoryProvider>
@@ -33,62 +35,7 @@ function RootLayout() {
             <DietaryProfileProvider>
             <StreakProvider>
             <ShoppingListProvider>
-              <StatusBar style="light" />
-              <OfflineBanner />
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="index" />
-                <Stack.Screen name="onboarding" />
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen
-                  name="subscription"
-                  options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-                />
-                <Stack.Screen
-                  name="dietary-profile"
-                  options={{ presentation: 'card', animation: 'slide_from_right' }}
-                />
-                <Stack.Screen
-                  name="notification-preferences"
-                  options={{ presentation: 'card', animation: 'slide_from_right' }}
-                />
-                <Stack.Screen
-                  name="shopping-list"
-                  options={{ presentation: 'card', animation: 'slide_from_right' }}
-                />
-                <Stack.Screen
-                  name="product/[id]"
-                  options={{ presentation: 'card', animation: 'slide_from_right' }}
-                />
-                <Stack.Screen
-                  name="ecodes"
-                  options={{ presentation: 'card', animation: 'slide_from_right' }}
-                />
-                <Stack.Screen
-                  name="achievements"
-                  options={{ presentation: 'card', animation: 'slide_from_right' }}
-                />
-                <Stack.Screen
-                  name="shopping-scan"
-                  options={{ presentation: 'card', animation: 'slide_from_bottom' }}
-                />
-                <Stack.Screen
-                  name="admin"
-                  options={{ presentation: 'card', animation: 'slide_from_right' }}
-                />
-                <Stack.Screen
-                  name="feedback"
-                  options={{ presentation: 'card', animation: 'slide_from_right' }}
-                />
-                <Stack.Screen
-                  name="feedback-history"
-                  options={{ presentation: 'card', animation: 'slide_from_right' }}
-                />
-                <Stack.Screen
-                  name="referrals"
-                  options={{ presentation: 'card', animation: 'slide_from_right' }}
-                />
-              </Stack>
+              <RootLayoutChrome />
             </ShoppingListProvider>
             </StreakProvider>
             </DietaryProfileProvider>
@@ -97,7 +44,76 @@ function RootLayout() {
         </HistoryProvider>
       </AuthProvider>
     </LanguageProvider>
+    </ThemeProvider>
     </View>
+  );
+}
+
+function RootLayoutChrome() {
+  const { isDark, colors } = useTheme();
+  return (
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <OfflineBanner />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.white } }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="onboarding" />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="subscription"
+          options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="dietary-profile"
+          options={{ presentation: 'card', animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="notification-preferences"
+          options={{ presentation: 'card', animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="shopping-list"
+          options={{ presentation: 'card', animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="product/[id]"
+          options={{ presentation: 'card', animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="ecodes"
+          options={{ presentation: 'card', animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="achievements"
+          options={{ presentation: 'card', animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="shopping-scan"
+          options={{ presentation: 'card', animation: 'slide_from_bottom' }}
+        />
+        <Stack.Screen
+          name="admin"
+          options={{ presentation: 'card', animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="feedback"
+          options={{ presentation: 'card', animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="feedback-history"
+          options={{ presentation: 'card', animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="referrals"
+          options={{ presentation: 'card', animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="compare"
+          options={{ presentation: 'card', animation: 'slide_from_right' }}
+        />
+      </Stack>
+    </>
   );
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Alert, Linking, Platform, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -15,7 +15,8 @@ import { logPurchaseEvent } from '../lib/purchaseTracking';
 import { redeemPromoCode } from '../lib/points';
 import { verifyApplePurchase, verifyGooglePlayPurchase } from '../lib/purchaseVerification';
 import { maybeRequestReview } from '../lib/reviewPrompt';
-import { colors, radius, spacing, typography } from '../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../constants/theme';
+import { useThemeColors } from '../lib/theme-context';
 
 /**
  * Real Apple StoreKit purchases via react-native-iap — Apple collects
@@ -105,6 +106,8 @@ const FEATURES: { icon: string; label?: string; labelKey?: TranslationKey }[] = 
 export default function SubscriptionScreen() {
   const { user, refreshPlan } = useAuth();
   const { t } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [selected, setSelected] = useState<keyof typeof PLANS>('yearly');
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -400,7 +403,7 @@ export default function SubscriptionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white, paddingHorizontal: spacing.lg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.sm },
   closeBtn: { alignSelf: 'flex-end', padding: spacing.sm, marginTop: spacing.sm },

@@ -29,7 +29,8 @@ import { PRODUCT_CATEGORIES, getProductCategories } from '../../lib/categories';
 import { CertificationResult } from '../../lib/types';
 import { StatusBadge } from '../../components/StatusBadge';
 import { HolidayBanner } from '../../components/HolidayBanner';
-import { colors, radius, spacing, typography } from '../../constants/theme';
+import { radius, spacing, typography, ThemeColors } from '../../constants/theme';
+import { useThemeColors } from '../../lib/theme-context';
 
 const CATEGORY_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
   Şirniyyat: 'ice-cream-outline',
@@ -61,6 +62,8 @@ function buildCategoryChips(labels: readonly string[]): { label: string; icon: k
 export default function ProductsScreen() {
   const { history, removeScan } = useHistory();
   const { t } = useLanguage();
+  const colors = useThemeColors();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('Hamısı');
   const [results, setResults] = useState<CertificationResult[]>([]);
@@ -447,7 +450,7 @@ export default function ProductsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white, paddingHorizontal: spacing.lg },
   title: { ...typography.h1, color: colors.primaryDark, marginTop: spacing.md },
   searchWrap: {
