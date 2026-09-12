@@ -719,6 +719,7 @@
             <option value="">— Kateqoriya seçin —</option>
           </select>
           <button type="button" class="btn" id="productBulkSetCategoryBtn" disabled>Seçilənlərin kateqoriyasını dəyiş</button>
+          <button type="button" class="btn" id="productBulkGuessCategoryBtn" disabled title="Hər məhsulun adına baxıb uyğun kateqoriyanı özü seçir — uyğun gəlməyənlərə toxunmur">🪄 Adına görə kateqoriyanı təxmin et</button>
         </div>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
           <select id="productBulkOriginCountryInput" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; min-width: 180px;">
@@ -5972,6 +5973,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     document.getElementById("productBulkRenewDateBtn").disabled = count === 0;
     document.getElementById("productBulkSetStatusBtn").disabled = count === 0;
     document.getElementById("productBulkSetCategoryBtn").disabled = count === 0;
+    document.getElementById("productBulkGuessCategoryBtn").disabled = count === 0;
     document.getElementById("productBulkSetOriginCountryBtn").disabled = count === 0;
   }
 
@@ -6026,6 +6028,117 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         toast(ids.length + " məhsulun statusu dəyişdi");
         logAudit("bulk_status_change", "certified_entries", null, ids.length + " məhsul → " + status);
         reloadActiveProductsList();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
+
+  // Word-token keywords match a whole word in the (lowercased) product
+  // name; phrase keywords ("kərə yağı") match as a plain substring since
+  // they're distinctive enough on their own not to need word-boundary
+  // checking. Deliberately only covers the default seed categories
+  // (schema.sql) — an admin-renamed/custom category never gets guessed
+  // into automatically, see guessCategoryForName below.
+  var CATEGORY_GUESS_RULES = {
+    "Şirniyyat": { words: ["şirniyyat", "şokolad", "tort", "peçenye", "vafli", "marmelad", "konfet", "şəkərləmə", "halva", "baklava", "keks", "karamel"], phrases: [] },
+    "Çörək": { words: ["çörək", "bulka", "baton", "lavaş", "baget", "pitə"], phrases: [] },
+    "İçki": { words: ["kola", "şirə", "limonad", "kompot", "nektar", "kofe", "çay"], phrases: ["mineral su", "enerji içkisi"] },
+    "Süd məhsulları": { words: ["pendir", "kefir", "yoğurt", "ayran", "qatıq", "tvoroq", "qaymaq"], phrases: ["kərə yağı"] },
+    "Ət məhsulları": { words: ["kolbasa", "sosiska", "kotlet", "frikadelka"], phrases: ["mal əti", "quzu əti", "toyuq əti", "hindi əti"] },
+    "Konservlər": { words: ["konserv"], phrases: [] },
+    "Dondurulmuş məhsullar": { words: ["dondurma"], phrases: ["dondurulmuş"] },
+    "Souslar": { words: ["sous", "ketçup", "mayonez"], phrases: [] },
+    "Qəlyanaltılar": { words: ["çips", "kraker", "snek"], phrases: ["qoz-fındıq"] },
+    "Dənli məhsullar": { words: ["taxıl", "yulaf"], phrases: [] },
+    "Uşaq qidası": { words: ["körpə"], phrases: ["uşaq qida"] },
+    "Makaron və düyü": { words: ["makaron", "düyü", "spagetti", "vermişel"], phrases: [] },
+    "Yağlar": { words: [], phrases: ["bitki yağı", "zeytun yağı"] },
+    "Ədviyyat": { words: ["ədviyyat", "istiot"], phrases: [] },
+    "Kosmetika": { words: ["şampun", "sabun", "krem"], phrases: ["diş pastası", "diş fırçası"] },
+  };
+
+  // Only guesses when the name matches exactly ONE category's keywords —
+  // any zero-match or multi-category-conflict (e.g. a name mentioning
+  // both "mal əti" and "sous") is left alone for a human to decide,
+  // rather than risk a confidently-wrong auto-assignment. `realLabels` is
+  // the admin's actual current category set (from the live filter
+  // dropdown) so this never writes a label that doesn't really exist.
+  function guessCategoryForName(name, realLabels) {
+    if (!name) return null;
+    var lower = name.toLowerCase();
+    var tokens = lower.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    var matched = {};
+    Object.keys(CATEGORY_GUESS_RULES).forEach(function (label) {
+      if (realLabels.indexOf(label) === -1) return;
+      var rule = CATEGORY_GUESS_RULES[label];
+      var hit =
+        rule.words.some(function (w) { return tokens.indexOf(w) !== -1; }) ||
+        rule.phrases.some(function (p) { return lower.indexOf(p) !== -1; });
+      if (hit) matched[label] = true;
+    });
+    var labels = Object.keys(matched);
+    return labels.length === 1 ? labels[0] : null;
+  }
+
+  document.getElementById("productBulkGuessCategoryBtn").addEventListener("click", function () {
+    var ids = Object.keys(selectedProductIds);
+    if (!ids.length) return;
+    if (!window.confirm(ids.length + " məhsulun adına baxılıb uyğun kateqoriya təxmin ediləcək. Uyğun gəlməyənlərə toxunulmayacaq. Davam edilsin?")) return;
+
+    var realLabels = [].slice.call(document.getElementById("productCategoryFilter").options)
+      .map(function (o) { return o.value; })
+      .filter(function (v) { return v && v !== "__none__"; });
+
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Oxunur…";
+
+    sb("certified_entries?select=id,product_name&id=in.(" + ids.join(",") + ")")
+      .then(function (rows) {
+        var byCategory = {};
+        var unmatched = 0;
+        (rows || []).forEach(function (row) {
+          var guess = guessCategoryForName(row.product_name, realLabels);
+          if (!guess) { unmatched += 1; return; }
+          if (!byCategory[guess]) byCategory[guess] = [];
+          byCategory[guess].push(row.id);
+        });
+        var labels = Object.keys(byCategory);
+        if (!labels.length) {
+          toast("Heç birinin kateqoriyası təxmin edilə bilmədi — adlar uyğun açar sözlərə cavab vermir.");
+          return Promise.resolve();
+        }
+        btn.textContent = "Yenilənir…";
+        return labels
+          .reduce(function (chain, label) {
+            return chain.then(function () {
+              return sb("certified_entries?id=in.(" + byCategory[label].join(",") + ")", {
+                method: "PATCH",
+                headers: { "Prefer": "return=minimal" },
+                body: { category: label, updated_at: new Date().toISOString() },
+              });
+            });
+          }, Promise.resolve())
+          .then(function () {
+            var matchedCount = ids.length - unmatched;
+            toast(
+              matchedCount + " məhsulun kateqoriyası " + labels.length + " kateqoriyaya bölünərək təxmin edildi" +
+              (unmatched ? "; " + unmatched + " məhsul uyğun gəlmədi (əl ilə düzəldin)" : "") + "."
+            );
+            logAudit(
+              "bulk_guess_category",
+              "certified_entries",
+              null,
+              matchedCount + " məhsul → " + labels.join(", ") + (unmatched ? " (" + unmatched + " uyğunsuz)" : "")
+            );
+            reloadActiveProductsList();
+          });
       })
       .catch(function (err) {
         toast("Xəta: " + err.message);
