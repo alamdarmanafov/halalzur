@@ -721,6 +721,12 @@
           <button type="button" class="btn" id="productBulkSetCategoryBtn" disabled>Seçilənlərin kateqoriyasını dəyiş</button>
         </div>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <select id="productBulkOriginCountryInput" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; min-width: 180px;">
+            <option value="">— Ölkə seçin —</option>
+          </select>
+          <button type="button" class="btn" id="productBulkSetOriginCountryBtn" disabled>Seçilənlərin istehsalçı ölkəsini dəyiş</button>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
           <input type="text" id="productBulkEcodeInput" placeholder="Məs. E471, E100, E503ii" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; width: 220px;" />
           <button type="button" class="btn" id="productBulkAddEcodeBtn" disabled>Seçilənlərə E-kod(lar) əlavə et</button>
         </div>
@@ -761,6 +767,13 @@
           <option value="__none__">Kateqoriyası yoxdur</option>
         </select>
       </div>
+      <div class="field" style="min-width: 180px; margin-bottom: 0;">
+        <label for="productOriginCountryFilter">İstehsalçı ölkə</label>
+        <select id="productOriginCountryFilter">
+          <option value="">Hamısı</option>
+          <option value="__none__">Ölkəsi yoxdur</option>
+        </select>
+      </div>
       <div class="field" style="min-width: 140px; margin-bottom: 0;">
         <label for="productEcodeFilter">Tərkibdə E-kod</label>
         <input type="text" id="productEcodeFilter" placeholder="Məs. E471" />
@@ -773,7 +786,7 @@
         <input type="checkbox" id="productMissingImageFilter" style="width: 16px; height: 16px;" />
         Şəkli yoxdur
       </label>
-      <label style="display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--ink-muted); padding-bottom: 10px;" title="Open Food Facts / AzExport sync-indən gəlib, heç bir admin halal/haram/şübhəli statusu təyin etməyib. Status filtrini nəzərə almır.">
+      <label style="display: flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--ink-muted); padding-bottom: 10px;" title="Open Food Facts / AzExport / Wolt sync-indən gəlib, heç bir admin halal/haram/şübhəli statusu təyin etməyib. Status filtrini nəzərə almır.">
         <input type="checkbox" id="productUnreviewedImportFilter" style="width: 16px; height: 16px;" />
         Yalnız idxal — hələ yoxlanılmayıb
       </label>
@@ -968,6 +981,13 @@ https://wolt.com/az/aze/baku/venue/bravo-supermarket-bulbul-ave"
           <select id="editProductCategoryFilter">
             <option value="">Hamısı</option>
             <option value="__none__">Kateqoriyası yoxdur</option>
+          </select>
+        </div>
+        <div class="field" style="min-width: 180px; margin-bottom: 0;">
+          <label for="editProductOriginCountryFilter">İstehsalçı ölkə</label>
+          <select id="editProductOriginCountryFilter">
+            <option value="">Hamısı</option>
+            <option value="__none__">Ölkəsi yoxdur</option>
           </select>
         </div>
       </div>
@@ -5104,6 +5124,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   function productFilterParams() {
     var status = document.getElementById("productStatusFilter").value;
     var category = document.getElementById("productCategoryFilter").value;
+    var originCountry = document.getElementById("productOriginCountryFilter").value;
     var search = document.getElementById("productSearch").value.trim();
     var ecode = document.getElementById("productEcodeFilter").value.trim().toUpperCase().replace(/\s+/g, "");
     var featuredOnly = document.getElementById("productFeaturedFilter").checked;
@@ -5119,12 +5140,14 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     // than combining with it, since combining a non-unknown status pick
     // with this would just return nothing.
     if (unreviewedImportOnly) {
-      params += "&status=eq.unknown&certifier_id=in.(openfoodfacts,azexport)";
+      params += "&status=eq.unknown&certifier_id=in.(openfoodfacts,azexport,wolt)";
     } else if (status) {
       params += "&status=eq." + encodeURIComponent(status);
     }
     if (category === "__none__") params += "&category=is.null";
     else if (category) params += "&category=eq." + encodeURIComponent(category);
+    if (originCountry === "__none__") params += "&origin_country=is.null";
+    else if (originCountry) params += "&origin_country=eq." + encodeURIComponent(originCountry);
     if (search) {
       var safe = search.replace(/[,()%]/g, "");
       if (/^\d+$/.test(safe)) {
@@ -5540,9 +5563,12 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   function editProductFilterParams() {
     var search = document.getElementById("editProductSearch").value.trim();
     var category = document.getElementById("editProductCategoryFilter").value;
+    var originCountry = document.getElementById("editProductOriginCountryFilter").value;
     var params = "&deleted_at=is.null&status=neq.unknown";
     if (category === "__none__") params += "&category=is.null";
     else if (category) params += "&category=eq." + encodeURIComponent(category);
+    if (originCountry === "__none__") params += "&origin_country=is.null";
+    else if (originCountry) params += "&origin_country=eq." + encodeURIComponent(originCountry);
     if (search) {
       var safe = search.replace(/[,()%]/g, "");
       // See productFilterParams' matching block for why numeric search
@@ -5615,6 +5641,10 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     runEditProductSearch();
   });
   document.getElementById("editProductCategoryFilter").addEventListener("change", function () {
+    currentEditProductPage = 0;
+    loadEditProducts();
+  });
+  document.getElementById("editProductOriginCountryFilter").addEventListener("change", function () {
     currentEditProductPage = 0;
     loadEditProducts();
   });
@@ -5796,6 +5826,33 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     select.value = currentValue || "";
   }
   populateOriginCountrySelect(document.getElementById("productOriginCountry"), "");
+  // The bulk "istehsalçı ölkəsini dəyiş" field sets a country rather than
+  // filters by one, so (like productBulkCategoryInput) it gets the plain
+  // populateOriginCountrySelect list, no "Hamısı"/"Ölkəsi yoxdur" entries.
+  populateOriginCountrySelect(document.getElementById("productBulkOriginCountryInput"), "");
+
+  // Fills the "İstehsalçı ölkə" filter on both the Browse and Redaktə
+  // tabs — same "Hamısı"/"<x> yoxdur" pseudo-entries as
+  // populateProductCategoryFilters, but the list itself is the fixed
+  // PRODUCT_ORIGIN_COUNTRIES (not DB-backed), so this only needs to run
+  // once at init rather than after every data reload.
+  function populateProductOriginCountryFilters() {
+    ["productOriginCountryFilter", "editProductOriginCountryFilter"].forEach(function (id) {
+      var select = document.getElementById(id);
+      var previous = select.value;
+      select.innerHTML = '<option value="">Hamısı</option><option value="__none__">Ölkəsi yoxdur</option>';
+      PRODUCT_ORIGIN_COUNTRIES.forEach(function (label) {
+        var opt = document.createElement("option");
+        opt.value = label;
+        opt.textContent = label;
+        select.appendChild(opt);
+      });
+      if ([].slice.call(select.options).some(function (o) { return o.value === previous; })) {
+        select.value = previous;
+      }
+    });
+  }
+  populateProductOriginCountryFilters();
 
   function buildCategoryCard(row) {
     var card = document.createElement("div");
@@ -5915,6 +5972,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     document.getElementById("productBulkRenewDateBtn").disabled = count === 0;
     document.getElementById("productBulkSetStatusBtn").disabled = count === 0;
     document.getElementById("productBulkSetCategoryBtn").disabled = count === 0;
+    document.getElementById("productBulkSetOriginCountryBtn").disabled = count === 0;
   }
 
   document.getElementById("productBulkSetStatusBtn").addEventListener("click", function () {
@@ -6001,6 +6059,40 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         toast(ids.length + " məhsulun kateqoriyası dəyişdi");
         logAudit("bulk_category_change", "certified_entries", null, ids.length + " məhsul → " + category);
         document.getElementById("productBulkCategoryInput").value = "";
+        reloadActiveProductsList();
+      })
+      .catch(function (err) {
+        toast("Xəta: " + err.message);
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = original;
+      });
+  });
+
+  document.getElementById("productBulkSetOriginCountryBtn").addEventListener("click", function () {
+    var ids = Object.keys(selectedProductIds);
+    if (!ids.length) return;
+    var originCountry = document.getElementById("productBulkOriginCountryInput").value.trim();
+    if (!originCountry) {
+      toast("Ölkə boş ola bilməz");
+      return;
+    }
+    if (!window.confirm(ids.length + " məhsulun istehsalçı ölkəsi \"" + originCountry + "\" edilsin?")) return;
+
+    var btn = this;
+    btn.disabled = true;
+    var original = btn.textContent;
+    btn.textContent = "Yenilənir…";
+    sb("certified_entries?id=in.(" + ids.join(",") + ")", {
+      method: "PATCH",
+      headers: { "Prefer": "return=minimal" },
+      body: { origin_country: originCountry, updated_at: new Date().toISOString() },
+    })
+      .then(function () {
+        toast(ids.length + " məhsulun istehsalçı ölkəsi dəyişdi");
+        logAudit("bulk_origin_country_change", "certified_entries", null, ids.length + " məhsul → " + originCountry);
+        document.getElementById("productBulkOriginCountryInput").value = "";
         reloadActiveProductsList();
       })
       .catch(function (err) {
@@ -6294,6 +6386,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     if (document.getElementById("productSearch").value.trim()) {
       document.getElementById("productStatusFilter").value = "";
       document.getElementById("productCategoryFilter").value = "";
+      document.getElementById("productOriginCountryFilter").value = "";
       document.getElementById("productFeaturedFilter").checked = false;
       document.getElementById("productMissingImageFilter").checked = false;
       document.getElementById("productUnreviewedImportFilter").checked = false;
@@ -6315,6 +6408,10 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     loadProducts();
   });
   document.getElementById("productCategoryFilter").addEventListener("change", function () {
+    currentProductPage = 0;
+    loadProducts();
+  });
+  document.getElementById("productOriginCountryFilter").addEventListener("change", function () {
     currentProductPage = 0;
     loadProducts();
   });
