@@ -398,15 +398,21 @@ export default function ProductDetailScreen() {
     [detectedECodes, detectedKeywords]
   );
   // Premium-only extra reason: the product's admin-entered origin country
-  // is one where meat typically isn't halal-slaughtered. Free users never
-  // see this (isPremium gate) — the E-code/keyword reason above stays
-  // free for everyone, this is purely additive on top of it. Doesn't
-  // touch product.status itself, same as every other reason card here.
+  // is one where meat typically isn't halal-slaughtered. The E-code/
+  // keyword reason above stays free for everyone; this is purely
+  // additive on top of it and never touches product.status itself, same
+  // as every other reason card here. Free users don't see the reason
+  // TEXT, but the reason card itself still appears with a locked teaser
+  // (see originCountryLocked below) — silently hiding the entire card
+  // when this is the product's only flag would leave a free user with
+  // zero explanation for a haram/mushbooh verdict.
   // 'wolt'/'openfoodfacts'/'azexport' certifier rows are import-source
   // tags, not real certifying bodies — never present one as if it
   // verified this product (see lib/certification.ts's displayCertifier).
   const shownCertifier = displayCertifier(product?.certifier ?? null);
-  const originCountryFlagged = isPremium && isNonHalalSlaughterCountry(product?.originCountry);
+  const originCountryIsFlaggable = isNonHalalSlaughterCountry(product?.originCountry);
+  const originCountryFlagged = isPremium && originCountryIsFlaggable;
+  const originCountryLocked = !isPremium && originCountryIsFlaggable;
   const originCountryReason = originCountryFlagged
     ? t('productOriginCountryReason').replace(
         '{country}',
@@ -783,7 +789,7 @@ export default function ProductDetailScreen() {
         </View>
 
         {(product.status === 'haram' || product.status === 'mushbooh') &&
-          (flaggedIngredients.length > 0 || originCountryReason) && (
+          (flaggedIngredients.length > 0 || originCountryReason || originCountryLocked) && (
             <View style={styles.reasonCard}>
               <Ionicons name="alert-circle" size={18} color={STATUS_TINT[product.status]} />
               <View style={{ flex: 1 }}>
@@ -796,6 +802,11 @@ export default function ProductDetailScreen() {
                   <Text style={styles.reasonText}>
                     {t('productOriginCountryLabel')} {product.originCountry}
                   </Text>
+                )}
+                {originCountryLocked && (
+                  <Pressable onPress={() => router.push('/subscription')}>
+                    <Text style={styles.reasonLockedNote}>{t('productOriginCountryLockedNote')}</Text>
+                  </Pressable>
                 )}
               </View>
             </View>
@@ -1422,6 +1433,7 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   reasonTitle: { ...typography.small, color: colors.black, fontWeight: '700' },
   reasonText: { ...typography.small, color: colors.gray, marginTop: 2 },
+  reasonLockedNote: { ...typography.small, color: colors.primaryDark, fontWeight: '600', marginTop: spacing.xs, textDecorationLine: 'underline' },
   noteCard: {
     flexDirection: 'row',
     gap: spacing.sm,
