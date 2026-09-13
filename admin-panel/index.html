@@ -719,7 +719,7 @@
             <option value="">— Kateqoriya seçin —</option>
           </select>
           <button type="button" class="btn" id="productBulkSetCategoryBtn" disabled>Seçilənlərin kateqoriyasını dəyiş</button>
-          <button type="button" class="btn" id="productBulkGuessCategoryBtn" disabled title="Hər məhsulun adına baxıb uyğun kateqoriyanı özü seçir — uyğun gəlməyənlərə toxunmur">🪄 Adına görə kateqoriyanı təxmin et</button>
+          <button type="button" class="btn" id="productBulkGuessCategoryBtn" disabled title="Hər məhsulun adına baxıb ƏN GÜCLÜ uyğunlaşan kateqoriyanı seçir (bir neçə kateqoriya açar sözünə cavab versə belə, ən çoxuna cavab verəni seçir) — yalnız heç bir açar sözə cavab verməyənlərə toxunmur">🪄 Adına görə kateqoriyanı təxmin et</button>
         </div>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
           <select id="productBulkOriginCountryInput" style="padding: 9px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--bg); color: var(--ink); font-size: 13.5px; min-width: 180px;">
@@ -6101,27 +6101,30 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     "Kosmetika": { words: ["şampun", "sabun", "krem"], phrases: ["diş pastası", "diş fırçası"] },
   };
 
-  // Only guesses when the name matches exactly ONE category's keywords —
-  // any zero-match or multi-category-conflict (e.g. a name mentioning
-  // both "mal əti" and "sous") is left alone for a human to decide,
-  // rather than risk a confidently-wrong auto-assignment. `realLabels` is
-  // the admin's actual current category set (from the live filter
-  // dropdown) so this never writes a label that doesn't really exist.
+  // Picks the category with the MOST matching keywords rather than
+  // requiring a single unambiguous match — a name mentioning both
+  // "mal əti" and "sous" now goes to whichever has more/stronger hits
+  // instead of being skipped. Ties go to whichever category is declared
+  // first in CATEGORY_GUESS_RULES (strict `>` below never replaces an
+  // equal-scoring earlier pick). Zero matches still returns null — this
+  // only removes the "ambiguous → skip" behavior, not "no signal → skip".
+  // `realLabels` is the admin's actual current category set (from the
+  // live filter dropdown) so this never writes a label that doesn't
+  // really exist.
   function guessCategoryForName(name, realLabels) {
     if (!name) return null;
     var lower = name.toLowerCase();
     var tokens = lower.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-    var matched = {};
+    var best = null, bestScore = 0;
     Object.keys(CATEGORY_GUESS_RULES).forEach(function (label) {
       if (realLabels.indexOf(label) === -1) return;
       var rule = CATEGORY_GUESS_RULES[label];
-      var hit =
-        rule.words.some(function (w) { return tokens.indexOf(w) !== -1; }) ||
-        rule.phrases.some(function (p) { return lower.indexOf(p) !== -1; });
-      if (hit) matched[label] = true;
+      var score = 0;
+      rule.words.forEach(function (w) { if (tokens.indexOf(w) !== -1) score++; });
+      rule.phrases.forEach(function (p) { if (lower.indexOf(p) !== -1) score++; });
+      if (score > bestScore) { bestScore = score; best = label; }
     });
-    var labels = Object.keys(matched);
-    return labels.length === 1 ? labels[0] : null;
+    return best;
   }
 
   document.getElementById("productBulkGuessCategoryBtn").addEventListener("click", function () {
@@ -6246,20 +6249,26 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     return (i === -1 ? tag : tag.slice(i + 1)).replace(/-/g, " ");
   }
 
+  // Same "pick the highest-scoring category" approach as
+  // guessCategoryForName above — scores across every tag on the product,
+  // so a product tagged both "en:sauces" and "en:meats" goes to whichever
+  // has more matching tags/keywords instead of being skipped.
   function guessCategoryFromOffTags(tags, realLabels) {
-    var matched = {};
+    var scores = {};
     (tags || []).forEach(function (tag) {
       var text = stripOffTagPrefix(tag);
       var tokens = text.split(/\s+/).filter(Boolean);
       Object.keys(OFF_CATEGORY_TAG_KEYWORDS).forEach(function (label) {
         if (realLabels.indexOf(label) === -1) return;
-        if (OFF_CATEGORY_TAG_KEYWORDS[label].some(function (kw) { return tokens.indexOf(kw) !== -1; })) {
-          matched[label] = true;
-        }
+        var hit = OFF_CATEGORY_TAG_KEYWORDS[label].some(function (kw) { return tokens.indexOf(kw) !== -1; });
+        if (hit) scores[label] = (scores[label] || 0) + 1;
       });
     });
-    var labels = Object.keys(matched);
-    return labels.length === 1 ? labels[0] : null;
+    var best = null, bestScore = 0;
+    Object.keys(scores).forEach(function (label) {
+      if (scores[label] > bestScore) { bestScore = scores[label]; best = label; }
+    });
+    return best;
   }
 
   // origins_tags/manufacturing_places_tags (where it was actually made) is
