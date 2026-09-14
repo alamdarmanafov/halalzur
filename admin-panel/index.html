@@ -4952,9 +4952,9 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         '<span><b>Tarix:</b> ' + new Date(row.created_at).toLocaleDateString("az-AZ") + '</span>' +
       '</div>' +
       '<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px 16px;">' +
-        '<div class="field"><label>Məhsulun adı</label><input data-role="name-input" value="' + esc(row.product_name) + '" placeholder="Məhsulun adı"></div>' +
-        '<div class="field"><label>Brend</label><input data-role="brand-input" value="' + esc(row.brand) + '" placeholder="Brend"></div>' +
-        '<div class="field"><label>Barkod</label><input data-role="barcode-input" value="' + esc(row.barcode) + '" inputmode="numeric" placeholder="8–14 rəqəm"></div>' +
+        '<div class="field"><label>Məhsulun adı</label><input data-role="name-input" placeholder="Məhsulun adı"></div>' +
+        '<div class="field"><label>Brend</label><input data-role="brand-input" placeholder="Brend"></div>' +
+        '<div class="field"><label>Barkod</label><input data-role="barcode-input" inputmode="numeric" placeholder="8–14 rəqəm"></div>' +
       '</div>' +
       '<div class="field" style="margin-top:10px;"><label>Tərkib (vergüllə)</label><textarea data-role="ingredients-input" rows="2" placeholder="məs. un, şəkər, duz">' + esc(ingredients) + '</textarea></div>' +
       '<div class="field" style="margin-top:10px;"><label>Qeyd</label><textarea data-role="notes-input" rows="2">' + esc(row.notes) + '</textarea></div>' +
@@ -4976,6 +4976,14 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         '<button class="btn btn-reject" data-action="reject">Rədd et</button>' +
       '</div>';
 
+    // Set via .value rather than an HTML value="" attribute — esc() only
+    // escapes <, >, & (correct for placing text inside an element), not
+    // the " that ends an attribute. A submitted name/brand/barcode
+    // containing a quote would otherwise break out of value="..." and
+    // inject arbitrary attributes/markup into the admin's own page.
+    card.querySelector('[data-role="name-input"]').value = row.product_name || "";
+    card.querySelector('[data-role="brand-input"]').value = row.brand || "";
+    card.querySelector('[data-role="barcode-input"]').value = row.barcode || "";
     // Suggested_status only ever arrives as 'unknown' now (the app no
     // longer lets a user self-declare halal status) — this select
     // defaults there and the admin picks the real value before approving.
