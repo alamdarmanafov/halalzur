@@ -234,9 +234,9 @@ export const translations: Record<Language, Dict> = {
     authRegisterFailed: 'Qeydiyyat alınmadı, yenidən cəhd edin.',
 
     achievementsTitle: 'Nailiyyətlər',
-    achievementsIntroTitle: 'Məhsul əlavə et, Premium qazan',
+    achievementsIntroTitle: 'Məhsul əlavə et, xal qazan',
     achievementsIntroBody:
-      'Təklif etdiyiniz məhsullar admin tərəfindən təsdiqlənəndə sayına əlavə olunur. Aşağıdakı həddlərə çatanda hesabınıza avtomatik müvəqqəti Premium verilir.',
+      'Təklif etdiyiniz məhsullar admin tərəfindən təsdiqlənəndə sayına əlavə olunur. Aşağıdakı həddlərə çatanda hesabınıza xal əlavə olunur — onu Premium-a çevirə və ya dostuna bağışlaya bilərsiniz.',
     achievementsApprovedLabel: 'təsdiqlənmiş məhsul',
     achievementsTierTitle: 'təklif →',
     achievementsClaimed: 'Qazanıldı',
@@ -799,9 +799,9 @@ export const translations: Record<Language, Dict> = {
     authRegisterFailed: 'Sign-up failed, try again.',
 
     achievementsTitle: 'Achievements',
-    achievementsIntroTitle: 'Add products, earn Premium',
+    achievementsIntroTitle: 'Add products, earn points',
     achievementsIntroBody:
-      'Products you suggest count toward your total once an admin approves them. Reach the milestones below to automatically unlock temporary Premium.',
+      'Products you suggest count toward your total once an admin approves them. Reach the milestones below and points are credited to your account — redeem them for Premium or gift them to a friend.',
     achievementsApprovedLabel: 'approved products',
     achievementsTierTitle: 'suggestions →',
     achievementsClaimed: 'Earned',
@@ -1365,9 +1365,9 @@ export const translations: Record<Language, Dict> = {
     authRegisterFailed: 'Не удалось зарегистрироваться, попробуйте снова.',
 
     achievementsTitle: 'Достижения',
-    achievementsIntroTitle: 'Добавляйте товары, получайте Premium',
+    achievementsIntroTitle: 'Добавляйте товары, получайте баллы',
     achievementsIntroBody:
-      'Предложенные вами товары засчитываются после одобрения администратором. Достигая порогов ниже, вы автоматически получаете временный Premium.',
+      'Предложенные вами товары засчитываются после одобрения администратором. При достижении порогов ниже на ваш счёт начисляются баллы — их можно обменять на Premium или подарить другу.',
     achievementsApprovedLabel: 'одобренных товаров',
     achievementsTierTitle: 'предложений →',
     achievementsClaimed: 'Получено',
@@ -1930,9 +1930,9 @@ export const translations: Record<Language, Dict> = {
     authRegisterFailed: 'Kayıt başarısız, tekrar deneyin.',
 
     achievementsTitle: 'Başarılar',
-    achievementsIntroTitle: 'Ürün ekle, Premium kazan',
+    achievementsIntroTitle: 'Ürün ekle, puan kazan',
     achievementsIntroBody:
-      'Önerdiğiniz ürünler bir yönetici tarafından onaylandığında toplamınıza eklenir. Aşağıdaki eşiklere ulaştığınızda otomatik olarak geçici Premium kazanırsınız.',
+      'Önerdiğiniz ürünler bir yönetici tarafından onaylandığında toplamınıza eklenir. Aşağıdaki eşiklere ulaştığınızda hesabınıza puan eklenir — bunları Premium\'a çevirebilir veya bir arkadaşınıza hediye edebilirsiniz.',
     achievementsApprovedLabel: 'onaylanmış ürün',
     achievementsTierTitle: 'öneri →',
     achievementsClaimed: 'Kazanıldı',

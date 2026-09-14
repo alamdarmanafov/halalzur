@@ -6,7 +6,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../lib/auth-context';
 import { useLanguage } from '../lib/i18n-context';
 import { getApprovedCount } from '../lib/submissions';
-import { ACHIEVEMENT_TIERS, highestUnclaimedTier, tierLabel } from '../lib/achievements';
+import { ACHIEVEMENT_TIERS, highestUnclaimedTier } from '../lib/achievements';
+import { POINTS_PER_PREMIUM_DAY } from '../lib/points';
 import { sendPushNotification } from '../lib/pushNotify';
 import { maybeRequestReview } from '../lib/reviewPrompt';
 import { BrandModal } from '../components/BrandModal';
@@ -14,13 +15,13 @@ import { radius, spacing, typography, ThemeColors } from '../constants/theme';
 import { useThemeColors } from '../lib/theme-context';
 
 export default function AchievementsScreen() {
-  const { user, grantAchievementPremium } = useAuth();
-  const { t, language } = useLanguage();
+  const { user, claimAchievementPoints } = useAuth();
+  const { t } = useLanguage();
   const colors = useThemeColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const [approvedCount, setApprovedCount] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [unlocked, setUnlocked] = useState<{ label: string } | null>(null);
+  const [unlocked, setUnlocked] = useState<{ points: number } | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -28,26 +29,29 @@ export default function AchievementsScreen() {
       const count = await getApprovedCount(user.id);
       setApprovedCount(count);
       // highestUnclaimedTier here is only used to decide whether it's worth
-      // asking the server at all — grant_achievement_premium (called via
-      // grantAchievementPremium) recomputes eligibility itself from
+      // asking the server at all — grant_achievement_points (called via
+      // claimAchievementPoints) recomputes eligibility itself from
       // product_submissions and is the actual source of truth for what
       // gets granted.
       const maybeTier = highestUnclaimedTier(count, user.claimedAchievements);
       if (maybeTier) {
-        const tier = await grantAchievementPremium();
-        if (tier) {
-          const label = tierLabel(tier, language);
-          setUnlocked({ label });
-          sendPushNotification(user.id, t('achievementsPushTitle'), `${label} ${t('achievementsCongratsBody')}`, {
-            route: '/achievements',
-          });
+        const result = await claimAchievementPoints();
+        if (result) {
+          const { points } = result;
+          setUnlocked({ points });
+          sendPushNotification(
+            user.id,
+            t('achievementsPushTitle'),
+            `${points} ${t('giftPointsUnit')} ${t('achievementsCongratsBody')}`,
+            { route: '/achievements' }
+          );
           maybeRequestReview();
         }
       }
     } catch {
       setApprovedCount(0);
     }
-  }, [user, grantAchievementPremium, language, t]);
+  }, [user, claimAchievementPoints, t]);
 
   useEffect(() => {
     load();
@@ -107,7 +111,7 @@ export default function AchievementsScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.tierTitle}>
-                  {tier.threshold} {t('achievementsTierTitle')} {tierLabel(tier, language)}
+                  {tier.threshold} {t('achievementsTierTitle')} {tier.days * POINTS_PER_PREMIUM_DAY} {t('giftPointsUnit')}
                 </Text>
                 <View style={styles.progressTrack}>
                   <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
@@ -124,7 +128,7 @@ export default function AchievementsScreen() {
       <BrandModal
         visible={!!unlocked}
         title={t('achievementsCongratsTitle')}
-        body={unlocked ? `${unlocked.label} ${t('achievementsCongratsBody')}` : ''}
+        body={unlocked ? `${unlocked.points} ${t('giftPointsUnit')} ${t('achievementsCongratsBody')}` : ''}
         ctaLabel={t('achievementsCongratsCta')}
         onCta={() => setUnlocked(null)}
         onClose={() => setUnlocked(null)}

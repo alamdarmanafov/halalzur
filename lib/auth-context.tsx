@@ -43,7 +43,8 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
   incrementScanCount: () => Promise<void>;
   refreshPlan: () => Promise<void>;
-  grantAchievementPremium: () => Promise<AchievementTier | null>;
+  /** Credits points for the highest newly-crossed achievement tier — see grant_achievement_points. */
+  claimAchievementPoints: () => Promise<{ tier: AchievementTier; points: number } | null>;
   /** Spends whatever whole days the user's points currently cover; resolves to how many days were redeemed. */
   redeemPointsForPremium: () => Promise<number>;
   // In-memory only (not persisted) — true for one app session right after
@@ -53,8 +54,14 @@ type AuthContextValue = {
   clearJustRegistered: () => void;
 };
 
-/** A timed achievement reward that has passed its expiry reverts to free. */
-function withExpiredAchievementCleared(u: User): User {
+/**
+ * A timed Premium grant that has passed its expiry reverts to free —
+ * covers IAP purchases, redeemed/gifted points, and promo codes alike
+ * (achievement tiers no longer grant Premium directly, see
+ * claimAchievementPoints below, but this stays generic since every other
+ * source still writes the same premium_expires_at field).
+ */
+function withExpiredPremiumCleared(u: User): User {
   if (u.plan !== 'premium' || !u.premiumExpiresAt) return u;
   if (new Date(u.premiumExpiresAt).getTime() > Date.now()) return u;
   return { ...u, plan: 'free', premiumExpiresAt: null };
@@ -71,7 +78,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     AsyncStorage.getItem(STORAGE_KEY)
       .then(async (raw) => {
         if (!raw) return;
-        const stored = withExpiredAchievementCleared(JSON.parse(raw) as User);
+        const stored = withExpiredPremiumCleared(JSON.parse(raw) as User);
         setUser(stored);
         // An admin-panel plan change, or an achievement-granted Premium's
         // expiry, only ever lands in Supabase's `users` row — this is the
@@ -86,7 +93,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           return;
         }
         const next = remote
-          ? withExpiredAchievementCleared({
+          ? withExpiredPremiumCleared({
               ...stored,
               plan: remote.plan,
               premiumExpiresAt: remote.premiumExpiresAt,
@@ -138,7 +145,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           // again since claimedAchievements would appear empty.
           const remote = await fetchRemoteAccountState(id);
           if (remote?.banned) throw new BannedAccountError(banMessage(remote.banReason));
-          const appleUser: User = withExpiredAchievementCleared({
+          const appleUser: User = withExpiredPremiumCleared({
             id,
             name,
             email: credential.email ?? `${credential.user}@privaterelay.appleid.com`,
@@ -172,7 +179,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         // an admin-granted premium or a claimed achievement tier.
         const remote = await fetchRemoteAccountState(id);
         if (remote?.banned) throw new BannedAccountError(banMessage(remote.banReason));
-        const googleUser: User = withExpiredAchievementCleared({
+        const googleUser: User = withExpiredPremiumCleared({
           id,
           name: response.data.user.name || 'Google istifadəçisi',
           email: response.data.user.email,
@@ -209,7 +216,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           await supabase.auth.signOut();
           throw new BannedAccountError(banMessage(remote.banReason));
         }
-        const emailUser: User = withExpiredAchievementCleared({
+        const emailUser: User = withExpiredPremiumCleared({
           id,
           name,
           email,
@@ -233,7 +240,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           await supabase.auth.signOut();
           throw new BannedAccountError(banMessage(remote.banReason));
         }
-        const emailUser: User = withExpiredAchievementCleared({
+        const emailUser: User = withExpiredPremiumCleared({
           id,
           name: (data.user.user_metadata?.name as string | undefined) || email.split('@')[0],
           email,
@@ -269,37 +276,39 @@ export function AuthProvider({ children }: PropsWithChildren) {
               claimedAchievements: remote.claimedAchievements,
             }
           : user;
-        const cleared = withExpiredAchievementCleared(withRemote);
+        const cleared = withExpiredPremiumCleared(withRemote);
         if (cleared !== user) await persist(cleared);
       },
-      // Calls the grant_achievement_premium Postgres function (see
-      // supabase/migration_2026_09_04_server_side_reward_premium.sql),
-      // which recomputes the approved-submission count from
-      // product_submissions itself and tracks already-claimed tiers
-      // server-side — this used to grant client-side straight to
-      // users.plan via the same open RLS policy real profile edits need,
-      // so a crafted request could claim an approved-submission count
-      // that was never real. Returns whichever tier the function actually
-      // granted (not necessarily the one that triggered the check) so the
-      // caller can show the right label — null if nothing was newly earned.
-      grantAchievementPremium: async () => {
+      // Calls the grant_achievement_points Postgres function (see
+      // supabase/migration_2026_09_15_achievements_to_points.sql), which
+      // recomputes the approved-submission count from product_submissions
+      // itself and tracks already-claimed tiers server-side — this used to
+      // grant client-side straight to users.plan via the same open RLS
+      // policy real profile edits need, so a crafted request could claim
+      // an approved-submission count that was never real. Credits points
+      // rather than granting Premium directly, same as referral milestones
+      // (see grantMilestoneBonusIfEarned in lib/referrals.ts) — one
+      // balance, one redeem flow, instead of achievements being the only
+      // reward path that bypassed it. Returns whichever tier the function
+      // actually granted (not necessarily the one that triggered the
+      // check) so the caller can show the right label — null if nothing
+      // was newly earned.
+      claimAchievementPoints: async () => {
         if (!user || !supabase) return null;
         const { data, error } = await supabase
-          .rpc('grant_achievement_premium', { p_user_id: user.id })
-          .maybeSingle<{ granted_days: number | null; tier_threshold: number | null; new_expires_at: string | null }>();
-        if (error || !data || data.granted_days == null) return null;
+          .rpc('grant_achievement_points', { p_user_id: user.id })
+          .maybeSingle<{ granted_points: number | null; tier_threshold: number | null }>();
+        if (error || !data || data.granted_points == null) return null;
 
         const tier = ACHIEVEMENT_TIERS.find((t) => t.threshold === data.tier_threshold);
         if (!tier) return null;
 
         const next: User = {
           ...user,
-          plan: 'premium',
-          premiumExpiresAt: data.new_expires_at,
           claimedAchievements: [...user.claimedAchievements, tier.threshold],
         };
         await persist(next);
-        return tier;
+        return { tier, points: data.granted_points };
       },
       redeemPointsForPremium: async () => {
         if (!user) return 0;

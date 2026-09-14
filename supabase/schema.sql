@@ -180,7 +180,7 @@ create policy "Public read" on product_submissions
 -- but the open update let a user PATCH their own row's review_status
 -- straight to 'approved' without any admin ever looking at it, which
 -- fraudulently inflates the approved-submission count
--- grant_achievement_premium counts to grant free Premium.
+-- grant_achievement_points counts to award points.
 create policy "Admin update" on product_submissions
   for update using (is_admin()) with check (is_admin());
 
@@ -1573,8 +1573,13 @@ begin
 end;
 $$;
 
-create or replace function grant_achievement_premium(p_user_id text)
-returns table (granted_days int, tier_threshold int, new_expires_at timestamptz)
+-- Unified onto the same points currency grant_referral_milestone_bonus
+-- above already uses (see migration_2026_09_15_achievements_to_points.sql)
+-- rather than granting Premium directly — one balance, one redeem flow,
+-- instead of two different reward mechanics both triggered by
+-- product-submission activity.
+create or replace function grant_achievement_points(p_user_id text)
+returns table (granted_points int, tier_threshold int)
 language plpgsql
 security definer
 set search_path = public
@@ -1582,10 +1587,8 @@ as $$
 declare
   v_count int;
   v_tier record;
-  v_current_plan text;
-  v_current_expires timestamptz;
-  v_base timestamptz;
-  v_new_expires timestamptz;
+  v_user_name text;
+  v_points int;
 begin
   select count(*) into v_count
   from product_submissions
@@ -1606,28 +1609,27 @@ begin
     return;
   end if;
 
-  select plan, premium_expires_at into v_current_plan, v_current_expires from users where id = p_user_id;
+  select name into v_user_name from users where id = p_user_id;
   if not found then
     return;
   end if;
 
-  v_base := case
-    when v_current_plan = 'premium' and v_current_expires is not null and v_current_expires > now()
-    then v_current_expires
-    else now()
-  end;
-  v_new_expires := v_base + (v_tier.days || ' days')::interval;
+  v_points := v_tier.days * 10; -- must match lib/points.ts's POINTS_PER_PREMIUM_DAY
+
+  insert into user_points (user_id, user_name, points, updated_at)
+  values (p_user_id, v_user_name, v_points, now())
+  on conflict (user_id) do update
+    set points = user_points.points + v_points, user_name = excluded.user_name, updated_at = now();
+
+  insert into points_log (user_id, user_name, amount) values (p_user_id, v_user_name, v_points);
 
   update users
-  set plan = 'premium',
-      premium_expires_at = v_new_expires,
-      claimed_achievements = array_append(coalesce(claimed_achievements, '{}'), v_tier.threshold),
+  set claimed_achievements = array_append(coalesce(claimed_achievements, '{}'), v_tier.threshold),
       updated_at = now()
   where id = p_user_id;
 
-  granted_days := v_tier.days;
+  granted_points := v_points;
   tier_threshold := v_tier.threshold;
-  new_expires_at := v_new_expires;
   return next;
 end;
 $$;
@@ -1758,7 +1760,7 @@ grant execute on function redeem_referral_code(text, text) to anon, authenticate
 -- against rows already committed to referrals/product_submissions/
 -- user_points by legitimate flows, never a client-supplied number.
 grant execute on function grant_referral_milestone_bonus(text) to anon, authenticated;
-grant execute on function grant_achievement_premium(text) to anon, authenticated;
+grant execute on function grant_achievement_points(text) to anon, authenticated;
 grant execute on function redeem_points_for_premium(text) to anon, authenticated;
 
 -- Text review comments (alongside the existing 1-5 star product_ratings),

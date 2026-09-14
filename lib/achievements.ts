@@ -21,7 +21,12 @@ export function tierLabel(tier: AchievementTier, language: Language): string {
  * approveSubmission). Thresholds are cumulative — reaching 30 approved
  * submissions means both the 10- and 30-tier have technically been
  * passed, but only the newly-crossed tier grants a reward each time
- * (see lib/auth-context.tsx grantAchievementPremium).
+ * (see lib/auth-context.tsx claimAchievementPoints). `days` no longer
+ * grants that many days of Premium directly — it's converted to points
+ * (days * lib/points.ts's POINTS_PER_PREMIUM_DAY) credited to the same
+ * balance referrals earn into, redeemable via redeemPointsForPremium like
+ * any other earned points. label/labelEn/labelRu/labelTr describe that
+ * value in Premium-duration terms but aren't currently shown anywhere.
  */
 export const ACHIEVEMENT_TIERS: AchievementTier[] = [
   { threshold: 1, days: 1, label: 'Xoş gəldin bonusu', labelEn: 'Welcome bonus', labelRu: 'Приветственный бонус', labelTr: 'Hoş geldin bonusu' },
