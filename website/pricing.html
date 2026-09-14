@@ -117,6 +117,7 @@
   .plan-card .price { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 24px; color: var(--ink); margin-top: 4px; }
   .plan-card .price span { font-size: 13px; font-weight: 600; color: var(--ink-muted); }
   .plan-card .note { font-size: 13px; color: var(--ink-muted); margin-top: 2px; }
+  .plan-card .save { font-size: 12.5px; color: var(--brand); font-weight: 700; margin-top: 1px; }
 
   .free-row {
     display: flex; align-items: center; justify-content: space-between; gap: 16px;
@@ -181,6 +182,9 @@
       <section>
         <h2>Premium abunəlik planları</h2>
         <p>Limitsiz skan və tam sertifikat detalları. Bütün planlar App Store vasitəsilə, avtomatik yenilənən abunəlik olaraq satılır.</p>
+        <!-- Savings % below are (1 − planPrice / (monthlyPrice × months)) rounded —
+             recompute by hand if any of the three prices above change, since
+             this is static HTML with no build step to derive them automatically. -->
         <div class="plans-grid">
           <div class="plan-card">
             <div class="name">Aylıq</div>
@@ -192,11 +196,13 @@
             <div class="name">İllik</div>
             <div class="price">$19.99<span> / il</span></div>
             <div class="note">Ayda ~$1.67-yə bərabər</div>
+            <div class="save">Aylıq plana görə 44% qənaət</div>
           </div>
           <div class="plan-card">
             <div class="name">6 aylıq</div>
             <div class="price">$12.99<span> / 6 ay</span></div>
             <div class="note">Hər 6 ayda yenilənir</div>
+            <div class="save">Aylıq plana görə 28% qənaət</div>
           </div>
         </div>
       </section>
