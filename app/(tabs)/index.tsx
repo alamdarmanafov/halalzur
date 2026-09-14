@@ -65,7 +65,13 @@ export default function ScanScreen() {
           await addScan(cached);
           recordScan();
           if (!isPremium) await incrementScanCount();
-          router.push({ pathname: '/product/[id]', params: { id: cached.barcode } });
+          // Pass the already-known result along so the product screen can
+          // render it immediately instead of re-fetching (and flashing its
+          // loading spinner) data we already have right here.
+          router.push({
+            pathname: '/product/[id]',
+            params: { id: cached.barcode, result: JSON.stringify(cached) },
+          });
           return;
         }
         const result = await lookupBarcode(barcode);
@@ -74,7 +80,10 @@ export default function ScanScreen() {
         recordScan();
         logScanEvent(result);
         if (!isPremium) await incrementScanCount();
-        router.push({ pathname: '/product/[id]', params: { id: result.barcode } });
+        router.push({
+          pathname: '/product/[id]',
+          params: { id: result.barcode, result: JSON.stringify(result) },
+        });
       } finally {
         setIsBusy(false);
         setTimeout(() => {

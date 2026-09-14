@@ -65,7 +65,25 @@ const makeStatusTint = (colors: ThemeColors): Record<CertificationResult['status
 });
 
 export default function ProductDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id: string; result?: string }>();
+  const { id } = params;
+  // The scan screen already has the full result the instant a barcode
+  // resolves — it passes it along as a serialized param so this screen can
+  // render immediately instead of re-fetching (a second network round trip
+  // to the same data) and flashing the full-screen spinner below on every
+  // single scan, right after the user just saw the result.
+  const initialResult = useMemo<CertificationResult | null>(() => {
+    if (!params.result) return null;
+    try {
+      const parsed = JSON.parse(params.result) as CertificationResult;
+      return parsed && parsed.barcode === id ? parsed : null;
+    } catch {
+      return null;
+    }
+    // Parsed once for this screen instance — params.result never changes
+    // for a given mount, and re-parsing on every render would be wasted work.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const { user } = useAuth();
   const colors = useThemeColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
@@ -77,7 +95,7 @@ export default function ProductDetailScreen() {
   const { dietaryTags, allergenTags, isBrandBlocked } = useDietaryProfile();
   const { isOnList, addItem, removeItem: removeFromShoppingList } = useShoppingList();
   const { history, removeScan } = useHistory();
-  const [product, setProduct] = useState<CertificationResult | null>(null);
+  const [product, setProduct] = useState<CertificationResult | null>(initialResult);
   const [alternatives, setAlternatives] = useState<CertificationResult[]>([]);
   const [manualIngredients, setManualIngredients] = useState('');
   const [ingredientPhoto, setIngredientPhoto] = useState<string | null>(null);
@@ -127,7 +145,33 @@ export default function ProductDetailScreen() {
   }, []);
 
   useEffect(() => {
+    if (!initialResult) return;
+    AccessibilityInfo.announceForAccessibility(
+      `${initialResult.productName}. ${t(STATUS_DESC_KEY[initialResult.status])}`
+    );
+    if (initialResult.status === 'unknown') {
+      if (initialResult.productName && initialResult.productName !== 'Naməlum məhsul') {
+        setSubmitName((prev) => prev || initialResult.productName);
+      }
+      if (initialResult.brand && initialResult.brand !== '—') {
+        setSubmitBrand((prev) => prev || initialResult.brand);
+      }
+      if (initialResult.category && initialResult.category !== '—') {
+        setSubmitCategory((prev) => prev || initialResult.category);
+      }
+    }
+    // Runs once, for the pre-fetched result the scan screen handed off.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     if (!id) return;
+    // Already have this exact product from the scan that navigated here —
+    // skip the redundant re-fetch (and the loading-spinner flash below)
+    // on first mount. A manual retry (reloadTick > 0) or landing on a
+    // different id (history, favorites, alternatives, deep link) still
+    // fetches normally.
+    if (reloadTick === 0 && initialResult && initialResult.barcode === id) return;
     let cancelled = false;
     setOffline(false);
     hasInternetConnection().then((online) => {
