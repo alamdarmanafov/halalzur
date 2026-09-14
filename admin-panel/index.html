@@ -4956,7 +4956,22 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         '<div class="field"><label>Brend</label><input data-role="brand-input" placeholder="Brend"></div>' +
         '<div class="field"><label>Barkod</label><input data-role="barcode-input" inputmode="numeric" placeholder="8–14 rəqəm"></div>' +
       '</div>' +
+      '<div class="field" style="margin-top:10px;">' +
+        '<label>Şəkil</label>' +
+        '<div style="display:flex; gap:6px;">' +
+          '<input type="text" data-role="edit-image" placeholder="Şəkil linki" style="flex:1; min-width:0;">' +
+          '<button type="button" class="btn" data-action="find-off-image" style="white-space:nowrap; flex-shrink:0;">OFF-dan tap</button>' +
+        '</div>' +
+      '</div>' +
       '<div class="field" style="margin-top:10px;"><label>Tərkib (vergüllə)</label><textarea data-role="ingredients-input" rows="2" placeholder="məs. un, şəkər, duz">' + esc(ingredients) + '</textarea></div>' +
+      '<div class="field" style="margin-top:10px; position:relative;">' +
+        '<label>E-kod əlavə et (istəyə bağlı)</label>' +
+        '<div style="display:flex; gap:6px;">' +
+          '<input type="text" data-role="add-ecode" placeholder="Kod və ya ad — məs. E100, gelatin" autocomplete="off" style="flex:1; min-width:0;">' +
+          '<button type="button" class="btn" data-action="add-ecode-btn" style="white-space:nowrap;">Əlavə et</button>' +
+        '</div>' +
+        '<div data-role="ecode-dropdown" hidden style="position:absolute; top:100%; left:0; right:0; margin-top:4px; background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,0.12); max-height:240px; overflow-y:auto; z-index:30;"></div>' +
+      '</div>' +
       '<div class="field" style="margin-top:10px;"><label>Qeyd</label><textarea data-role="notes-input" rows="2">' + esc(row.notes) + '</textarea></div>' +
       '<div class="field" style="margin-top:10px; max-width:220px;">' +
         '<label>Halallıq statusu (siz təyin edin)</label>' +
@@ -4984,6 +4999,18 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     card.querySelector('[data-role="name-input"]').value = row.product_name || "";
     card.querySelector('[data-role="brand-input"]').value = row.brand || "";
     card.querySelector('[data-role="barcode-input"]').value = row.barcode || "";
+    // Submissions never carry an image today (the app's submission form
+    // doesn't attach one) — OFF-dan tap reuses the same Open Food Facts
+    // lookup the product-edit card already has, keyed off this barcode.
+    card.querySelector('[data-role="edit-image"]').value = row.image_url || "";
+    card.querySelector('[data-action="find-off-image"]').addEventListener("click", function (e) {
+      findOffImage(row, card, e.target);
+    });
+    var submissionEcodeInput = card.querySelector('[data-role="add-ecode"]');
+    setupEcodeAutocomplete(submissionEcodeInput, card.querySelector('[data-role="ecode-dropdown"]'));
+    card.querySelector('[data-action="add-ecode-btn"]').addEventListener("click", function () {
+      addEcodeToTextarea(submissionEcodeInput, card.querySelector('[data-role="ingredients-input"]'));
+    });
     // Suggested_status only ever arrives as 'unknown' now (the app no
     // longer lets a user self-declare halal status) — this select
     // defaults there and the admin picks the real value before approving.
@@ -5002,6 +5029,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         product_name: card.querySelector('[data-role="name-input"]').value.trim(),
         brand: card.querySelector('[data-role="brand-input"]').value.trim(),
         barcode: card.querySelector('[data-role="barcode-input"]').value.replace(/\D/g, ""),
+        image_url: card.querySelector('[data-role="edit-image"]').value.trim() || null,
         ingredients: card.querySelector('[data-role="ingredients-input"]').value.split(",").map(function (x) { return x.trim(); }).filter(Boolean),
         notes: card.querySelector('[data-role="notes-input"]').value.trim() || null,
       };
@@ -5069,7 +5097,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     btn.textContent = "Təsdiqlənir…";
     // `edits` is the card's corrected form; without it (older callers) the
     // submission is taken as sent.
-    var final = edits || { product_name: row.product_name, brand: row.brand, barcode: row.barcode, ingredients: row.ingredients || [], notes: row.notes };
+    var final = edits || { product_name: row.product_name, brand: row.brand, barcode: row.barcode, image_url: row.image_url || null, ingredients: row.ingredients || [], notes: row.notes };
     var name = final.product_name || row.product_name;
 
     sb("certified_entries", {
@@ -5084,6 +5112,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         certifier_id: "halalzur",
         certificate_number: null,
         verified_at: new Date().toISOString().slice(0, 10),
+        image_url: final.image_url || null,
         ingredients: final.ingredients || [],
         notes: final.notes,
         source_url: null,
@@ -7199,6 +7228,45 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     });
   }
 
+  // Shared by the "add new product" form and the submission-review card:
+  // parses one or more E-codes out of a search/type field (accepting
+  // either a bare code or the "CODE — name" text the autocomplete
+  // dropdown fills in) and merges them into a comma-separated ingredients
+  // text field, skipping ones already present. Returns true if anything
+  // was actually added, so a caller can chain its own follow-up (e.g. a
+  // status suggestion refresh) only when that's meaningful.
+  function addEcodeToTextarea(ecodeInput, ingredientsField) {
+    var raw = ecodeInput.value.trim();
+    if (!raw) return false;
+    var candidates = raw.split(/[,;\n]+/).map(function (c) {
+      var code = c.split(" — ")[0].trim().toUpperCase().replace(/\s+/g, " ");
+      if (/^\d{3,4}[A-Z]*$/.test(code)) code = "E" + code;
+      return code;
+    }).filter(Boolean);
+    if (!candidates.length) return false;
+
+    var parts = ingredientsField.value.split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+    var existing = {};
+    parts.forEach(function (p) { existing[p.toUpperCase()] = true; });
+    var added = [];
+    var skipped = [];
+    candidates.forEach(function (code) {
+      if (existing[code]) { skipped.push(code); return; }
+      parts.push(code);
+      existing[code] = true;
+      added.push(code);
+    });
+
+    ingredientsField.value = parts.join(", ");
+    ecodeInput.value = "";
+    if (!added.length) {
+      toast(skipped.join(", ") + " artıq tərkibdə var");
+      return false;
+    }
+    toast(added.join(", ") + " əlavə edildi" + (skipped.length ? " (" + skipped.join(", ") + " artıq var idi)" : ""));
+    return true;
+  }
+
   // barcode -> [halal, mushbooh/depends, haram] chip colors, matching the
   // dashboard's own 🟢/🟡/🔴 status scheme.
   var ECODE_CHIP_STYLE = {
@@ -8143,45 +8211,19 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     productIngredientsSuggestDebounce = setTimeout(refreshProductStatusSuggestion, 300);
   });
 
-  // Same E-kod helper as buildProductCard's edit view, just appending
-  // into the plain "Tərkib" text field here instead of a saved row's
-  // ingredients array, since a new product hasn't been created yet.
+  // Same E-kod helper as buildProductCard's edit view (and the
+  // submission-review card), just appending into the plain "Tərkib" text
+  // field here instead of a saved row's ingredients array, since a new
+  // product hasn't been created yet.
   (function () {
     var ecodeInput = document.getElementById("addProductEcodeInput");
     var ecodeDropdown = document.getElementById("addProductEcodeDropdown");
     setupEcodeAutocomplete(ecodeInput, ecodeDropdown);
 
     document.getElementById("addProductEcodeBtn").addEventListener("click", function () {
-      var raw = ecodeInput.value.trim();
-      if (!raw) return;
-      var candidates = raw.split(/[,;\n]+/).map(function (c) {
-        var code = c.split(" — ")[0].trim().toUpperCase().replace(/\s+/g, " ");
-        if (/^\d{3,4}[A-Z]*$/.test(code)) code = "E" + code;
-        return code;
-      }).filter(Boolean);
-      if (!candidates.length) return;
-
-      var ingredientsField = document.getElementById("productIngredients");
-      var parts = ingredientsField.value.split(",").map(function (s) { return s.trim(); }).filter(Boolean);
-      var existing = {};
-      parts.forEach(function (p) { existing[p.toUpperCase()] = true; });
-      var added = [];
-      var skipped = [];
-      candidates.forEach(function (code) {
-        if (existing[code]) { skipped.push(code); return; }
-        parts.push(code);
-        existing[code] = true;
-        added.push(code);
-      });
-
-      ingredientsField.value = parts.join(", ");
-      ecodeInput.value = "";
-      if (!added.length) {
-        toast(skipped.join(", ") + " artıq tərkibdə var");
-        return;
+      if (addEcodeToTextarea(ecodeInput, document.getElementById("productIngredients"))) {
+        refreshProductStatusSuggestion();
       }
-      toast(added.join(", ") + " əlavə edildi" + (skipped.length ? " (" + skipped.join(", ") + " artıq var idi)" : ""));
-      refreshProductStatusSuggestion();
     });
   })();
 
