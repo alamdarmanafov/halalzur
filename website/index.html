@@ -264,6 +264,28 @@
   .certifier-pill b { display: block; font-family: "Manrope", sans-serif; font-size: 15px; color: var(--ink); }
   .certifier-pill span { display: block; font-size: 12px; color: var(--ink-muted); margin-top: 3px; }
 
+  /* ---- pricing (mirrors plan-card styles from pricing.html so the two
+     pages read as one system) ---- */
+  .plans-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 900px; margin: 0 auto; text-align: left; }
+  @media (max-width: 760px) { .plans-grid { grid-template-columns: 1fr; } }
+  .plan-card {
+    border: 1px solid var(--border); border-radius: 20px; padding: 24px; background: var(--surface);
+    display: flex; flex-direction: column; gap: 6px; position: relative;
+  }
+  .plan-card.featured { border-color: var(--brand); box-shadow: 0 0 0 1.5px var(--brand); }
+  .plan-card .tag {
+    position: absolute; top: -11px; left: 20px; background: var(--brand); color: #fff;
+    font-family: "Manrope", sans-serif; font-size: 11px; font-weight: 800; letter-spacing: 0.04em;
+    text-transform: uppercase; padding: 4px 10px; border-radius: 999px;
+  }
+  .plan-card .name { font-family: "Manrope", sans-serif; font-weight: 700; font-size: 15px; color: var(--ink); }
+  .plan-card .price { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 26px; color: var(--ink); margin-top: 4px; }
+  .plan-card .price span { font-size: 13px; font-weight: 600; color: var(--ink-muted); }
+  .plan-card .note { font-size: 13px; color: var(--ink-muted); margin-top: 2px; }
+  .plan-card .save { font-size: 12.5px; color: var(--brand); font-weight: 700; margin-top: 1px; }
+  .pricing-footnote { text-align: center; color: var(--ink-muted); font-size: 13.5px; margin-top: 28px; }
+  .pricing-footnote a { color: var(--brand-dark); font-weight: 700; text-decoration: none; }
+
   /* ---- waitlist ---- */
   .waitlist {
     background: linear-gradient(150deg, var(--brand-dark), var(--brand));
@@ -303,6 +325,7 @@
         <li><a href="#features">Xüsusiyyətlər</a></li>
         <li><a href="#how">Necə işləyir</a></li>
         <li><a href="#certifiers">Sertifikat orqanları</a></li>
+        <li><a href="#pricing">Qiymət</a></li>
         <li><a href="#faq">FAQ</a></li>
       </ul>
     </nav>
@@ -439,6 +462,36 @@
         <div class="certifier-pill"><b>JAKIM</b><span>Malaziya</span></div>
         <div class="certifier-pill"><b>AZSTANDART Halal</b><span>Azərbaycan</span></div>
       </div>
+    </div>
+  </section>
+
+  <section class="section" id="pricing">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Premium ilə limitsiz</h2>
+        <p>Gündə 3 skan həmişə pulsuzdur. Limitsiz skan və tam sertifikat detalları üçün Premium-a keçin.</p>
+      </div>
+      <div class="plans-grid">
+        <div class="plan-card">
+          <div class="name">Aylıq</div>
+          <div class="price">$2.99<span> / ay</span></div>
+          <div class="note">Hər ay yenilənir</div>
+        </div>
+        <div class="plan-card featured">
+          <span class="tag">Ən sərfəli</span>
+          <div class="name">İllik</div>
+          <div class="price">$19.99<span> / il</span></div>
+          <div class="note">Ayda ~$1.67-yə bərabər</div>
+          <div class="save">Aylıq plana görə 44% qənaət</div>
+        </div>
+        <div class="plan-card">
+          <div class="name">6 aylıq</div>
+          <div class="price">$12.99<span> / 6 ay</span></div>
+          <div class="note">Hər 6 ayda yenilənir</div>
+          <div class="save">Aylıq plana görə 28% qənaət</div>
+        </div>
+      </div>
+      <p class="pricing-footnote">Bütün planlar App Store vasitəsilə avtomatik yenilənən abunəlik olaraq satılır. <a href="pricing.html">Ətraflı qiymət siyasəti →</a></p>
     </div>
   </section>
 
