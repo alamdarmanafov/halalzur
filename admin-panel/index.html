@@ -5229,6 +5229,13 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
   // default row limit would silently miss matches once a filter matches
   // more products than that cap.
   function fetchAllProductIds(filterParams) {
+    // Requests a 1000-row page via Range, but keeps paginating by however
+    // many rows actually came back (not by the 1000 we asked for) and only
+    // stops on an empty page. PostgREST's own max-rows setting can cap a
+    // response below what Range asked for (e.g. lowered to 100 to blunt
+    // bulk scraping — see admin-panel security notes) — stopping on
+    // "rows.length === CHUNK" would then quietly declare victory after the
+    // first capped page and silently drop the rest of the filtered set.
     var CHUNK = 1000;
     var allIds = [];
     function next(offset) {
@@ -5245,9 +5252,27 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
         })
         .then(function (rows) {
           allIds = allIds.concat(rows.map(function (r) { return r.id; }));
-          if (rows.length === CHUNK) return next(offset + CHUNK);
-          return allIds;
+          if (rows.length === 0) return allIds;
+          return next(offset + rows.length);
         });
+    }
+    return next(0);
+  }
+
+  // Same "stop only on an empty page" pagination as fetchAllProductIds
+  // above, but for any sb() SELECT path (not just id-only) — used to fetch
+  // every row for a single withIdChunks() chunk, since a chunk of up to
+  // 300 ids can still exceed a lowered PostgREST max-rows cap on its own.
+  function sbSelectPaged(path) {
+    var PAGE = 1000;
+    var allRows = [];
+    function next(offset) {
+      return sb(path, { headers: { Range: offset + "-" + (offset + PAGE - 1) } }).then(function (rows) {
+        rows = rows || [];
+        allRows = allRows.concat(rows);
+        if (rows.length === 0) return allRows;
+        return next(offset + rows.length);
+      });
     }
     return next(0);
   }
@@ -6142,7 +6167,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     btn.textContent = "Oxunur…";
 
     withIdChunks(ids, 300, function (chunk) {
-      return sb("certified_entries?select=id,product_name&id=in.(" + chunk.join(",") + ")");
+      return sbSelectPaged("certified_entries?select=id,product_name&id=in.(" + chunk.join(",") + ")");
     })
       .then(function (rows) {
         var byCategory = {};
@@ -6381,7 +6406,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     btn.textContent = "Oxunur…";
 
     withIdChunks(ids, 300, function (chunk) {
-      return sb("certified_entries?select=id,barcode,origin_country&id=in.(" + chunk.join(",") + ")");
+      return sbSelectPaged("certified_entries?select=id,barcode,origin_country&id=in.(" + chunk.join(",") + ")");
     })
       .then(function (rows) {
         var byCountry = {};
@@ -6477,7 +6502,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     btn.textContent = "Yoxlanılır…";
 
     withIdChunks(ids, 300, function (chunk) {
-      return sb("certified_entries?select=id,barcode&id=in.(" + chunk.join(",") + ")");
+      return sbSelectPaged("certified_entries?select=id,barcode&id=in.(" + chunk.join(",") + ")");
     })
       .then(function (rows) {
         var withBarcode = (rows || []).filter(function (r) { return r.barcode; });
@@ -6673,7 +6698,7 @@ gin|haram|Spirtli içki — distillə edilmiş (ingiliscə)"
     // bulk PATCH — read each selected row's current array, then write the
     // merged one back.
     withIdChunks(ids, 300, function (chunk) {
-      return sb("certified_entries?id=in.(" + chunk.join(",") + ")&select=id,ingredients");
+      return sbSelectPaged("certified_entries?id=in.(" + chunk.join(",") + ")&select=id,ingredients");
     })
       .then(function (rows) {
         return Promise.all(
