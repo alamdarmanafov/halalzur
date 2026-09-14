@@ -1228,6 +1228,7 @@ export default function ProductDetailScreen() {
             <FlatList
               data={searchECodes(ecodeQuery)}
               keyExtractor={(item) => item.code}
+              keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => {
                 const selected = hasECode(item.code);
                 return (
@@ -1295,6 +1296,7 @@ export default function ProductDetailScreen() {
                 </Pressable>
               )}
               style={{ maxHeight: 280 }}
+              keyboardShouldPersistTaps="handled"
               ListEmptyComponent={
                 <Text style={[styles.eCodeIntro, { marginTop: spacing.sm }]}>{t('productNoMatchFound')}</Text>
               }
