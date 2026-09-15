@@ -1,5 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Reveal } from "./components/Reveal";
+import { HeroPhoneSlider } from "./components/HeroPhoneSlider";
+
+function stagger(i: number): React.CSSProperties {
+  return { ["--i" as string]: i } as React.CSSProperties;
+}
 
 // PLACEHOLDER — set this to the real App Store listing URL once Halalzur
 // is published (App Store Connect → App → App Store tab → "View on
@@ -320,7 +326,70 @@ export default function HomePage() {
   .footer-links a { text-decoration: none; color: var(--ink-muted); font-size: 13.5px; font-weight: 600; }
   .footer-copy { color: var(--ink-muted); font-size: 13px; }
 
-  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  /* ---- scroll reveal ---- */
+  .reveal .section-head,
+  .reveal .feature-card,
+  .reveal .step,
+  .reveal .certifier-pill,
+  .reveal .plan-card,
+  .reveal .waitlist {
+    opacity: 0;
+    transform: translateY(22px);
+    transition: opacity 0.7s cubic-bezier(.16,.8,.3,1), transform 0.7s cubic-bezier(.16,.8,.3,1);
+    transition-delay: calc(var(--i, 0) * 70ms);
+  }
+  .reveal.is-visible .section-head,
+  .reveal.is-visible .feature-card,
+  .reveal.is-visible .step,
+  .reveal.is-visible .certifier-pill,
+  .reveal.is-visible .plan-card,
+  .reveal.is-visible .waitlist {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ---- hero phone slider ---- */
+  .phone .slide { position: absolute; inset: 0; opacity: 0; transition: opacity 0.6s ease; pointer-events: none; }
+  .phone .slide.active { opacity: 1; pointer-events: auto; }
+
+  .phone .result-card, .phone .ecode-card {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -52%);
+    width: 172px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 16px; padding: 14px; backdrop-filter: blur(6px); z-index: 3;
+  }
+  .phone .result-badge {
+    display: inline-block; background: rgba(124,252,0,0.16); color: var(--brand-accent);
+    font-weight: 800; font-size: 11px; padding: 4px 10px; border-radius: 999px; margin-bottom: 10px;
+  }
+  .phone .result-name { color: #fff; font-family: "Manrope", sans-serif; font-weight: 700; font-size: 13px; }
+  .phone .result-brand { color: rgba(255,255,255,0.65); font-size: 11.5px; margin-top: 2px; }
+  .phone .result-source { color: rgba(255,255,255,0.45); font-size: 10.5px; margin-top: 8px; }
+
+  .phone .ecode-row {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; color: rgba(255,255,255,0.85); padding: 6px 0;
+  }
+  .phone .ecode-row + .ecode-row { border-top: 1px solid rgba(255,255,255,0.1); }
+  .phone .ecode-ok { color: var(--brand-accent); font-weight: 700; font-size: 11px; }
+  .phone .ecode-warn { color: #F5C451; font-weight: 700; font-size: 11px; }
+
+  .phone .dots {
+    position: absolute; bottom: 68px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 6px; z-index: 6;
+  }
+  .phone .dot {
+    width: 6px; height: 6px; border-radius: 999px; background: rgba(255,255,255,0.35);
+    border: none; padding: 0; cursor: pointer;
+  }
+  .phone .dot.active { background: #fff; width: 16px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .reveal .section-head, .reveal .feature-card, .reveal .step, .reveal .certifier-pill, .reveal .plan-card, .reveal .waitlist {
+      transition: none; opacity: 1; transform: none;
+    }
+    .phone .slide { transition: none; }
+  }
       `}</style>
 
       <header className="nav">
@@ -405,200 +474,188 @@ export default function HomePage() {
             </div>
 
             <div className="phone-wrap">
-              <div className="phone">
-                <div className="notch"></div>
-                <div className="screen">
-                  <div className="top-bar">
-                    <div className="row">
-                      <div className="brand-row">
-                        <img
-                          src="/logo.png"
-                          alt="Halalzur"
-                          width={20}
-                          height={20}
-                          style={{ borderRadius: "22%", display: "block" }}
-                        />
-                        <b>Halalzur</b>
-                      </div>
-                      <span className="bell">🔔</span>
-                    </div>
-                    <div className="hint">Barkodu skan etmək üçün kameranı yönəldin</div>
-                  </div>
-                  <div className="frame"></div>
-                  <div className="bottom-bar">
-                    <span className="cta-pill">⌗ Skan etməyə başla</span>
-                  </div>
-                </div>
-              </div>
+              <HeroPhoneSlider />
             </div>
           </div>
         </section>
 
         <section className="section" id="features">
           <div className="wrap">
-            <div className="section-head">
-              <h2>Sadə, izahlı, mənbəyi göstərilən</h2>
-              <p>Halalzur nəticəni deyil, nəticənin haradan gəldiyini göstərir — hər status bir izahla gəlir.</p>
-            </div>
-            <div className="features-grid">
-              <div className="feature-card">
-                <div className="feature-icon">⌗</div>
-                <h3>Ani skan</h3>
-                <p>Barkodu kameraya tutun, saniyələr içində nəticəni görün.</p>
+            <Reveal>
+              <div className="section-head">
+                <h2>Sadə, izahlı, mənbəyi göstərilən</h2>
+                <p>Halalzur nəticəni deyil, nəticənin haradan gəldiyini göstərir — hər status bir izahla gəlir.</p>
               </div>
-              <div className="feature-card">
-                <div className="feature-icon">🛡</div>
-                <h3>İzahlı nəticə</h3>
-                <p>Halal, şübhəli və ya tövsiyə edilmir — hər status öz səbəbi ilə göstərilir.</p>
+              <div className="features-grid">
+                <div className="feature-card" style={stagger(0)}>
+                  <div className="feature-icon">⌗</div>
+                  <h3>Ani skan</h3>
+                  <p>Barkodu kameraya tutun, saniyələr içində nəticəni görün.</p>
+                </div>
+                <div className="feature-card" style={stagger(1)}>
+                  <div className="feature-icon">🛡</div>
+                  <h3>İzahlı nəticə</h3>
+                  <p>Halal, şübhəli və ya tövsiyə edilmir — hər status öz səbəbi ilə göstərilir.</p>
+                </div>
+                <div className="feature-card" style={stagger(2)}>
+                  <div className="feature-icon">🧪</div>
+                  <h3>E-kod bələdçisi</h3>
+                  <p>Tərkibdəki E-kodların sertifikat orqanlarına görə statusunu ayrıca görün.</p>
+                </div>
+                <div className="feature-card" style={stagger(3)}>
+                  <div className="feature-icon">🤝</div>
+                  <h3>İcma töhfəsi</h3>
+                  <p>Bazada olmayan məhsulu təklif edin, təsdiqləndikdə xal qazanın.</p>
+                </div>
               </div>
-              <div className="feature-card">
-                <div className="feature-icon">🧪</div>
-                <h3>E-kod bələdçisi</h3>
-                <p>Tərkibdəki E-kodların sertifikat orqanlarına görə statusunu ayrıca görün.</p>
-              </div>
-              <div className="feature-card">
-                <div className="feature-icon">🤝</div>
-                <h3>İcma töhfəsi</h3>
-                <p>Bazada olmayan məhsulu təklif edin, təsdiqləndikdə xal qazanın.</p>
-              </div>
-            </div>
+            </Reveal>
           </div>
         </section>
 
         <section className="section steps" id="how">
           <div className="wrap">
-            <div className="section-head">
-              <h2>Necə işləyir</h2>
-              <p>Üç addım — hər dəfə eyni aydınlıqla.</p>
-            </div>
-            <div className="steps-grid">
-              <div className="step">
-                <div className="step-num">1</div>
-                <h3>Skan et</h3>
-                <p>Məhsulun barkodunu kameraya tutun.</p>
+            <Reveal>
+              <div className="section-head">
+                <h2>Necə işləyir</h2>
+                <p>Üç addım — hər dəfə eyni aydınlıqla.</p>
               </div>
-              <div className="step">
-                <div className="step-num">2</div>
-                <h3>Yoxla</h3>
-                <p>Halal statusunu və mənbəyini dərhal görün.</p>
+              <div className="steps-grid">
+                <div className="step" style={stagger(0)}>
+                  <div className="step-num">1</div>
+                  <h3>Skan et</h3>
+                  <p>Məhsulun barkodunu kameraya tutun.</p>
+                </div>
+                <div className="step" style={stagger(1)}>
+                  <div className="step-num">2</div>
+                  <h3>Yoxla</h3>
+                  <p>Halal statusunu və mənbəyini dərhal görün.</p>
+                </div>
+                <div className="step" style={stagger(2)}>
+                  <div className="step-num">3</div>
+                  <h3>Etibar et</h3>
+                  <p>Aydın izahla arxayın seçim edin.</p>
+                </div>
               </div>
-              <div className="step">
-                <div className="step-num">3</div>
-                <h3>Etibar et</h3>
-                <p>Aydın izahla arxayın seçim edin.</p>
-              </div>
-            </div>
+            </Reveal>
           </div>
         </section>
 
         <section className="section certifiers-band" id="certifiers">
           <div className="wrap">
-            <div className="section-head">
-              <h2>Tanınan sertifikat orqanları</h2>
-              <p>Halalzur öz hökmünü vermir — tanınan orqanların dərc etdiyi məlumata istinad edir.</p>
-            </div>
-            <div className="certifiers-row">
-              <div className="certifier-pill">
-                <b>GIMDES</b>
-                <span>Türkiyə</span>
+            <Reveal>
+              <div className="section-head">
+                <h2>Tanınan sertifikat orqanları</h2>
+                <p>Halalzur öz hökmünü vermir — tanınan orqanların dərc etdiyi məlumata istinad edir.</p>
               </div>
-              <div className="certifier-pill">
-                <b>HAK</b>
-                <span>Türkiyə</span>
+              <div className="certifiers-row">
+                <div className="certifier-pill" style={stagger(0)}>
+                  <b>GIMDES</b>
+                  <span>Türkiyə</span>
+                </div>
+                <div className="certifier-pill" style={stagger(1)}>
+                  <b>HAK</b>
+                  <span>Türkiyə</span>
+                </div>
+                <div className="certifier-pill" style={stagger(2)}>
+                  <b>SMIIC</b>
+                  <span>Beynəlxalq</span>
+                </div>
+                <div className="certifier-pill" style={stagger(3)}>
+                  <b>JAKIM</b>
+                  <span>Malaziya</span>
+                </div>
+                <div className="certifier-pill" style={stagger(4)}>
+                  <b>AZSTANDART Halal</b>
+                  <span>Azərbaycan</span>
+                </div>
               </div>
-              <div className="certifier-pill">
-                <b>SMIIC</b>
-                <span>Beynəlxalq</span>
-              </div>
-              <div className="certifier-pill">
-                <b>JAKIM</b>
-                <span>Malaziya</span>
-              </div>
-              <div className="certifier-pill">
-                <b>AZSTANDART Halal</b>
-                <span>Azərbaycan</span>
-              </div>
-            </div>
+            </Reveal>
           </div>
         </section>
 
         <section className="section" id="pricing">
           <div className="wrap">
-            <div className="section-head">
-              <h2>Premium ilə limitsiz</h2>
-              <p>Gündə 3 skan həmişə pulsuzdur. Limitsiz skan və tam sertifikat detalları üçün Premium-a keçin.</p>
-            </div>
-            <div className="plans-grid">
-              <div className="plan-card">
-                <div className="name">Aylıq</div>
-                <div className="price">
-                  $2.99<span> / ay</span>
-                </div>
-                <div className="note">Hər ay yenilənir</div>
+            <Reveal>
+              <div className="section-head">
+                <h2>Premium ilə limitsiz</h2>
+                <p>Gündə 3 skan həmişə pulsuzdur. Limitsiz skan və tam sertifikat detalları üçün Premium-a keçin.</p>
               </div>
-              <div className="plan-card featured">
-                <span className="tag">Ən sərfəli</span>
-                <div className="name">İllik</div>
-                <div className="price">
-                  $19.99<span> / il</span>
+              <div className="plans-grid">
+                <div className="plan-card" style={stagger(0)}>
+                  <div className="name">Aylıq</div>
+                  <div className="price">
+                    $2.99<span> / ay</span>
+                  </div>
+                  <div className="note">Hər ay yenilənir</div>
                 </div>
-                <div className="note">Ayda ~$1.67-yə bərabər</div>
-                <div className="save">Aylıq plana görə 44% qənaət</div>
-              </div>
-              <div className="plan-card">
-                <div className="name">6 aylıq</div>
-                <div className="price">
-                  $12.99<span> / 6 ay</span>
+                <div className="plan-card featured" style={stagger(1)}>
+                  <span className="tag">Ən sərfəli</span>
+                  <div className="name">İllik</div>
+                  <div className="price">
+                    $19.99<span> / il</span>
+                  </div>
+                  <div className="note">Ayda ~$1.67-yə bərabər</div>
+                  <div className="save">Aylıq plana görə 44% qənaət</div>
                 </div>
-                <div className="note">Hər 6 ayda yenilənir</div>
-                <div className="save">Aylıq plana görə 28% qənaət</div>
+                <div className="plan-card" style={stagger(2)}>
+                  <div className="name">6 aylıq</div>
+                  <div className="price">
+                    $12.99<span> / 6 ay</span>
+                  </div>
+                  <div className="note">Hər 6 ayda yenilənir</div>
+                  <div className="save">Aylıq plana görə 28% qənaət</div>
+                </div>
               </div>
-            </div>
-            <p className="pricing-footnote">
-              Bütün planlar App Store vasitəsilə avtomatik yenilənən abunəlik olaraq satılır.{" "}
-              <Link href="/pricing.html">Ətraflı qiymət siyasəti →</Link>
-            </p>
+              <p className="pricing-footnote">
+                Bütün planlar App Store vasitəsilə avtomatik yenilənən abunəlik olaraq satılır.{" "}
+                <Link href="/pricing.html">Ətraflı qiymət siyasəti →</Link>
+              </p>
+            </Reveal>
           </div>
         </section>
 
         <section className="section" id="download">
           <div className="wrap">
-            <div className="waitlist">
-              <h2>Halalzur-u indi yükləyin</h2>
-              <p>iPhone-unuzda App Store-dan endirin, məhsulları saniyələr içində skan etməyə başlayın.</p>
-              <a className="btn-store" href={APP_STORE_URL}>
-                <svg width="19" height="19" viewBox="0 0 384 512" fill="currentColor">
-                  <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
-                </svg>
-                App Store-dan yüklə
-              </a>
-            </div>
+            <Reveal>
+              <div className="waitlist">
+                <h2>Halalzur-u indi yükləyin</h2>
+                <p>iPhone-unuzda App Store-dan endirin, məhsulları saniyələr içində skan etməyə başlayın.</p>
+                <a className="btn-store" href={APP_STORE_URL}>
+                  <svg width="19" height="19" viewBox="0 0 384 512" fill="currentColor">
+                    <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
+                  </svg>
+                  App Store-dan yüklə
+                </a>
+              </div>
+            </Reveal>
           </div>
         </section>
 
         <section className="section" id="faq">
           <div className="wrap">
-            <div className="section-head">
-              <h2>Tez-tez verilən suallar</h2>
-            </div>
-            <div className="features-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
-              <div className="feature-card">
-                <h3>Halalzur halal hökmü verirmi?</h3>
-                <p>Xeyr. Halalzur dini hökm vermir — yalnız tanınan sertifikat orqanlarının (GIMDES, JAKIM, AZSTANDART Halal və s.) dərc etdiyi məlumatı göstərir.</p>
+            <Reveal>
+              <div className="section-head">
+                <h2>Tez-tez verilən suallar</h2>
               </div>
-              <div className="feature-card">
-                <h3>Hansı platformalarda əlçatan olacaq?</h3>
-                <p>Halalzur ilk mərhələdə yalnız iOS (iPhone) üçün hazırlanır.</p>
+              <div className="features-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
+                <div className="feature-card" style={stagger(0)}>
+                  <h3>Halalzur halal hökmü verirmi?</h3>
+                  <p>Xeyr. Halalzur dini hökm vermir — yalnız tanınan sertifikat orqanlarının (GIMDES, JAKIM, AZSTANDART Halal və s.) dərc etdiyi məlumatı göstərir.</p>
+                </div>
+                <div className="feature-card" style={stagger(1)}>
+                  <h3>Hansı platformalarda əlçatan olacaq?</h3>
+                  <p>Halalzur ilk mərhələdə yalnız iOS (iPhone) üçün hazırlanır.</p>
+                </div>
+                <div className="feature-card" style={stagger(2)}>
+                  <h3>Pulsuzdurmu?</h3>
+                  <p>Bəli — gündə 3 skan pulsuzdur. Limitsiz istifadə üçün Premium abunəlik olacaq.</p>
+                </div>
+                <div className="feature-card" style={stagger(3)}>
+                  <h3>Öz məhsulumu əlavə edə bilərəmmi?</h3>
+                  <p>Bəli — bazada olmayan məhsulu tətbiq daxilində təklif edə bilərsiniz, təsdiqləndikdə xal qazanırsınız.</p>
+                </div>
               </div>
-              <div className="feature-card">
-                <h3>Pulsuzdurmu?</h3>
-                <p>Bəli — gündə 3 skan pulsuzdur. Limitsiz istifadə üçün Premium abunəlik olacaq.</p>
-              </div>
-              <div className="feature-card">
-                <h3>Öz məhsulumu əlavə edə bilərəmmi?</h3>
-                <p>Bəli — bazada olmayan məhsulu tətbiq daxilində təklif edə bilərsiniz, təsdiqləndikdə xal qazanırsınız.</p>
-              </div>
-            </div>
+            </Reveal>
           </div>
         </section>
       </main>
