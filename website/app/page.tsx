@@ -332,7 +332,7 @@ export default function HomePage() {
   .compare-rows li:last-child { border-bottom: none; padding-bottom: 0; }
   .compare-rows li:first-child { padding-top: 0; }
   .compare-before-text {
-    color: var(--ink-muted); font-family: "Source Sans 3", monospace; font-size: 13.5px;
+    color: #C0362C; font-family: "Source Sans 3", monospace; font-size: 13.5px; font-weight: 600;
     flex: 0 0 auto; padding-top: 2px; white-space: nowrap;
   }
   .compare-arrow { color: var(--brand); flex: none; margin-top: 3px; }
