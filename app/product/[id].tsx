@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Pressable,
   TextInput,
-  Image,
   Alert,
   Modal,
   FlatList,
@@ -17,6 +16,7 @@ import {
   Share,
   AccessibilityInfo,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -720,7 +720,13 @@ export default function ProductDetailScreen() {
       >
         <View style={styles.hero}>
           {product.imageUrl && !liteMode ? (
-            <Image source={{ uri: product.imageUrl }} style={styles.productImage} resizeMode="contain" />
+            <Image
+              source={{ uri: product.imageUrl }}
+              style={styles.productImage}
+              contentFit="contain"
+              transition={200}
+              cachePolicy="memory-disk"
+            />
           ) : (
             <Text style={styles.emoji}>{product.imageEmoji}</Text>
           )}
@@ -920,7 +926,13 @@ export default function ProductDetailScreen() {
                 >
                   <View style={styles.altImageWrap}>
                     {alt.imageUrl && !liteMode ? (
-                      <Image source={{ uri: alt.imageUrl }} style={styles.altImage} resizeMode="contain" />
+                      <Image
+                        source={{ uri: alt.imageUrl }}
+                        style={styles.altImage}
+                        contentFit="contain"
+                        transition={200}
+                        cachePolicy="memory-disk"
+                      />
                     ) : (
                       <Text style={styles.altEmoji}>{alt.imageEmoji}</Text>
                     )}

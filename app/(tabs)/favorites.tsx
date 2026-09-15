@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -25,15 +25,39 @@ export default function FavoritesScreen() {
     }
   };
 
+  const keyExtractor = useCallback((item: (typeof favorites)[number]) => item.barcode, []);
+  const renderSeparator = useCallback(() => <View style={{ height: spacing.sm }} />, []);
+  const renderFavoriteItem = useCallback(
+    ({ item }: { item: (typeof favorites)[number] }) => (
+      <Pressable
+        style={styles.card}
+        onPress={() => router.push({ pathname: '/product/[id]', params: { id: item.barcode } })}
+      >
+        <Text style={styles.emoji}>{item.imageEmoji}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.productName} numberOfLines={1}>
+            {item.productName}
+          </Text>
+          <Text style={styles.brand} numberOfLines={1}>
+            {item.brand} · {item.category}
+          </Text>
+          <StatusBadge status={item.status} size="sm" />
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={colors.grayLight} />
+      </Pressable>
+    ),
+    [styles, colors]
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <Text style={styles.title}>{t('favoritesTitle')}</Text>
 
       <FlatList
         data={favorites}
-        keyExtractor={(item) => item.barcode}
+        keyExtractor={keyExtractor}
         contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: spacing.xl }}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+        ItemSeparatorComponent={renderSeparator}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
@@ -44,24 +68,7 @@ export default function FavoritesScreen() {
             <Text style={styles.emptyHint}>{t('favoritesEmptyHint')}</Text>
           </View>
         }
-        renderItem={({ item }) => (
-          <Pressable
-            style={styles.card}
-            onPress={() => router.push({ pathname: '/product/[id]', params: { id: item.barcode } })}
-          >
-            <Text style={styles.emoji}>{item.imageEmoji}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.productName} numberOfLines={1}>
-                {item.productName}
-              </Text>
-              <Text style={styles.brand} numberOfLines={1}>
-                {item.brand} · {item.category}
-              </Text>
-              <StatusBadge status={item.status} size="sm" />
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.grayLight} />
-          </Pressable>
-        )}
+        renderItem={renderFavoriteItem}
       />
     </SafeAreaView>
   );

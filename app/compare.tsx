@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, FlatList, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, Pressable, FlatList, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -251,7 +252,13 @@ function PickerRow({
   return (
     <Pressable style={styles.pickerRow} onPress={onPress}>
       {product.imageUrl ? (
-        <Image source={{ uri: product.imageUrl }} style={styles.pickerImage} resizeMode="contain" />
+        <Image
+          source={{ uri: product.imageUrl }}
+          style={styles.pickerImage}
+          contentFit="contain"
+          transition={150}
+          cachePolicy="memory-disk"
+        />
       ) : (
         <Text style={styles.pickerEmoji}>{product.imageEmoji}</Text>
       )}
@@ -298,7 +305,13 @@ function SlotCard({
       </Pressable>
       <Pressable onPress={onPress} style={{ alignItems: 'center' }}>
         {product.imageUrl ? (
-          <Image source={{ uri: product.imageUrl }} style={styles.slotImage} resizeMode="contain" />
+          <Image
+            source={{ uri: product.imageUrl }}
+            style={styles.slotImage}
+            contentFit="contain"
+            transition={150}
+            cachePolicy="memory-disk"
+          />
         ) : (
           <Text style={styles.slotEmoji}>{product.imageEmoji}</Text>
         )}

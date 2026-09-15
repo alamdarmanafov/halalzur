@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,9 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Image,
   Linking,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -70,7 +70,7 @@ export default function PlacesScreen() {
   const { t } = useLanguage();
   const colors = useThemeColors();
   const styles = useMemo(() => makeStyles(colors), [colors]);
-  const categoryLabel = (cat: PlaceCategory) => t(CATEGORY_LABEL_KEY[cat]);
+  const categoryLabel = useCallback((cat: PlaceCategory) => t(CATEGORY_LABEL_KEY[cat]), [t]);
   const FILTERS: { key: PlaceCategory | 'hamısı'; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
     { key: 'hamısı', label: t('placesCategoryAll'), icon: 'apps-outline' },
     { key: 'restoran', label: categoryLabel('restoran'), icon: PLACE_CATEGORY_ICON.restoran as any },
@@ -145,28 +145,31 @@ export default function PlacesScreen() {
     };
   }, [data, user]);
 
-  const onToggleRecommendPlace = async (place: Place) => {
-    if (!user) {
-      Alert.alert(t('productRecommendSignInTitle'), t('placeRecommendSignInBody'));
-      return;
-    }
-    const currentlyRecommended = myRecommends.has(place.id);
-    try {
-      await togglePlaceRecommend(user.id, place.id, currentlyRecommended);
-      setMyRecommends((prev) => {
-        const next = new Set(prev);
-        if (currentlyRecommended) next.delete(place.id);
-        else next.add(place.id);
-        return next;
-      });
-      setRecommendCounts((prev) => ({
-        ...prev,
-        [place.id]: (prev[place.id] ?? 0) + (currentlyRecommended ? -1 : 1),
-      }));
-    } catch (err: any) {
-      Alert.alert(t('placesFormFailedTitle'), err.message ?? t('placesFormFailedBody'));
-    }
-  };
+  const onToggleRecommendPlace = useCallback(
+    async (place: Place) => {
+      if (!user) {
+        Alert.alert(t('productRecommendSignInTitle'), t('placeRecommendSignInBody'));
+        return;
+      }
+      const currentlyRecommended = myRecommends.has(place.id);
+      try {
+        await togglePlaceRecommend(user.id, place.id, currentlyRecommended);
+        setMyRecommends((prev) => {
+          const next = new Set(prev);
+          if (currentlyRecommended) next.delete(place.id);
+          else next.add(place.id);
+          return next;
+        });
+        setRecommendCounts((prev) => ({
+          ...prev,
+          [place.id]: (prev[place.id] ?? 0) + (currentlyRecommended ? -1 : 1),
+        }));
+      } catch (err: any) {
+        Alert.alert(t('placesFormFailedTitle'), err.message ?? t('placesFormFailedBody'));
+      }
+    },
+    [user, myRecommends, t]
+  );
 
   const sortedData = useMemo(() => {
     if (!userLocation) return data;
@@ -226,6 +229,56 @@ export default function PlacesScreen() {
     }
   };
 
+  const placeKeyExtractor = useCallback((item: Place) => item.id, []);
+  const renderPlaceSeparator = useCallback(() => <View style={{ height: spacing.sm }} />, []);
+  const renderPlaceItem = useCallback(
+    ({ item }: { item: Place }) => (
+      <View style={styles.card}>
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.placeImage} transition={150} cachePolicy="memory-disk" />
+        ) : (
+          <View style={styles.iconWrap}>
+            <Ionicons name={PLACE_CATEGORY_ICON[item.category] as any} size={22} color={colors.primaryDark} />
+          </View>
+        )}
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={styles.placeName} numberOfLines={1}>
+              {item.name}
+            </Text>
+            {item.featured && <Ionicons name="star" size={14} color={colors.warning} />}
+          </View>
+          <Text style={styles.address} numberOfLines={1}>
+            {categoryLabel(item.category)} · {item.address}
+            {userLocation && item.latitude != null && item.longitude != null
+              ? ` · ${distanceKm(userLocation.latitude, userLocation.longitude, item.latitude, item.longitude).toFixed(1)} km`
+              : ''}
+          </Text>
+          <StatusBadge status={item.status} size="sm" />
+          {item.note && (
+            <Text style={styles.note} numberOfLines={2}>
+              {item.note}
+            </Text>
+          )}
+        </View>
+        <View style={{ alignItems: 'center', gap: 6 }}>
+          <Pressable hitSlop={8} onPress={() => openInMaps(item, t)} style={styles.directionsBtn}>
+            <Ionicons name="navigate-outline" size={20} color={colors.primary} />
+          </Pressable>
+          <Pressable hitSlop={8} onPress={() => onToggleRecommendPlace(item)} style={styles.recommendBtn}>
+            <Ionicons
+              name={myRecommends.has(item.id) ? 'thumbs-up' : 'thumbs-up-outline'}
+              size={16}
+              color={myRecommends.has(item.id) ? colors.primary : colors.gray}
+            />
+            {recommendCounts[item.id] > 0 && <Text style={styles.recommendCount}>{recommendCounts[item.id]}</Text>}
+          </Pressable>
+        </View>
+      </View>
+    ),
+    [styles, colors, categoryLabel, userLocation, t, onToggleRecommendPlace, myRecommends, recommendCounts]
+  );
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.titleRow}>
@@ -272,9 +325,9 @@ export default function PlacesScreen() {
 
       <FlatList
         data={sortedData}
-        keyExtractor={(item) => item.id}
+        keyExtractor={placeKeyExtractor}
         contentContainerStyle={{ paddingBottom: spacing.xl, paddingTop: spacing.md }}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+        ItemSeparatorComponent={renderPlaceSeparator}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
@@ -288,52 +341,7 @@ export default function PlacesScreen() {
             </View>
           )
         }
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            {item.imageUrl ? (
-              <Image source={{ uri: item.imageUrl }} style={styles.placeImage} />
-            ) : (
-              <View style={styles.iconWrap}>
-                <Ionicons name={PLACE_CATEGORY_ICON[item.category] as any} size={22} color={colors.primaryDark} />
-              </View>
-            )}
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={styles.placeName} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                {item.featured && <Ionicons name="star" size={14} color={colors.warning} />}
-              </View>
-              <Text style={styles.address} numberOfLines={1}>
-                {categoryLabel(item.category)} · {item.address}
-                {userLocation && item.latitude != null && item.longitude != null
-                  ? ` · ${distanceKm(userLocation.latitude, userLocation.longitude, item.latitude, item.longitude).toFixed(1)} km`
-                  : ''}
-              </Text>
-              <StatusBadge status={item.status} size="sm" />
-              {item.note && (
-                <Text style={styles.note} numberOfLines={2}>
-                  {item.note}
-                </Text>
-              )}
-            </View>
-            <View style={{ alignItems: 'center', gap: 6 }}>
-              <Pressable hitSlop={8} onPress={() => openInMaps(item, t)} style={styles.directionsBtn}>
-                <Ionicons name="navigate-outline" size={20} color={colors.primary} />
-              </Pressable>
-              <Pressable hitSlop={8} onPress={() => onToggleRecommendPlace(item)} style={styles.recommendBtn}>
-                <Ionicons
-                  name={myRecommends.has(item.id) ? 'thumbs-up' : 'thumbs-up-outline'}
-                  size={16}
-                  color={myRecommends.has(item.id) ? colors.primary : colors.gray}
-                />
-                {recommendCounts[item.id] > 0 && (
-                  <Text style={styles.recommendCount}>{recommendCounts[item.id]}</Text>
-                )}
-              </Pressable>
-            </View>
-          </View>
-        )}
+        renderItem={renderPlaceItem}
       />
 
       <Modal visible={formVisible} animationType="slide" transparent onRequestClose={() => setFormVisible(false)}>

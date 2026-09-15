@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -52,6 +53,11 @@ const CATEGORY_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
 
 const DEFAULT_CATEGORY_ICON: keyof typeof Ionicons.glyphMap = 'pricetag-outline';
 
+// Last-fetched default (no-query) browse list, so returning to this tab
+// paints instantly from cache instead of a blank spinner while the fresh
+// Supabase fetch is still in flight.
+const PRODUCTS_BROWSE_CACHE_KEY = 'halalzur_products_browse_cache_v1';
+
 function buildCategoryChips(labels: readonly string[]): { label: string; icon: keyof typeof Ionicons.glyphMap }[] {
   return [
     { label: 'Hamısı', icon: 'apps-outline' },
@@ -85,6 +91,9 @@ export default function ProductsScreen() {
   // Starts from the hardcoded fallback so the chip row isn't empty on
   // first render, then swaps in the admin-editable DB list once it loads.
   const [categoryChips, setCategoryChips] = useState(() => buildCategoryChips(PRODUCT_CATEGORIES));
+  // Guards the one-time cache hydration below from clobbering a network
+  // response that already landed first (e.g. on a fast connection).
+  const browseNetworkResolvedRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -97,15 +106,42 @@ export default function ProductsScreen() {
   }, []);
 
   useEffect(() => {
+    // Cache-first paint: the previous visit's default browse list shows
+    // immediately instead of a blank spinner while the fresh fetch below is
+    // still in flight — mirrors how the rest of the app already offline-
+    // caches (scan history, favorites).
+    AsyncStorage.getItem(PRODUCTS_BROWSE_CACHE_KEY).then((raw) => {
+      if (!raw || browseNetworkResolvedRef.current) return;
+      try {
+        setResults(JSON.parse(raw) as CertificationResult[]);
+        setLoadingResults(false);
+      } catch {
+        // Corrupt cache entry — ignore, the network fetch below still runs.
+      }
+    });
+  }, []);
+
+  useEffect(() => {
     let active = true;
     setLoadingResults(true);
-    searchProducts(query).then((r) => {
-      if (!active) return;
-      setResults(r);
-      setLoadingResults(false);
-    });
+    // Debounce while the user is actively typing so each keystroke doesn't
+    // fire its own Supabase round-trip; clearing back to an empty query
+    // (browsing the default list) stays instant.
+    const delay = query.trim() ? 350 : 0;
+    const timer = setTimeout(() => {
+      searchProducts(query).then((r) => {
+        if (!active) return;
+        browseNetworkResolvedRef.current = true;
+        setResults(r);
+        setLoadingResults(false);
+        if (!query.trim()) {
+          AsyncStorage.setItem(PRODUCTS_BROWSE_CACHE_KEY, JSON.stringify(r)).catch(() => {});
+        }
+      });
+    }, delay);
     return () => {
       active = false;
+      clearTimeout(timer);
     };
   }, [query]);
 
@@ -212,12 +248,15 @@ export default function ProductsScreen() {
     setRecommendedMode(false);
     setQuery('');
   };
-  const confirmDelete = (item: CertificationResult) => {
-    Alert.alert(t('productsDeleteTitle'), `"${item.productName}" ${t('productsDeleteBody')}`, [
-      { text: t('productsDeleteCancel'), style: 'cancel' },
-      { text: t('productsDeleteConfirm'), style: 'destructive', onPress: () => removeScan(item.barcode) },
-    ]);
-  };
+  const confirmDelete = useCallback(
+    (item: CertificationResult) => {
+      Alert.alert(t('productsDeleteTitle'), `"${item.productName}" ${t('productsDeleteBody')}`, [
+        { text: t('productsDeleteCancel'), style: 'cancel' },
+        { text: t('productsDeleteConfirm'), style: 'destructive', onPress: () => removeScan(item.barcode) },
+      ]);
+    },
+    [t, removeScan]
+  );
 
   const [searchFocused, setSearchFocused] = useState(false);
   const [refreshingBarcode, setRefreshingBarcode] = useState<string | null>(null);
@@ -225,7 +264,7 @@ export default function ProductsScreen() {
   // already re-checks every history barcode on mount, but this lets a user
   // force one specific row right after they know an admin just changed it,
   // without waiting for a remount.
-  const recheckBarcode = async (barcode: string) => {
+  const recheckBarcode = useCallback(async (barcode: string) => {
     setRefreshingBarcode(barcode);
     try {
       const map = await getManyByBarcode([barcode]);
@@ -233,7 +272,66 @@ export default function ProductsScreen() {
     } finally {
       setRefreshingBarcode(null);
     }
-  };
+  }, []);
+
+  const keyExtractor = useCallback((item: CertificationResult, index: number) => `${item.barcode}-${index}`, []);
+  const renderSeparator = useCallback(() => <View style={{ height: spacing.sm }} />, []);
+  const renderProductItem = useCallback(
+    ({ item, index }: { item: CertificationResult; index: number }) => (
+      <Pressable
+        style={styles.card}
+        onPress={() => router.push({ pathname: '/product/[id]', params: { id: item.barcode } })}
+        onLongPress={isHistoryView ? () => confirmDelete(item) : undefined}
+      >
+        {rankedMode && (
+          <View style={[styles.rankBadge, index === 0 && styles.rankBadgeGold]}>
+            <Text style={styles.rankBadgeText}>{index + 1}</Text>
+          </View>
+        )}
+        <Text style={styles.emoji}>{item.imageEmoji}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.productName} numberOfLines={1}>
+            {item.productName}
+          </Text>
+          <Text style={styles.brand} numberOfLines={1}>
+            {item.brand} · {item.category}
+          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <StatusBadge status={item.status} size="sm" />
+            {recommendedMode && (
+              <View style={styles.recommendCountRow}>
+                <Ionicons name="thumbs-up" size={12} color={colors.primary} />
+                <Text style={styles.recommendCountText}>{(item as RecommendedProduct).recommendCount}</Text>
+              </View>
+            )}
+            {popularMode && (
+              <View style={styles.recommendCountRow}>
+                <Ionicons name="eye-outline" size={12} color={colors.primary} />
+                <Text style={styles.recommendCountText}>{(item as PopularProduct).scanCount}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+        {isHistoryView ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+            <Pressable hitSlop={8} onPress={() => recheckBarcode(item.barcode)} disabled={refreshingBarcode === item.barcode}>
+              {refreshingBarcode === item.barcode ? (
+                <ActivityIndicator size="small" color={colors.grayLight} />
+              ) : (
+                <Ionicons name="refresh-outline" size={18} color={colors.grayLight} />
+              )}
+            </Pressable>
+            <Pressable hitSlop={8} onPress={() => confirmDelete(item)}>
+              <Ionicons name="trash-outline" size={18} color={colors.danger} />
+            </Pressable>
+          </View>
+        ) : (
+          <Ionicons name="chevron-forward" size={20} color={colors.grayLight} />
+        )}
+      </Pressable>
+    ),
+    [styles, colors, isHistoryView, rankedMode, recommendedMode, popularMode, refreshingBarcode, confirmDelete, recheckBarcode]
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -356,9 +454,9 @@ export default function ProductsScreen() {
 
       <FlatList
         data={data}
-        keyExtractor={(item, index) => `${item.barcode}-${index}`}
+        keyExtractor={keyExtractor}
         contentContainerStyle={{ paddingBottom: spacing.xl }}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+        ItemSeparatorComponent={renderSeparator}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
@@ -372,63 +470,7 @@ export default function ProductsScreen() {
             </View>
           )
         }
-        renderItem={({ item, index }) => (
-          <Pressable
-            style={styles.card}
-            onPress={() => router.push({ pathname: '/product/[id]', params: { id: item.barcode } })}
-            onLongPress={isHistoryView ? () => confirmDelete(item) : undefined}
-          >
-            {rankedMode && (
-              <View style={[styles.rankBadge, index === 0 && styles.rankBadgeGold]}>
-                <Text style={styles.rankBadgeText}>{index + 1}</Text>
-              </View>
-            )}
-            <Text style={styles.emoji}>{item.imageEmoji}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.productName} numberOfLines={1}>
-                {item.productName}
-              </Text>
-              <Text style={styles.brand} numberOfLines={1}>
-                {item.brand} · {item.category}
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <StatusBadge status={item.status} size="sm" />
-                {recommendedMode && (
-                  <View style={styles.recommendCountRow}>
-                    <Ionicons name="thumbs-up" size={12} color={colors.primary} />
-                    <Text style={styles.recommendCountText}>{(item as RecommendedProduct).recommendCount}</Text>
-                  </View>
-                )}
-                {popularMode && (
-                  <View style={styles.recommendCountRow}>
-                    <Ionicons name="eye-outline" size={12} color={colors.primary} />
-                    <Text style={styles.recommendCountText}>{(item as PopularProduct).scanCount}</Text>
-                  </View>
-                )}
-              </View>
-            </View>
-            {isHistoryView ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                <Pressable
-                  hitSlop={8}
-                  onPress={() => recheckBarcode(item.barcode)}
-                  disabled={refreshingBarcode === item.barcode}
-                >
-                  {refreshingBarcode === item.barcode ? (
-                    <ActivityIndicator size="small" color={colors.grayLight} />
-                  ) : (
-                    <Ionicons name="refresh-outline" size={18} color={colors.grayLight} />
-                  )}
-                </Pressable>
-                <Pressable hitSlop={8} onPress={() => confirmDelete(item)}>
-                  <Ionicons name="trash-outline" size={18} color={colors.danger} />
-                </Pressable>
-              </View>
-            ) : (
-              <Ionicons name="chevron-forward" size={20} color={colors.grayLight} />
-            )}
-          </Pressable>
-        )}
+        renderItem={renderProductItem}
         ListFooterComponent={
           hasMoreRecommended ? (
             <Pressable

@@ -76,36 +76,45 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
-      .then(async (raw) => {
-        if (!raw) return;
-        const stored = withExpiredPremiumCleared(JSON.parse(raw) as User);
-        setUser(stored);
-        // An admin-panel plan change, or an achievement-granted Premium's
-        // expiry, only ever lands in Supabase's `users` row — this is the
-        // one moment that reaches the device.
-        const remote = await fetchRemoteAccountState(stored.id);
-        if (remote?.banned) {
-          // Silent — nothing is awaiting a thrown error at app-launch
-          // time, so just drop the session instead of leaving a banned
-          // account signed in.
-          await AsyncStorage.removeItem(STORAGE_KEY);
-          setUser(null);
+      .then((raw) => {
+        if (!raw) {
+          setIsLoading(false);
           return;
         }
-        const next = remote
-          ? withExpiredPremiumCleared({
-              ...stored,
-              plan: remote.plan,
-              premiumExpiresAt: remote.premiumExpiresAt,
-              claimedAchievements: remote.claimedAchievements,
-            })
-          : stored;
-        setUser(next);
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-        touchLastSeen(next.id);
-        ensureReferralCode(next.id);
+        const stored = withExpiredPremiumCleared(JSON.parse(raw) as User);
+        setUser(stored);
+        // The locally-cached session is enough to make the app interactive —
+        // don't hold the cold-start splash open for a network round-trip.
+        setIsLoading(false);
+
+        // An admin-panel plan change, or an achievement-granted Premium's
+        // expiry, only ever lands in Supabase's `users` row — this is the
+        // one moment that reaches the device. Reconciled in the background
+        // now that the app has already become interactive.
+        fetchRemoteAccountState(stored.id).then(async (remote) => {
+          if (remote?.banned) {
+            // Silent — nothing is awaiting a thrown error at app-launch
+            // time, so just drop the session instead of leaving a banned
+            // account signed in.
+            await AsyncStorage.removeItem(STORAGE_KEY);
+            setUser(null);
+            return;
+          }
+          const next = remote
+            ? withExpiredPremiumCleared({
+                ...stored,
+                plan: remote.plan,
+                premiumExpiresAt: remote.premiumExpiresAt,
+                claimedAchievements: remote.claimedAchievements,
+              })
+            : stored;
+          setUser(next);
+          await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+          touchLastSeen(next.id);
+          ensureReferralCode(next.id);
+        });
       })
-      .finally(() => setIsLoading(false));
+      .catch(() => setIsLoading(false));
   }, []);
 
   const persist = async (next: User | null) => {
