@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://halalzur.com"),
@@ -6,6 +6,12 @@ export const metadata: Metadata = {
     icon: "/favicon.png",
     apple: "/apple-touch-icon.png",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#0A4D2E",
 };
 
 export default function RootLayout({
@@ -16,7 +22,6 @@ export default function RootLayout({
   return (
     <html lang="az">
       <head>
-        <meta name="theme-color" content="#0A4D2E" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"

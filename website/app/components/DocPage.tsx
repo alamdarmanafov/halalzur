@@ -45,6 +45,7 @@ const BASE_STYLE = `
     margin: 0; background: var(--bg); color: var(--ink);
     font-family: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
   h1, h2 { font-family: "Manrope", sans-serif; text-wrap: balance; margin: 0; }
   p, li { margin: 0; }
@@ -96,7 +97,7 @@ const BASE_STYLE = `
   footer { border-top: 1px solid var(--border); padding: 32px 0; }
   .footer-row { max-width: 1160px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
   .footer-copy { color: var(--ink-muted); font-size: 13px; }
-  .footer-links { display: flex; gap: 20px; list-style: none; padding: 0; margin: 0; }
+  .footer-links { display: flex; flex-wrap: wrap; gap: 8px 20px; list-style: none; padding: 0; margin: 0; }
   .footer-links a { text-decoration: none; color: var(--ink-muted); font-size: 13.5px; font-weight: 600; }
 `;
 

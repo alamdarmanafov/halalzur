@@ -127,6 +127,7 @@ export default function HomePage() {
     color: var(--ink);
     font-family: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
   h1, h2, h3 { font-family: "Manrope", sans-serif; text-wrap: balance; margin: 0; }
   p { margin: 0; }
@@ -322,7 +323,7 @@ export default function HomePage() {
   /* ---- footer ---- */
   footer { border-top: 1px solid var(--border); padding: 40px 0; margin-top: 40px; }
   .footer-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-  .footer-links { display: flex; gap: 22px; list-style: none; padding: 0; margin: 0; }
+  .footer-links { display: flex; flex-wrap: wrap; gap: 10px 22px; list-style: none; padding: 0; margin: 0; }
   .footer-links a { text-decoration: none; color: var(--ink-muted); font-size: 13.5px; font-weight: 600; }
   .footer-copy { color: var(--ink-muted); font-size: 13px; }
 

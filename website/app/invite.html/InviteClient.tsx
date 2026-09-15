@@ -84,6 +84,7 @@ export function InviteClient() {
     align-items: center;
     justify-content: center;
     padding: 24px;
+    overflow-x: hidden;
   }
   h1, h2 { font-family: "Manrope", sans-serif; text-wrap: balance; margin: 0; }
   .card {

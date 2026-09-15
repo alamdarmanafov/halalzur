@@ -65,6 +65,7 @@ export function BadgeClient() {
     margin: 0;
     background: transparent;
     font-family: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    overflow-x: hidden;
   }
   a.badge {
     display: flex;

@@ -51,6 +51,7 @@ export default function NotFound() {
     justify-content: center;
     padding: 24px;
     -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
   }
 
   .card {
