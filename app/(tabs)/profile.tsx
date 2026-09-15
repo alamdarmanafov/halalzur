@@ -8,7 +8,6 @@ import {
   Alert,
   RefreshControl,
   Switch,
-  Linking,
   Modal,
   TextInput,
   KeyboardAvoidingView,
@@ -23,7 +22,6 @@ import { useAuth } from '../../lib/auth-context';
 import { useHistory } from '../../lib/history-context';
 import { useFavorites } from '../../lib/favorites-context';
 import { useLanguage } from '../../lib/i18n-context';
-import { registerForPushNotifications } from '../../lib/notifications';
 import { syncUserLanguage } from '../../lib/userSync';
 import { getPoints } from '../../lib/submissions';
 import { POINTS_PER_PREMIUM_DAY, MIN_REDEEMABLE_DAYS } from '../../lib/points';
@@ -81,7 +79,7 @@ export default function ProfileScreen() {
   const { streak } = useStreak();
   const { items: shoppingItems } = useShoppingList();
   const { history, clear, refresh: refreshHistory } = useHistory();
-  const { favorites, refresh: refreshFavorites } = useFavorites();
+  const { refresh: refreshFavorites } = useFavorites();
   const { language, setLanguage, t } = useLanguage();
   const isPremium = user?.plan === 'premium';
   const [points, setPoints] = useState(0);
@@ -232,11 +230,6 @@ export default function ProfileScreen() {
           onPress: () => router.push('/(tabs)/products'),
         },
         {
-          icon: 'heart-outline',
-          label: `${t('profileFavoritesItem')} (${favorites.length})`,
-          onPress: () => router.push('/favorites'),
-        },
-        {
           icon: 'cart-outline',
           label: `${t('profileShoppingList')} (${shoppingItems.filter((i) => !i.bought).length})`,
           onPress: () => router.push('/shopping-list'),
@@ -254,39 +247,11 @@ export default function ProfileScreen() {
       ],
     },
     {
-      key: 'personalization',
-      title: t('profileSectionPersonalization'),
-      items: [
-        {
-          icon: 'nutrition-outline',
-          label: t('profileDietaryProfile'),
-          onPress: () => router.push('/dietary-profile'),
-        },
-        {
-          icon: 'bookmark-outline',
-          label: t('profileFollowedBrands'),
-          onPress: () => router.push('/followed-brands'),
-        },
-      ],
-    },
-    {
       key: 'notifications',
       title: t('profileSectionNotifications'),
       items: [
         {
           icon: 'notifications-outline',
-          label: t('profileNotifications'),
-          onPress: async () => {
-            const token = user ? await registerForPushNotifications(user.id) : null;
-            if (token) {
-              Alert.alert(t('profileNotificationsOnTitle'), t('profileNotificationsOnBody'));
-            } else {
-              Alert.alert(t('profileNotificationsOffTitle'), t('profileNotificationsOffBody'));
-            }
-          },
-        },
-        {
-          icon: 'options-outline',
           label: t('profileNotificationPrefs'),
           onPress: () => router.push('/notification-preferences'),
         },
@@ -325,21 +290,6 @@ export default function ProfileScreen() {
               }))
             ),
         },
-        {
-          // Text throughout the app already scales with the OS's own "Larger
-          // Text"/font-size accessibility setting (no allowFontScaling={false}
-          // anywhere) — this just surfaces that + a shortcut, rather than
-          // re-implementing a separate in-app scale that would fight the OS
-          // setting on every screen.
-          icon: 'text-outline',
-          label: t('profileLargeText'),
-          onPress: () => {
-            Alert.alert(t('largeTextInfoTitle'), t('largeTextInfoBody'), [
-              { text: t('productCancel'), style: 'cancel' },
-              { text: t('largeTextOpenSettings'), onPress: () => Linking.openSettings() },
-            ]);
-          },
-        },
       ],
     },
     {
@@ -362,11 +312,6 @@ export default function ProfileScreen() {
           onPress: () => router.push('/ecodes'),
         },
         {
-          icon: 'book-outline',
-          label: t('profileGuide'),
-          onPress: () => router.push('/guide'),
-        },
-        {
           icon: 'shield-checkmark-outline',
           label: t('profileCertifiers'),
           onPress: () => router.push('/certifiers'),
@@ -375,11 +320,6 @@ export default function ProfileScreen() {
           icon: 'chatbox-ellipses-outline',
           label: t('profileFeedback'),
           onPress: () => router.push('/feedback'),
-        },
-        {
-          icon: 'mail-open-outline',
-          label: t('profileFeedbackHistory'),
-          onPress: () => router.push('/feedback-history'),
         },
       ],
     },

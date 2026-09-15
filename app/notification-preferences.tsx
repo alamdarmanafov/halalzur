@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../lib/auth-context';
 import { useLanguage } from '../lib/i18n-context';
 import { TranslationKey } from '../lib/i18n';
+import { registerForPushNotifications } from '../lib/notifications';
 import { fetchMutedNotificationTypes, syncMutedNotificationTypes } from '../lib/userSync';
 import { radius, spacing, typography, ThemeColors } from '../constants/theme';
 import { useThemeColors } from '../lib/theme-context';
@@ -26,6 +27,11 @@ export default function NotificationPreferencesScreen() {
     fetchMutedNotificationTypes(user.id)
       .then(setMuted)
       .finally(() => setLoading(false));
+    // This screen is now the single "Bildirişlər" entry point (Profile no
+    // longer has a separate permission-request row) — requesting the OS
+    // push permission here, alongside the per-type choices below, means
+    // opening it is enough to both grant permission and pick preferences.
+    registerForPushNotifications(user.id);
   }, [user]);
 
   const toggle = (type: NotifType, on: boolean) => {
