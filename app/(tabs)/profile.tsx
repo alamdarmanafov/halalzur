@@ -51,6 +51,12 @@ type MenuItem = {
   danger?: boolean;
 };
 
+type MenuSection = {
+  key: string;
+  title: string;
+  items: MenuItem[];
+};
+
 const DATE_LOCALE: Record<Language, string> = { az: 'az-AZ', en: 'en-US', ru: 'ru-RU', tr: 'tr-TR' };
 
 const THEME_MODE_LABEL_KEY: Record<ThemeMode, TranslationKey> = {
@@ -215,191 +221,227 @@ export default function ProfileScreen() {
     }
   };
 
-  const menuItems: MenuItem[] = [
+  const menuSections: MenuSection[] = [
     {
-      icon: 'time-outline',
-      label: `${t('profileHistoryItem')} (${history.length})`,
-      onPress: () => router.push('/(tabs)/products'),
+      key: 'activity',
+      title: t('profileSectionActivity'),
+      items: [
+        {
+          icon: 'time-outline',
+          label: `${t('profileHistoryItem')} (${history.length})`,
+          onPress: () => router.push('/(tabs)/products'),
+        },
+        {
+          icon: 'heart-outline',
+          label: `${t('profileFavoritesItem')} (${favorites.length})`,
+          onPress: () => router.push('/favorites'),
+        },
+        {
+          icon: 'cart-outline',
+          label: `${t('profileShoppingList')} (${shoppingItems.filter((i) => !i.bought).length})`,
+          onPress: () => router.push('/shopping-list'),
+        },
+        {
+          icon: 'swap-horizontal-outline',
+          label: t('profileCompare'),
+          onPress: () => router.push('/compare'),
+        },
+        {
+          icon: 'trash-outline',
+          label: t('profileClearHistory'),
+          onPress: () => clear(),
+        },
+      ],
     },
     {
-      icon: 'heart-outline',
-      label: `${t('profileFavoritesItem')} (${favorites.length})`,
-      onPress: () => router.push('/favorites'),
+      key: 'personalization',
+      title: t('profileSectionPersonalization'),
+      items: [
+        {
+          icon: 'nutrition-outline',
+          label: t('profileDietaryProfile'),
+          onPress: () => router.push('/dietary-profile'),
+        },
+        {
+          icon: 'bookmark-outline',
+          label: t('profileFollowedBrands'),
+          onPress: () => router.push('/followed-brands'),
+        },
+      ],
     },
     {
-      icon: 'cart-outline',
-      label: `${t('profileShoppingList')} (${shoppingItems.filter((i) => !i.bought).length})`,
-      onPress: () => router.push('/shopping-list'),
-    },
-    {
-      icon: 'notifications-outline',
-      label: t('profileNotifications'),
-      onPress: async () => {
-        const token = user ? await registerForPushNotifications(user.id) : null;
-        if (token) {
-          Alert.alert(t('profileNotificationsOnTitle'), t('profileNotificationsOnBody'));
-        } else {
-          Alert.alert(t('profileNotificationsOffTitle'), t('profileNotificationsOffBody'));
-        }
-      },
-    },
-    {
-      icon: 'flask-outline',
-      label: t('profileEcodes'),
-      onPress: () => router.push('/ecodes'),
-    },
-    {
-      icon: 'bookmark-outline',
-      label: t('profileFollowedBrands'),
-      onPress: () => router.push('/followed-brands'),
-    },
-    {
-      icon: 'nutrition-outline',
-      label: t('profileDietaryProfile'),
-      onPress: () => router.push('/dietary-profile'),
-    },
-    {
-      icon: 'options-outline',
-      label: t('profileNotificationPrefs'),
-      onPress: () => router.push('/notification-preferences'),
-    },
-    {
-      // Text throughout the app already scales with the OS's own "Larger
-      // Text"/font-size accessibility setting (no allowFontScaling={false}
-      // anywhere) — this just surfaces that + a shortcut, rather than
-      // re-implementing a separate in-app scale that would fight the OS
-      // setting on every screen.
-      icon: 'text-outline',
-      label: t('profileLargeText'),
-      onPress: () => {
-        Alert.alert(t('largeTextInfoTitle'), t('largeTextInfoBody'), [
-          { text: t('productCancel'), style: 'cancel' },
-          { text: t('largeTextOpenSettings'), onPress: () => Linking.openSettings() },
-        ]);
-      },
-    },
-    {
-      icon: 'trophy-outline',
-      label: t('profileAchievements'),
-      onPress: () => router.push('/achievements'),
-    },
-    {
-      icon: 'globe-outline',
-      label: `${t('profileLanguage')}: ${t(LANGUAGE_LABEL_KEY[language])}`,
-      onPress: () =>
-        Alert.alert(
-          t('profileLanguageTitle'),
-          undefined,
-          (['az', 'en', 'ru', 'tr'] as const).map((lang) => ({
-            text: t(LANGUAGE_LABEL_KEY[lang]),
-            onPress: () => {
-              setLanguage(lang);
-              if (user) syncUserLanguage(user.id, lang);
-            },
-          }))
-        ),
-    },
-    {
-      icon: themeMode === 'dark' ? 'moon' : themeMode === 'light' ? 'sunny-outline' : 'contrast-outline',
-      label: `${t('profileAppearance')}: ${t(THEME_MODE_LABEL_KEY[themeMode])}`,
-      onPress: () =>
-        Alert.alert(
-          t('profileAppearanceTitle'),
-          undefined,
-          (['system', 'light', 'dark'] as const).map((mode) => ({
-            text: t(THEME_MODE_LABEL_KEY[mode]),
-            onPress: () => setThemeMode(mode),
-          }))
-        ),
-    },
-    {
-      icon: 'swap-horizontal-outline',
-      label: t('profileCompare'),
-      onPress: () => router.push('/compare'),
-    },
-    {
-      icon: 'book-outline',
-      label: t('profileGuide'),
-      onPress: () => router.push('/guide'),
-    },
-    {
-      icon: 'shield-checkmark-outline',
-      label: t('profileCertifiers'),
-      onPress: () => router.push('/certifiers'),
-    },
-    {
-      icon: 'gift-outline',
-      label: t('profileInvite'),
-      onPress: () => router.push('/referrals'),
-    },
-    {
-      icon: 'chatbox-ellipses-outline',
-      label: t('profileFeedback'),
-      onPress: () => router.push('/feedback'),
-    },
-    {
-      icon: 'mail-open-outline',
-      label: t('profileFeedbackHistory'),
-      onPress: () => router.push('/feedback-history'),
-    },
-    {
-      icon: 'trash-outline',
-      label: t('profileClearHistory'),
-      onPress: () => clear(),
-    },
-    ...(user && (user.id.startsWith('apple-') || user.id.startsWith('google-'))
-      ? [
-          {
-            icon: 'cloud-download-outline' as const,
-            label: t('profileRestoreCloudData'),
-            onPress: onRequestRestore,
+      key: 'notifications',
+      title: t('profileSectionNotifications'),
+      items: [
+        {
+          icon: 'notifications-outline',
+          label: t('profileNotifications'),
+          onPress: async () => {
+            const token = user ? await registerForPushNotifications(user.id) : null;
+            if (token) {
+              Alert.alert(t('profileNotificationsOnTitle'), t('profileNotificationsOnBody'));
+            } else {
+              Alert.alert(t('profileNotificationsOffTitle'), t('profileNotificationsOffBody'));
+            }
           },
-        ]
-      : []),
-    {
-      icon: 'log-out-outline',
-      label: t('profileSignOut'),
-      onPress: async () => {
-        await signOut();
-        router.replace('/(auth)/welcome');
-      },
-      danger: true,
+        },
+        {
+          icon: 'options-outline',
+          label: t('profileNotificationPrefs'),
+          onPress: () => router.push('/notification-preferences'),
+        },
+      ],
     },
     {
-      icon: 'person-remove-outline',
-      label: t('profileDeleteAccount'),
-      onPress: () => {
-        if (!user) return;
-        Alert.alert(t('profileDeleteAccountConfirmTitle'), t('profileDeleteAccountConfirmBody'), [
-          { text: t('productCancel'), style: 'cancel' },
-          {
-            text: t('profileDeleteAccountConfirmCta'),
-            style: 'destructive',
-            onPress: async () => {
-              try {
-                const result = await deleteAccount(user.id);
-                if (result.needsCode) {
-                  // apple-/google- accounts have no session to verify
-                  // server-side, so a one-time code was just pushed to
-                  // this device instead — collect it before deleting.
-                  setDeletionCode('');
-                  setShowDeletionCodeModal(true);
-                  return;
-                }
-                await signOut();
-                router.replace('/(auth)/welcome');
-              } catch (err: any) {
-                const message =
-                  err?.message === 'no_registered_device'
-                    ? t('profileDeleteAccountNoDevice')
-                    : err?.message ?? t('profileDeleteAccountFailedTitle');
-                Alert.alert(t('profileDeleteAccountFailedTitle'), message);
-              }
-            },
+      key: 'appSettings',
+      title: t('profileSectionAppSettings'),
+      items: [
+        {
+          icon: 'globe-outline',
+          label: `${t('profileLanguage')}: ${t(LANGUAGE_LABEL_KEY[language])}`,
+          onPress: () =>
+            Alert.alert(
+              t('profileLanguageTitle'),
+              undefined,
+              (['az', 'en', 'ru', 'tr'] as const).map((lang) => ({
+                text: t(LANGUAGE_LABEL_KEY[lang]),
+                onPress: () => {
+                  setLanguage(lang);
+                  if (user) syncUserLanguage(user.id, lang);
+                },
+              }))
+            ),
+        },
+        {
+          icon: themeMode === 'dark' ? 'moon' : themeMode === 'light' ? 'sunny-outline' : 'contrast-outline',
+          label: `${t('profileAppearance')}: ${t(THEME_MODE_LABEL_KEY[themeMode])}`,
+          onPress: () =>
+            Alert.alert(
+              t('profileAppearanceTitle'),
+              undefined,
+              (['system', 'light', 'dark'] as const).map((mode) => ({
+                text: t(THEME_MODE_LABEL_KEY[mode]),
+                onPress: () => setThemeMode(mode),
+              }))
+            ),
+        },
+        {
+          // Text throughout the app already scales with the OS's own "Larger
+          // Text"/font-size accessibility setting (no allowFontScaling={false}
+          // anywhere) — this just surfaces that + a shortcut, rather than
+          // re-implementing a separate in-app scale that would fight the OS
+          // setting on every screen.
+          icon: 'text-outline',
+          label: t('profileLargeText'),
+          onPress: () => {
+            Alert.alert(t('largeTextInfoTitle'), t('largeTextInfoBody'), [
+              { text: t('productCancel'), style: 'cancel' },
+              { text: t('largeTextOpenSettings'), onPress: () => Linking.openSettings() },
+            ]);
           },
-        ]);
-      },
-      danger: true,
+        },
+      ],
+    },
+    {
+      key: 'more',
+      title: t('profileSectionMore'),
+      items: [
+        {
+          icon: 'trophy-outline',
+          label: t('profileAchievements'),
+          onPress: () => router.push('/achievements'),
+        },
+        {
+          icon: 'gift-outline',
+          label: t('profileInvite'),
+          onPress: () => router.push('/referrals'),
+        },
+        {
+          icon: 'flask-outline',
+          label: t('profileEcodes'),
+          onPress: () => router.push('/ecodes'),
+        },
+        {
+          icon: 'book-outline',
+          label: t('profileGuide'),
+          onPress: () => router.push('/guide'),
+        },
+        {
+          icon: 'shield-checkmark-outline',
+          label: t('profileCertifiers'),
+          onPress: () => router.push('/certifiers'),
+        },
+        {
+          icon: 'chatbox-ellipses-outline',
+          label: t('profileFeedback'),
+          onPress: () => router.push('/feedback'),
+        },
+        {
+          icon: 'mail-open-outline',
+          label: t('profileFeedbackHistory'),
+          onPress: () => router.push('/feedback-history'),
+        },
+      ],
+    },
+    {
+      key: 'account',
+      title: t('profileSectionAccount'),
+      items: [
+        ...(user && (user.id.startsWith('apple-') || user.id.startsWith('google-'))
+          ? [
+              {
+                icon: 'cloud-download-outline' as const,
+                label: t('profileRestoreCloudData'),
+                onPress: onRequestRestore,
+              },
+            ]
+          : []),
+        {
+          icon: 'log-out-outline',
+          label: t('profileSignOut'),
+          onPress: async () => {
+            await signOut();
+            router.replace('/(auth)/welcome');
+          },
+          danger: true,
+        },
+        {
+          icon: 'person-remove-outline',
+          label: t('profileDeleteAccount'),
+          onPress: () => {
+            if (!user) return;
+            Alert.alert(t('profileDeleteAccountConfirmTitle'), t('profileDeleteAccountConfirmBody'), [
+              { text: t('productCancel'), style: 'cancel' },
+              {
+                text: t('profileDeleteAccountConfirmCta'),
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    const result = await deleteAccount(user.id);
+                    if (result.needsCode) {
+                      // apple-/google- accounts have no session to verify
+                      // server-side, so a one-time code was just pushed to
+                      // this device instead — collect it before deleting.
+                      setDeletionCode('');
+                      setShowDeletionCodeModal(true);
+                      return;
+                    }
+                    await signOut();
+                    router.replace('/(auth)/welcome');
+                  } catch (err: any) {
+                    const message =
+                      err?.message === 'no_registered_device'
+                        ? t('profileDeleteAccountNoDevice')
+                        : err?.message ?? t('profileDeleteAccountFailedTitle');
+                    Alert.alert(t('profileDeleteAccountFailedTitle'), message);
+                  }
+                },
+              },
+            ]);
+          },
+          danger: true,
+        },
+      ],
     },
   ];
 
@@ -476,34 +518,40 @@ export default function ProfileScreen() {
           </Pressable>
         )}
 
-        <View style={styles.menu}>
-          {menuItems.map((item) => (
-            <Pressable key={item.label} style={styles.menuRow} onPress={item.onPress}>
-              <Ionicons
-                name={item.icon}
-                size={20}
-                color={item.danger ? colors.danger : colors.primaryDark}
-              />
-              <Text style={[styles.menuLabel, item.danger && { color: colors.danger }]}>
-                {item.label}
-              </Text>
-              <Ionicons name="chevron-forward" size={18} color={colors.grayLight} />
-            </Pressable>
-          ))}
-        </View>
-
-        <View style={styles.liteModeRow}>
-          <Ionicons name="cellular-outline" size={20} color={colors.primaryDark} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.liteModeLabel}>{t('profileLiteMode')}</Text>
-            <Text style={styles.liteModeSub}>{t('profileLiteModeSub')}</Text>
+        {menuSections.map((section) => (
+          <View key={section.key} style={styles.sectionBlock}>
+            <Text style={styles.sectionHeader}>{section.title}</Text>
+            <View style={styles.menu}>
+              {section.items.map((item) => (
+                <Pressable key={item.label} style={styles.menuRow} onPress={item.onPress}>
+                  <Ionicons
+                    name={item.icon}
+                    size={20}
+                    color={item.danger ? colors.danger : colors.primaryDark}
+                  />
+                  <Text style={[styles.menuLabel, item.danger && { color: colors.danger }]}>
+                    {item.label}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={18} color={colors.grayLight} />
+                </Pressable>
+              ))}
+              {section.key === 'appSettings' && (
+                <View style={styles.liteModeRow}>
+                  <Ionicons name="cellular-outline" size={20} color={colors.primaryDark} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.liteModeLabel}>{t('profileLiteMode')}</Text>
+                    <Text style={styles.liteModeSub}>{t('profileLiteModeSub')}</Text>
+                  </View>
+                  <Switch
+                    value={liteMode}
+                    onValueChange={setLiteMode}
+                    trackColor={{ false: colors.grayLight, true: colors.primary }}
+                  />
+                </View>
+              )}
+            </View>
           </View>
-          <Switch
-            value={liteMode}
-            onValueChange={setLiteMode}
-            trackColor={{ false: colors.grayLight, true: colors.primary }}
-          />
-        </View>
+        ))}
 
         <Text style={styles.version}>Halalzur v1.0.0</Text>
       </ScrollView>
@@ -659,6 +707,16 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   planLabel: { ...typography.h3, color: colors.white },
   planDesc: { ...typography.small, color: colors.surface, marginTop: 2 },
+  sectionBlock: { marginBottom: spacing.lg },
+  sectionHeader: {
+    ...typography.small,
+    color: colors.gray,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: spacing.xs,
+    marginLeft: spacing.xs,
+  },
   menu: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -678,10 +736,8 @@ const makeStyles = (colors: ThemeColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
   liteModeLabel: { ...typography.body, color: colors.black, fontWeight: '700' },
   liteModeSub: { ...typography.small, color: colors.gray, marginTop: 2 },
