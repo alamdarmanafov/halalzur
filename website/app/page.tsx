@@ -325,16 +325,24 @@ export default function HomePage() {
   .compare-scan-head { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
   .compare-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
   .compare-rows li {
-    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 14px;
     padding: 14px 0; border-bottom: 1px dashed var(--border);
   }
   .compare-rows li:last-child { border-bottom: none; padding-bottom: 0; }
   .compare-rows li:first-child { padding-top: 0; }
-  .compare-before-text { color: var(--ink-muted); font-family: "Source Sans 3", monospace; font-size: 13.5px; }
-  .compare-arrow { color: var(--brand); flex: none; }
-  .compare-after-text { font-weight: 800; font-size: 13.5px; display: flex; align-items: center; gap: 6px; white-space: nowrap; flex: none; }
+  .compare-before-text {
+    color: var(--ink-muted); font-family: "Source Sans 3", monospace; font-size: 13.5px;
+    flex: 0 0 auto; padding-top: 2px; white-space: nowrap;
+  }
+  .compare-arrow { color: var(--brand); flex: none; margin-top: 3px; }
+  .compare-after-text { font-weight: 700; font-size: 13.5px; line-height: 1.5; flex: 1; text-align: right; }
   .compare-after-text.ok { color: var(--brand-dark); }
   .compare-after-text.warn { color: #92650a; }
+  @media (max-width: 640px) {
+    .compare-rows li { flex-direction: column; gap: 6px; }
+    .compare-arrow { display: none; }
+    .compare-after-text { text-align: left; }
+  }
   .compare-scan-line {
     position: absolute; top: 0; bottom: 0; left: -140px; width: 140px; pointer-events: none;
     background: linear-gradient(90deg, transparent, rgba(17,158,75,0.14), transparent);
@@ -488,7 +496,7 @@ export default function HomePage() {
       transition: none; opacity: 1; transform: none;
     }
     .phone .slide { transition: none; }
-    .certifiers-track { animation: none; }
+    .certifiers-track { animation-duration: 46s; }
     .compare-scan-line { animation: none !important; }
     .faq-answer-wrap { transition: none; }
   }

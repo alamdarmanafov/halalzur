@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 
 const ITEMS: { before: string; after: string; status: "ok" | "warn" }[] = [
-  { before: "Şəkər, bitki yağı", after: "Halal", status: "ok" },
-  { before: "E471 — mənşəyi?", after: "Mono/digliserid · Şübhəli", status: "warn" },
-  { before: "E330 — mənşəyi?", after: "Sitrik turşu · Halal", status: "ok" },
-  { before: "Emulqator (soya)", after: "Halal", status: "ok" },
-  { before: "Aromatizator", after: "Halal", status: "ok" },
+  { before: "Şəkər, bitki yağı — ?", after: "Bitki mənşəli tərkib, sertifikatla təsdiqlənib — Halal", status: "ok" },
+  { before: "E471 — ?", after: "Mono/digliserid, mənşəyi məhsuldan-məhsula dəyişir — Şübhəli", status: "warn" },
+  { before: "E330 — ?", after: "Sitrik turşu, fermentasiya ilə alınır — Halal", status: "ok" },
+  { before: "Emulqator (soya) — ?", after: "Bitki (soya) mənşəli — Halal", status: "ok" },
+  { before: "Aromatizator — ?", after: "Təbii mənbə göstərilib — Halal", status: "ok" },
 ];
 
 export function CompareSlider() {
