@@ -296,7 +296,7 @@ export default function HomePage() {
   }
   .certifiers-track {
     display: flex; gap: 14px; width: max-content;
-    animation: certifiers-marquee 26s linear infinite;
+    animation: certifiers-marquee 14s linear infinite;
   }
   .certifiers-track-wrap:hover .certifiers-track { animation-play-state: paused; }
   @keyframes certifiers-marquee {
@@ -312,62 +312,44 @@ export default function HomePage() {
   .certifier-pill b { display: block; font-family: "Manrope", sans-serif; font-size: 15px; color: var(--ink); }
   .certifier-pill span { display: block; font-size: 12px; color: var(--ink-muted); margin-top: 3px; }
 
-  /* ---- before/after compare slider ---- */
+  /* ---- ingredient before/after showcase ---- */
   .compare { margin-top: 8px; }
-  .compare-summary { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
   .result-overall-badge { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 12px; padding: 5px 12px; border-radius: 999px; }
   .result-overall-badge.status-warn { background: rgba(245,196,81,0.22); color: #92650a; }
   .result-overall-badge.status-ok { background: var(--brand-surface); color: var(--brand-dark); }
   .result-overall-name { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 16px; color: var(--ink); }
-  .compare-frame-wrap { position: relative; }
-  .compare-frame {
-    position: relative; height: 300px; border-radius: 20px; overflow: hidden;
-    border: 1px solid var(--border); background: var(--surface); user-select: none;
+  .compare-card {
+    position: relative; overflow: hidden; border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface); padding: 28px 26px 26px;
   }
-  .compare-pane { position: absolute; inset: 0; padding: 52px 26px 24px; display: flex; flex-direction: column; }
-  .compare-after { background: linear-gradient(135deg, var(--brand-dark), var(--brand)); color: #fff; }
-  .compare-before { background: var(--surface-2); }
-  .compare-label {
-    position: absolute; top: 16px; font-family: "Manrope", sans-serif; font-weight: 800; font-size: 11px;
-    letter-spacing: 0.05em; text-transform: uppercase; padding: 5px 12px; border-radius: 999px;
+  .compare-scan-head { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
+  .compare-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+  .compare-rows li {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    padding: 14px 0; border-bottom: 1px dashed var(--border);
   }
-  .compare-label-after { right: 16px; background: rgba(255,255,255,0.18); color: #fff; }
-  .compare-label-before { left: 16px; background: var(--surface); color: var(--ink-muted); border: 1px solid var(--border); }
-  .resolved-mock, .ingredient-mock {
-    list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 14px;
-    font-size: 13.5px;
+  .compare-rows li:last-child { border-bottom: none; padding-bottom: 0; }
+  .compare-rows li:first-child { padding-top: 0; }
+  .compare-before-text { color: var(--ink-muted); font-family: "Source Sans 3", monospace; font-size: 13.5px; }
+  .compare-arrow { color: var(--brand); flex: none; }
+  .compare-after-text { font-weight: 800; font-size: 13.5px; display: flex; align-items: center; gap: 6px; white-space: nowrap; flex: none; }
+  .compare-after-text.ok { color: var(--brand-dark); }
+  .compare-after-text.warn { color: #92650a; }
+  .compare-scan-line {
+    position: absolute; top: 0; bottom: 0; left: -140px; width: 140px; pointer-events: none;
+    background: linear-gradient(90deg, transparent, rgba(17,158,75,0.14), transparent);
   }
-  .ingredient-mock { color: var(--ink-muted); font-family: "Source Sans 3", monospace; }
-  .ingredient-mock em { color: #C0362C; font-style: normal; font-weight: 700; }
-  .resolved-mock li { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: rgba(255,255,255,0.88); }
-  .resolved-mock b { font-weight: 800; font-size: 12px; white-space: nowrap; }
-  .resolved-mock b.ok { color: var(--brand-accent); }
-  .resolved-mock b.warn { color: #F5C451; }
-  .compare-frame.is-animating .compare-before,
-  .compare-frame.is-animating .compare-handle {
-    transition: clip-path 0.8s cubic-bezier(.4,0,.2,1), left 0.8s cubic-bezier(.4,0,.2,1);
+  .compare-scan-line::before {
+    content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 2px;
+    background: var(--brand-accent); box-shadow: 0 0 14px 2px rgba(124,252,0,0.55);
   }
-  .compare-handle {
-    position: absolute; top: 0; bottom: 0; width: 3px; background: #fff; transform: translateX(-50%);
-    box-shadow: 0 0 0 1px rgba(0,0,0,0.08); pointer-events: none; display: flex; align-items: center; justify-content: center;
-    z-index: 2;
+  .compare-card.is-scanning .compare-scan-line {
+    animation: compare-scan 1.8s cubic-bezier(.4,0,.2,1) 1;
   }
-  .compare-handle span {
-    width: 40px; height: 40px; border-radius: 50%; background: #fff; color: var(--brand-dark);
-    display: flex; align-items: center; justify-content: center; font-size: 16px;
-    box-shadow: 0 6px 16px -6px rgba(var(--shadow-color), 0.5);
+  @keyframes compare-scan {
+    from { left: -140px; }
+    to { left: 100%; }
   }
-  .compare-handle span.pulse { animation: compare-handle-pulse 1.8s ease-out infinite; }
-  @keyframes compare-handle-pulse {
-    0% { box-shadow: 0 6px 16px -6px rgba(var(--shadow-color), 0.5), 0 0 0 0 rgba(17,158,75,0.45); }
-    70% { box-shadow: 0 6px 16px -6px rgba(var(--shadow-color), 0.5), 0 0 0 14px rgba(17,158,75,0); }
-    100% { box-shadow: 0 6px 16px -6px rgba(var(--shadow-color), 0.5), 0 0 0 0 rgba(17,158,75,0); }
-  }
-  .compare-range {
-    position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3;
-    cursor: ew-resize; touch-action: none; -webkit-tap-highlight-color: transparent;
-  }
-  .compare-range:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; border-radius: 20px; }
   .compare-caption { text-align: center; color: var(--ink-muted); font-size: 13.5px; margin-top: 16px; }
 
   /* ---- FAQ accordion ---- */
@@ -507,7 +489,7 @@ export default function HomePage() {
     }
     .phone .slide { transition: none; }
     .certifiers-track { animation: none; }
-    .compare-handle span.pulse { animation: none; }
+    .compare-scan-line { animation: none !important; }
     .faq-answer-wrap { transition: none; }
   }
       `}</style>
