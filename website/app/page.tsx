@@ -4,6 +4,10 @@ import { Reveal } from "./components/Reveal";
 import { HeroPhoneSlider } from "./components/HeroPhoneSlider";
 import { CompareSlider } from "./components/CompareSlider";
 import { FaqAccordion } from "./components/FaqAccordion";
+import { FAQ_ITEMS } from "./data/faq";
+import { APP_STORE_URL } from "./data/appStore";
+import { StickyDownloadBar } from "./components/StickyDownloadBar";
+import { ECodeLookup } from "./components/ECodeLookup";
 
 const CERTIFIERS = [
   { name: "GIMDES", country: "Türkiyə" },
@@ -16,12 +20,6 @@ const CERTIFIERS = [
 function stagger(i: number): React.CSSProperties {
   return { ["--i" as string]: i } as React.CSSProperties;
 }
-
-// PLACEHOLDER — set this to the real App Store listing URL once Halalzur
-// is published (App Store Connect → App → App Store tab → "View on
-// App Store" link, format https://apps.apple.com/az/app/halalzur/idXXXXXXXXXX),
-// then every download button on the page picks it up automatically.
-const APP_STORE_URL = "#";
 
 const TITLE = "Halalzur — Halal sertifikatı skan et";
 const DESCRIPTION =
@@ -79,6 +77,16 @@ const organizationJsonLd = {
   logo: "https://halalzur.com/logo.png",
 };
 
+const faqJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: FAQ_ITEMS.map((item) => ({
+    "@type": "Question",
+    name: item.q,
+    acceptedAnswer: { "@type": "Answer", text: item.a },
+  })),
+};
+
 export default function HomePage() {
   return (
     <>
@@ -89,6 +97,10 @@ export default function HomePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
       />
       <style>{`
   :root {
@@ -287,6 +299,18 @@ export default function HomePage() {
   }
   .step h3 { font-size: 18px; margin-bottom: 8px; }
   .step p { color: var(--ink-muted); font-size: 14.5px; line-height: 1.55; }
+  .step:not(:last-child)::after {
+    content: ""; position: absolute; top: 20px; left: 40px;
+    width: calc(100% + 32px - 40px); height: 2px;
+    background: linear-gradient(90deg, var(--brand), var(--brand-accent));
+    transform-origin: left center; transform: scaleX(0);
+    transition: transform 0.8s cubic-bezier(.4,0,.2,1);
+    transition-delay: calc((var(--i, 0) + 1) * 180ms);
+  }
+  .reveal.is-visible .step:not(:last-child)::after { transform: scaleX(1); }
+  @media (max-width: 800px) {
+    .step:not(:last-child)::after { display: none; }
+  }
 
   .certifiers-band { text-align: center; }
   .certifiers-track-wrap {
@@ -361,6 +385,44 @@ export default function HomePage() {
   }
   .compare-caption { text-align: center; color: var(--ink-muted); font-size: 13.5px; margin-top: 16px; }
 
+  /* ---- E-code lookup ---- */
+  .ecode-lookup { max-width: 560px; margin: 0 auto; }
+  .ecode-lookup-box {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1.5px solid var(--border); border-radius: 14px;
+    padding: 14px 18px; transition: border-color 0.2s ease;
+  }
+  .ecode-lookup-box:focus-within { border-color: var(--brand); }
+  .ecode-lookup-box svg { color: var(--ink-muted); flex: none; }
+  .ecode-lookup-box input {
+    border: none; outline: none; background: none; width: 100%;
+    font-family: "Source Sans 3", sans-serif; font-size: 15.5px; color: var(--ink);
+  }
+  .ecode-lookup-examples {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-top: 14px; font-size: 13px; color: var(--ink-muted);
+  }
+  .ecode-lookup-examples button {
+    font-family: "Source Sans 3", monospace; font-size: 13px; font-weight: 700;
+    background: var(--brand-surface); color: var(--brand-dark); border: none;
+    border-radius: 999px; padding: 5px 12px; cursor: pointer;
+  }
+  .ecode-lookup-empty { margin-top: 14px; color: var(--ink-muted); font-size: 14px; text-align: center; }
+  .ecode-lookup-results { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .ecode-lookup-results a {
+    display: flex; align-items: center; gap: 12px; text-decoration: none;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px;
+    transition: border-color 0.2s ease;
+  }
+  .ecode-lookup-results a:hover { border-color: var(--brand); }
+  .ecode-lookup-code { font-family: "Source Sans 3", monospace; font-weight: 700; color: var(--ink); flex: none; }
+  .ecode-lookup-name { color: var(--ink-muted); font-size: 13.5px; flex: 1; }
+  .ecode-lookup-status { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 11.5px; padding: 4px 10px; border-radius: 999px; flex: none; }
+  .ecode-lookup-status.ok { background: var(--brand-surface); color: var(--brand-dark); }
+  .ecode-lookup-status.bad { background: rgba(192,54,44,0.12); color: #C0362C; }
+  .ecode-lookup-status.warn { background: rgba(245,196,81,0.22); color: #92650a; }
+  .ecode-lookup-status.neutral { background: var(--surface-2); color: var(--ink-muted); }
+
   /* ---- FAQ accordion ---- */
   .faq-list { display: flex; flex-direction: column; gap: 12px; max-width: 720px; margin: 0 auto; }
   .faq-item {
@@ -382,6 +444,32 @@ export default function HomePage() {
   .faq-item.is-open .faq-answer-wrap { grid-template-rows: 1fr; }
   .faq-answer { overflow: hidden; }
   .faq-answer p { padding: 0 22px 20px; color: var(--ink-muted); font-size: 14.5px; line-height: 1.6; }
+
+  /* ---- sticky mobile download bar ---- */
+  .sticky-download {
+    display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    transform: translateY(100%); transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    backdrop-filter: blur(10px); border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .sticky-download.is-visible { transform: translateY(0); }
+  .sticky-download-inner {
+    display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    padding: 12px 18px;
+  }
+  .sticky-download-brand {
+    display: flex; align-items: center; gap: 9px;
+    font-family: "Manrope", sans-serif; font-weight: 800; font-size: 15px; color: var(--ink);
+  }
+  .sticky-download-cta {
+    display: inline-flex; align-items: center; gap: 7px; flex: none;
+    background: var(--brand); color: #fff; text-decoration: none;
+    font-weight: 700; font-size: 13.5px; padding: 10px 18px; border-radius: 999px;
+  }
+  @media (max-width: 760px) {
+    .sticky-download { display: block; }
+  }
 
   /* ---- pricing (mirrors plan-card styles from pricing.html so the two
      pages read as one system) ---- */
@@ -436,6 +524,7 @@ export default function HomePage() {
   .reveal .step,
   .reveal .certifiers-track-wrap,
   .reveal .compare,
+  .reveal .ecode-lookup,
   .reveal .plan-card,
   .reveal .waitlist,
   .reveal .faq-item {
@@ -449,6 +538,7 @@ export default function HomePage() {
   .reveal.is-visible .step,
   .reveal.is-visible .certifiers-track-wrap,
   .reveal.is-visible .compare,
+  .reveal.is-visible .ecode-lookup,
   .reveal.is-visible .plan-card,
   .reveal.is-visible .waitlist,
   .reveal.is-visible .faq-item {
@@ -493,13 +583,14 @@ export default function HomePage() {
 
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
-    .reveal .section-head, .reveal .feature-card, .reveal .step, .reveal .certifiers-track-wrap, .reveal .compare, .reveal .plan-card, .reveal .waitlist, .reveal .faq-item {
+    .reveal .section-head, .reveal .feature-card, .reveal .step, .reveal .certifiers-track-wrap, .reveal .compare, .reveal .ecode-lookup, .reveal .plan-card, .reveal .waitlist, .reveal .faq-item {
       transition: none; opacity: 1; transform: none;
     }
     .phone .slide { transition: none; }
     .certifiers-track { animation-duration: 46s; }
     .compare-scan-line { animation: none !important; }
     .faq-answer-wrap { transition: none; }
+    .step:not(:last-child)::after { transition: none; transform: scaleX(1); }
   }
       `}</style>
 
@@ -684,6 +775,22 @@ export default function HomePage() {
           </div>
         </section>
 
+        <section className="section" id="ecode-lookup">
+          <div className="wrap">
+            <Reveal>
+              <div className="section-head">
+                <h2>İstənilən E-kodu axtarın</h2>
+                <p>
+                  {`307 qida əlavəsinin `}
+                  <Link href="/e-kod">tam siyahısından</Link>
+                  {` dərhal nəticə alın — tətbiqi yükləmədən.`}
+                </p>
+              </div>
+              <ECodeLookup />
+            </Reveal>
+          </div>
+        </section>
+
         <section className="section" id="pricing">
           <div className="wrap">
             <Reveal>
@@ -785,6 +892,8 @@ export default function HomePage() {
           <span className="footer-copy">© 2026 Halalzur</span>
         </div>
       </footer>
+
+      <StickyDownloadBar />
     </>
   );
 }
