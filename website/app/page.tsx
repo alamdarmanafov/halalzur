@@ -313,7 +313,7 @@ export default function HomePage() {
   .certifier-pill span { display: block; font-size: 12px; color: var(--ink-muted); margin-top: 3px; }
 
   /* ---- ingredient before/after showcase ---- */
-  .compare { margin-top: 8px; }
+  .compare { margin-top: 8px; max-width: 700px; margin-left: auto; margin-right: auto; }
   .result-overall-badge { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 12px; padding: 5px 12px; border-radius: 999px; }
   .result-overall-badge.status-warn { background: rgba(245,196,81,0.22); color: #92650a; }
   .result-overall-badge.status-ok { background: var(--brand-surface); color: var(--brand-dark); }
@@ -325,7 +325,7 @@ export default function HomePage() {
   .compare-scan-head { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
   .compare-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
   .compare-rows li {
-    display: flex; align-items: flex-start; justify-content: space-between; gap: 14px;
+    display: flex; align-items: flex-start; justify-content: flex-start; gap: 12px;
     padding: 14px 0; border-bottom: 1px dashed var(--border);
   }
   .compare-rows li:last-child { border-bottom: none; padding-bottom: 0; }
@@ -335,7 +335,7 @@ export default function HomePage() {
     flex: 0 0 auto; padding-top: 2px; white-space: nowrap;
   }
   .compare-arrow { color: var(--brand); flex: none; margin-top: 3px; }
-  .compare-after-text { font-weight: 700; font-size: 13.5px; line-height: 1.5; flex: 1; text-align: right; }
+  .compare-after-text { font-weight: 700; font-size: 13.5px; line-height: 1.5; text-align: left; }
   .compare-after-text.ok { color: var(--brand-dark); }
   .compare-after-text.warn { color: #92650a; }
   @media (max-width: 640px) {
