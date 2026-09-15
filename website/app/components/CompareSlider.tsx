@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
-const DEFAULT_PERCENT = 46;
-const DEMO_STEPS = [86, 12, DEFAULT_PERCENT];
+const DEFAULT_PERCENT = 50;
+const DEMO_STEPS = [86, 14, DEFAULT_PERCENT];
 const DEMO_STEP_MS = 800;
 
 const BEFORE_ITEMS: { label: string; note?: string }[] = [
@@ -27,6 +27,7 @@ export function CompareSlider() {
   const [isDemoing, setIsDemoing] = useState(false);
   const [hasInteracted, setHasInteracted] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
   const hasInteractedRef = useRef(false);
   const demoStartedRef = useRef(false);
   const draggingRef = useRef(false);
@@ -50,6 +51,38 @@ export function CompareSlider() {
     observer.observe(el);
     return () => observer.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Window-level drag listeners — the standard robust pattern for custom
+  // sliders. Relying only on the target element's own pointer capture can
+  // silently stop tracking mid-drag in some browsers; binding move/up on
+  // window guarantees every subsequent pointer event is caught regardless
+  // of where the cursor ends up.
+  useEffect(() => {
+    function updateFromClientX(clientX: number) {
+      const frame = frameRef.current;
+      if (!frame) return;
+      const rect = frame.getBoundingClientRect();
+      const ratio = (clientX - rect.left) / rect.width;
+      setPercent(Math.min(100, Math.max(0, Math.round(ratio * 100))));
+    }
+
+    function onMove(e: PointerEvent) {
+      if (!draggingRef.current) return;
+      updateFromClientX(e.clientX);
+    }
+    function onUp() {
+      draggingRef.current = false;
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
   }, []);
 
   function startDemo() {
@@ -78,28 +111,15 @@ export function CompareSlider() {
     setIsDemoing(false);
   }
 
-  function percentFromEvent(e: ReactPointerEvent<HTMLDivElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const ratio = (e.clientX - rect.left) / rect.width;
-    return Math.min(100, Math.max(0, Math.round(ratio * 100)));
-  }
-
-  function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    e.preventDefault();
     stopDemo();
     draggingRef.current = true;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    setPercent(percentFromEvent(e));
-  }
-
-  function handlePointerMove(e: ReactPointerEvent<HTMLDivElement>) {
-    if (!draggingRef.current) return;
-    setPercent(percentFromEvent(e));
-  }
-
-  function handlePointerUp(e: ReactPointerEvent<HTMLDivElement>) {
-    draggingRef.current = false;
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
+    const frame = frameRef.current;
+    if (frame) {
+      const rect = frame.getBoundingClientRect();
+      const ratio = (e.clientX - rect.left) / rect.width;
+      setPercent(Math.min(100, Math.max(0, Math.round(ratio * 100))));
     }
   }
 
@@ -121,14 +141,14 @@ export function CompareSlider() {
 
   return (
     <div className="compare" ref={wrapRef}>
+      <div className="compare-summary">
+        <span className="result-overall-badge status-warn">⚠ Şübhəli</span>
+        <span className="result-overall-name">Nümunə: Fındıqlı Şokolad Kremi</span>
+      </div>
       <div className="compare-frame-wrap">
-        <div className={`compare-frame${isDemoing ? " is-animating" : ""}`}>
+        <div className={`compare-frame${isDemoing ? " is-animating" : ""}`} ref={frameRef}>
           <div className="compare-pane compare-after">
             <span className="compare-label compare-label-after">Halalzur ilə</span>
-            <div className="result-overall">
-              <span className="result-overall-badge status-warn">⚠ Şübhəli</span>
-              <span className="result-overall-name">Fındıqlı Şokolad Kremi</span>
-            </div>
             <ul className="resolved-mock">
               {AFTER_ITEMS.map((item) => (
                 <li key={item.label}>
@@ -154,21 +174,18 @@ export function CompareSlider() {
           <div className="compare-handle" style={{ left: `${percent}%` }} aria-hidden="true">
             <span className={hasInteracted ? "" : "pulse"}>⇔</span>
           </div>
+          <div
+            className="compare-range"
+            role="slider"
+            tabIndex={0}
+            aria-label="Tərkib siyahısı ilə Halalzur nəticəsini müqayisə et"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={percent}
+            onPointerDown={handlePointerDown}
+            onKeyDown={handleKeyDown}
+          />
         </div>
-        <div
-          className="compare-range"
-          role="slider"
-          tabIndex={0}
-          aria-label="Tərkib siyahısı ilə Halalzur nəticəsini müqayisə et"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={percent}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onKeyDown={handleKeyDown}
-        />
       </div>
       <p className="compare-caption">
         ◀ Slaideri çəkin ▶ — solda xam tərkib siyahısı, sağda Halalzur-un E-kod və tərkib üzrə tapdığı cavablar.

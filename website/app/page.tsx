@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Reveal } from "./components/Reveal";
 import { HeroPhoneSlider } from "./components/HeroPhoneSlider";
 import { CompareSlider } from "./components/CompareSlider";
+import { FaqAccordion } from "./components/FaqAccordion";
 
 const CERTIFIERS = [
   { name: "GIMDES", country: "Türkiyə" },
@@ -313,9 +314,14 @@ export default function HomePage() {
 
   /* ---- before/after compare slider ---- */
   .compare { margin-top: 8px; }
+  .compare-summary { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+  .result-overall-badge { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 12px; padding: 5px 12px; border-radius: 999px; }
+  .result-overall-badge.status-warn { background: rgba(245,196,81,0.22); color: #92650a; }
+  .result-overall-badge.status-ok { background: var(--brand-surface); color: var(--brand-dark); }
+  .result-overall-name { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 16px; color: var(--ink); }
   .compare-frame-wrap { position: relative; }
   .compare-frame {
-    position: relative; height: 340px; border-radius: 20px; overflow: hidden;
+    position: relative; height: 300px; border-radius: 20px; overflow: hidden;
     border: 1px solid var(--border); background: var(--surface); user-select: none;
   }
   .compare-pane { position: absolute; inset: 0; padding: 52px 26px 24px; display: flex; flex-direction: column; }
@@ -327,13 +333,8 @@ export default function HomePage() {
   }
   .compare-label-after { right: 16px; background: rgba(255,255,255,0.18); color: #fff; }
   .compare-label-before { left: 16px; background: var(--surface); color: var(--ink-muted); border: 1px solid var(--border); }
-  .result-overall { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
-  .result-overall-badge { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 12px; padding: 5px 12px; border-radius: 999px; }
-  .result-overall-badge.status-warn { background: rgba(245,196,81,0.22); color: #F5C451; }
-  .result-overall-badge.status-ok { background: rgba(124,252,0,0.2); color: var(--brand-accent); }
-  .result-overall-name { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 16px; }
   .resolved-mock, .ingredient-mock {
-    list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 11px;
+    list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 14px;
     font-size: 13.5px;
   }
   .ingredient-mock { color: var(--ink-muted); font-family: "Source Sans 3", monospace; }
@@ -368,6 +369,28 @@ export default function HomePage() {
   }
   .compare-range:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; border-radius: 20px; }
   .compare-caption { text-align: center; color: var(--ink-muted); font-size: 13.5px; margin-top: 16px; }
+
+  /* ---- FAQ accordion ---- */
+  .faq-list { display: flex; flex-direction: column; gap: 12px; max-width: 720px; margin: 0 auto; }
+  .faq-item {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    overflow: hidden; transition: border-color 0.2s ease;
+  }
+  .faq-item.is-open { border-color: var(--brand); }
+  .faq-question {
+    width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    background: none; border: none; cursor: pointer; text-align: left;
+    padding: 20px 22px; font-family: "Manrope", sans-serif; font-weight: 700; font-size: 15.5px;
+    color: var(--ink); font-size: 16px;
+  }
+  .faq-chevron { flex: none; color: var(--ink-muted); transition: transform 0.3s ease, color 0.3s ease; }
+  .faq-item.is-open .faq-chevron { transform: rotate(180deg); color: var(--brand); }
+  .faq-answer-wrap {
+    display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.35s cubic-bezier(.4,0,.2,1);
+  }
+  .faq-item.is-open .faq-answer-wrap { grid-template-rows: 1fr; }
+  .faq-answer { overflow: hidden; }
+  .faq-answer p { padding: 0 22px 20px; color: var(--ink-muted); font-size: 14.5px; line-height: 1.6; }
 
   /* ---- pricing (mirrors plan-card styles from pricing.html so the two
      pages read as one system) ---- */
@@ -423,7 +446,8 @@ export default function HomePage() {
   .reveal .certifiers-track-wrap,
   .reveal .compare,
   .reveal .plan-card,
-  .reveal .waitlist {
+  .reveal .waitlist,
+  .reveal .faq-item {
     opacity: 0;
     transform: translateY(22px);
     transition: opacity 0.7s cubic-bezier(.16,.8,.3,1), transform 0.7s cubic-bezier(.16,.8,.3,1);
@@ -435,7 +459,8 @@ export default function HomePage() {
   .reveal.is-visible .certifiers-track-wrap,
   .reveal.is-visible .compare,
   .reveal.is-visible .plan-card,
-  .reveal.is-visible .waitlist {
+  .reveal.is-visible .waitlist,
+  .reveal.is-visible .faq-item {
     opacity: 1;
     transform: translateY(0);
   }
@@ -477,12 +502,13 @@ export default function HomePage() {
 
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
-    .reveal .section-head, .reveal .feature-card, .reveal .step, .reveal .certifiers-track-wrap, .reveal .compare, .reveal .plan-card, .reveal .waitlist {
+    .reveal .section-head, .reveal .feature-card, .reveal .step, .reveal .certifiers-track-wrap, .reveal .compare, .reveal .plan-card, .reveal .waitlist, .reveal .faq-item {
       transition: none; opacity: 1; transform: none;
     }
     .phone .slide { transition: none; }
     .certifiers-track { animation: none; }
     .compare-handle span.pulse { animation: none; }
+    .faq-answer-wrap { transition: none; }
   }
       `}</style>
 
@@ -731,24 +757,7 @@ export default function HomePage() {
               <div className="section-head">
                 <h2>Tez-tez verilən suallar</h2>
               </div>
-              <div className="features-grid" style={{ gridTemplateColumns: "repeat(2, 1fr)" }}>
-                <div className="feature-card" style={stagger(0)}>
-                  <h3>Halalzur halal hökmü verirmi?</h3>
-                  <p>Xeyr. Halalzur dini hökm vermir — yalnız tanınan sertifikat orqanlarının (GIMDES, JAKIM, AZSTANDART Halal və s.) dərc etdiyi məlumatı göstərir.</p>
-                </div>
-                <div className="feature-card" style={stagger(1)}>
-                  <h3>Hansı platformalarda əlçatan olacaq?</h3>
-                  <p>Halalzur ilk mərhələdə yalnız iOS (iPhone) üçün hazırlanır.</p>
-                </div>
-                <div className="feature-card" style={stagger(2)}>
-                  <h3>Pulsuzdurmu?</h3>
-                  <p>Bəli — gündə 3 skan pulsuzdur. Limitsiz istifadə üçün Premium abunəlik olacaq.</p>
-                </div>
-                <div className="feature-card" style={stagger(3)}>
-                  <h3>Öz məhsulumu əlavə edə bilərəmmi?</h3>
-                  <p>Bəli — bazada olmayan məhsulu tətbiq daxilində təklif edə bilərsiniz, təsdiqləndikdə xal qazanırsınız.</p>
-                </div>
-              </div>
+              <FaqAccordion />
             </Reveal>
           </div>
         </section>
