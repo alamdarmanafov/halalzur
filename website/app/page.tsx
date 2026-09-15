@@ -2,6 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Reveal } from "./components/Reveal";
 import { HeroPhoneSlider } from "./components/HeroPhoneSlider";
+import { CompareSlider } from "./components/CompareSlider";
+
+const CERTIFIERS = [
+  { name: "GIMDES", country: "Türkiyə" },
+  { name: "HAK", country: "Türkiyə" },
+  { name: "SMIIC", country: "Beynəlxalq" },
+  { name: "JAKIM", country: "Malaziya" },
+  { name: "AZSTANDART Halal", country: "Azərbaycan" },
+];
 
 function stagger(i: number): React.CSSProperties {
   return { ["--i" as string]: i } as React.CSSProperties;
@@ -250,7 +259,12 @@ export default function HomePage() {
   @media (max-width: 560px) { .features-grid { grid-template-columns: 1fr; } }
   .feature-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
-    padding: 26px 22px;
+    padding: 26px 22px; transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+  }
+  .feature-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--brand);
+    box-shadow: 0 16px 32px -20px rgba(var(--shadow-color), 0.35);
   }
   .feature-icon {
     width: 44px; height: 44px; border-radius: 12px; background: var(--brand-surface);
@@ -274,13 +288,71 @@ export default function HomePage() {
   .step p { color: var(--ink-muted); font-size: 14.5px; line-height: 1.55; }
 
   .certifiers-band { text-align: center; }
-  .certifiers-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-top: 28px; }
+  .certifiers-track-wrap {
+    margin-top: 32px; overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent);
+  }
+  .certifiers-track {
+    display: flex; gap: 14px; width: max-content;
+    animation: certifiers-marquee 26s linear infinite;
+  }
+  .certifiers-track-wrap:hover .certifiers-track { animation-play-state: paused; }
+  @keyframes certifiers-marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
   .certifier-pill {
     border: 1.5px solid var(--border); border-radius: 14px; padding: 14px 20px;
-    background: var(--surface); min-width: 140px;
+    background: var(--surface); min-width: 140px; flex: none;
+    transition: transform 0.25s ease, border-color 0.25s ease;
   }
+  .certifier-pill:hover { transform: translateY(-3px); border-color: var(--brand); }
   .certifier-pill b { display: block; font-family: "Manrope", sans-serif; font-size: 15px; color: var(--ink); }
   .certifier-pill span { display: block; font-size: 12px; color: var(--ink-muted); margin-top: 3px; }
+
+  /* ---- before/after compare slider ---- */
+  .compare { margin-top: 8px; }
+  .compare-frame-wrap { position: relative; }
+  .compare-frame {
+    position: relative; height: 280px; border-radius: 20px; overflow: hidden;
+    border: 1px solid var(--border); background: var(--surface); user-select: none;
+  }
+  .compare-pane { position: absolute; inset: 0; padding: 28px; display: flex; flex-direction: column; justify-content: center; }
+  .compare-after { background: linear-gradient(135deg, var(--brand-dark), var(--brand)); color: #fff; }
+  .compare-before { background: var(--surface-2); }
+  .compare-label {
+    position: absolute; top: 16px; font-family: "Manrope", sans-serif; font-weight: 800; font-size: 11px;
+    letter-spacing: 0.05em; text-transform: uppercase; padding: 5px 12px; border-radius: 999px;
+  }
+  .compare-label-after { right: 16px; background: rgba(255,255,255,0.18); color: #fff; }
+  .compare-label-before { left: 16px; background: var(--surface); color: var(--ink-muted); border: 1px solid var(--border); }
+  .result-mock-badge {
+    display: inline-block; width: fit-content; background: rgba(124,252,0,0.2); color: var(--brand-accent);
+    font-weight: 800; font-size: 12px; padding: 5px 12px; border-radius: 999px; margin-bottom: 12px;
+  }
+  .result-mock-name { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 20px; }
+  .result-mock-brand { opacity: 0.75; font-size: 13.5px; margin-top: 2px; }
+  .result-mock-src { opacity: 0.55; font-size: 12px; margin-top: 14px; }
+  .ingredient-mock {
+    list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 9px;
+    font-size: 13.5px; color: var(--ink-muted); font-family: "Source Sans 3", monospace;
+  }
+  .ingredient-mock em { color: #C0362C; font-style: normal; font-weight: 700; }
+  .compare-handle {
+    position: absolute; top: 0; bottom: 0; width: 3px; background: #fff; transform: translateX(-50%);
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.08); pointer-events: none; display: flex; align-items: center; justify-content: center;
+  }
+  .compare-handle span {
+    width: 40px; height: 40px; border-radius: 50%; background: #fff; color: var(--brand-dark);
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    box-shadow: 0 6px 16px -6px rgba(var(--shadow-color), 0.5);
+  }
+  .compare-range {
+    position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0;
+    cursor: ew-resize; -webkit-appearance: none; appearance: none;
+  }
+  .compare-caption { text-align: center; color: var(--ink-muted); font-size: 13.5px; margin-top: 16px; }
 
   /* ---- pricing (mirrors plan-card styles from pricing.html so the two
      pages read as one system) ---- */
@@ -289,7 +361,9 @@ export default function HomePage() {
   .plan-card {
     border: 1px solid var(--border); border-radius: 20px; padding: 24px; background: var(--surface);
     display: flex; flex-direction: column; gap: 6px; position: relative;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
   }
+  .plan-card:hover { transform: translateY(-4px); box-shadow: 0 16px 32px -20px rgba(var(--shadow-color), 0.35); }
   .plan-card.featured { border-color: var(--brand); box-shadow: 0 0 0 1.5px var(--brand); }
   .plan-card .tag {
     position: absolute; top: -11px; left: 20px; background: var(--brand); color: #fff;
@@ -331,7 +405,8 @@ export default function HomePage() {
   .reveal .section-head,
   .reveal .feature-card,
   .reveal .step,
-  .reveal .certifier-pill,
+  .reveal .certifiers-track-wrap,
+  .reveal .compare,
   .reveal .plan-card,
   .reveal .waitlist {
     opacity: 0;
@@ -342,7 +417,8 @@ export default function HomePage() {
   .reveal.is-visible .section-head,
   .reveal.is-visible .feature-card,
   .reveal.is-visible .step,
-  .reveal.is-visible .certifier-pill,
+  .reveal.is-visible .certifiers-track-wrap,
+  .reveal.is-visible .compare,
   .reveal.is-visible .plan-card,
   .reveal.is-visible .waitlist {
     opacity: 1;
@@ -386,10 +462,11 @@ export default function HomePage() {
 
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
-    .reveal .section-head, .reveal .feature-card, .reveal .step, .reveal .certifier-pill, .reveal .plan-card, .reveal .waitlist {
+    .reveal .section-head, .reveal .feature-card, .reveal .step, .reveal .certifiers-track-wrap, .reveal .compare, .reveal .plan-card, .reveal .waitlist {
       transition: none; opacity: 1; transform: none;
     }
     .phone .slide { transition: none; }
+    .certifiers-track { animation: none; }
   }
       `}</style>
 
@@ -548,28 +625,28 @@ export default function HomePage() {
                 <h2>Tanınan sertifikat orqanları</h2>
                 <p>Halalzur öz hökmünü vermir — tanınan orqanların dərc etdiyi məlumata istinad edir.</p>
               </div>
-              <div className="certifiers-row">
-                <div className="certifier-pill" style={stagger(0)}>
-                  <b>GIMDES</b>
-                  <span>Türkiyə</span>
-                </div>
-                <div className="certifier-pill" style={stagger(1)}>
-                  <b>HAK</b>
-                  <span>Türkiyə</span>
-                </div>
-                <div className="certifier-pill" style={stagger(2)}>
-                  <b>SMIIC</b>
-                  <span>Beynəlxalq</span>
-                </div>
-                <div className="certifier-pill" style={stagger(3)}>
-                  <b>JAKIM</b>
-                  <span>Malaziya</span>
-                </div>
-                <div className="certifier-pill" style={stagger(4)}>
-                  <b>AZSTANDART Halal</b>
-                  <span>Azərbaycan</span>
+              <div className="certifiers-track-wrap">
+                <div className="certifiers-track">
+                  {[...CERTIFIERS, ...CERTIFIERS].map((c, i) => (
+                    <div className="certifier-pill" key={`${c.name}-${i}`} aria-hidden={i >= CERTIFIERS.length}>
+                      <b>{c.name}</b>
+                      <span>{c.country}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
+            </Reveal>
+          </div>
+        </section>
+
+        <section className="section" id="demo" style={{ background: "var(--surface-2)" }}>
+          <div className="wrap">
+            <Reveal>
+              <div className="section-head">
+                <h2>Qarışıqlıqdan aydınlığa</h2>
+                <p>Tərkib siyahısındakı anlaşılmaz kodları Halalzur sizin üçün aydın nəticəyə çevirir.</p>
+              </div>
+              <CompareSlider />
             </Reveal>
           </div>
         </section>
