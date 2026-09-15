@@ -313,7 +313,7 @@ export default function HomePage() {
   .certifier-pill span { display: block; font-size: 12px; color: var(--ink-muted); margin-top: 3px; }
 
   /* ---- ingredient before/after showcase ---- */
-  .compare { margin-top: 8px; max-width: 700px; margin-left: auto; margin-right: auto; }
+  .compare { margin-top: 8px; max-width: 760px; margin-left: auto; margin-right: auto; text-align: center; }
   .result-overall-badge { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 12px; padding: 5px 12px; border-radius: 999px; }
   .result-overall-badge.status-warn { background: rgba(245,196,81,0.22); color: #92650a; }
   .result-overall-badge.status-ok { background: var(--brand-surface); color: var(--brand-dark); }
@@ -321,6 +321,7 @@ export default function HomePage() {
   .compare-card {
     position: relative; overflow: hidden; border-radius: 20px; border: 1px solid var(--border);
     background: var(--surface); padding: 28px 26px 26px;
+    width: fit-content; max-width: 100%; margin: 0 auto; text-align: left;
   }
   .compare-scan-head { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; flex-wrap: wrap; }
   .compare-rows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
