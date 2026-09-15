@@ -1,0 +1,176 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+
+// PLACEHOLDER — replace once Halalzur is published, same as the homepage's
+// nav/hero/cta store links.
+const APP_STORE_URL = "#";
+
+const SUPABASE_URL = "https://szizepjcospoygnjmxwz.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_YSxBg5SQveiZrRU6H65mVg_Ea4gp2Pl";
+
+export function InviteClient() {
+  const searchParams = useSearchParams();
+  const code = (searchParams.get("code") || "").trim().toUpperCase();
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!code) return;
+    // Best-effort click tracking for the admin panel's referral report
+    // (clicks vs. actual sign-ups per code) — same public anon key already
+    // embedded in admin-panel/index.html, and referral_clicks has a
+    // public-insert RLS policy for exactly this. Never blocks or shows
+    // anything to the visitor either way.
+    fetch(`${SUPABASE_URL}/rest/v1/referral_clicks`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ code }),
+    }).catch(() => {});
+  }, [code]);
+
+  function handleCopy() {
+    navigator.clipboard.writeText(code).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+
+  return (
+    <>
+      <style>{`
+  :root {
+    --bg: #F6FBF7;
+    --ink: #10241A;
+    --ink-muted: #52685C;
+    --brand-dark: #0A4D2E;
+    --brand: #119E4B;
+    --brand-accent: #7CFC00;
+    --brand-surface: #E8F7ED;
+    --card: #FFFFFF;
+    --border: #DDEFE2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0B1712;
+      --ink: #EAF3EC;
+      --ink-muted: #8FA79A;
+      --card: #112420;
+      --border: #1C3A2E;
+      --brand-surface: #10281F;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0B1712;
+    --ink: #EAF3EC;
+    --ink-muted: #8FA79A;
+    --card: #112420;
+    --border: #1C3A2E;
+    --brand-surface: #10281F;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  h1, h2 { font-family: "Manrope", sans-serif; text-wrap: balance; margin: 0; }
+  .card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 36px 28px;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(10, 77, 46, 0.08);
+  }
+  .logo {
+    width: 56px; height: 56px; border-radius: 14px; margin: 0 auto 18px;
+    display: block; object-fit: cover;
+  }
+  .eyebrow {
+    display: inline-block; font-size: 12.5px; font-weight: 700; letter-spacing: 0.04em;
+    color: var(--brand-dark); background: var(--brand-surface); padding: 5px 12px; border-radius: 999px;
+    margin-bottom: 14px;
+  }
+  h1 { font-size: 24px; line-height: 1.3; color: var(--ink); }
+  .lede { color: var(--ink-muted); font-size: 15px; line-height: 1.55; margin: 12px 0 24px; }
+  .code-box {
+    background: var(--brand-surface); border: 1.5px dashed var(--brand);
+    border-radius: 16px; padding: 18px; margin-bottom: 10px;
+  }
+  .code-label { font-size: 12px; font-weight: 700; color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .code-value {
+    font-family: "Manrope", sans-serif; font-weight: 800; font-size: 30px; letter-spacing: 0.08em;
+    color: var(--brand-dark); margin: 4px 0;
+  }
+  .copy-btn {
+    border: none; background: var(--brand); color: #fff; font-weight: 700; font-size: 13.5px;
+    padding: 8px 16px; border-radius: 999px; cursor: pointer; font-family: inherit;
+  }
+  .copy-btn:active { opacity: 0.85; }
+  .points { font-size: 13.5px; color: var(--ink-muted); margin-bottom: 26px; }
+  .points strong { color: var(--brand-dark); }
+  .store-btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: var(--brand-dark); color: #fff; text-decoration: none;
+    font-weight: 700; font-size: 15px; padding: 14px 20px; border-radius: 14px;
+  }
+  .steps {
+    text-align: left; margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--border);
+    font-size: 13.5px; color: var(--ink-muted); line-height: 1.7;
+  }
+  .steps b { color: var(--ink); }
+      `}</style>
+
+      <div className="card">
+        <img className="logo" src="/logo.png" alt="Halalzur" />
+        <div className="eyebrow">DƏVƏT</div>
+        <h1>Sizi Halalzur-a dəvət etdilər!</h1>
+        <p className="lede">Məhsulun barkodunu skan et, halal statusunu GIMDES, JAKIM və AZSTANDART Halal kimi tanınan sertifikat orqanlarının məlumatlarına əsasən dərhal öyrən.</p>
+
+        {code ? (
+          <div className="code-box">
+            <div className="code-label">Dəvət kodu</div>
+            <div className="code-value">{code}</div>
+            <button className="copy-btn" type="button" onClick={handleCopy}>
+              {copied ? "Kopyalandı ✓" : "Kodu kopyala"}
+            </button>
+          </div>
+        ) : null}
+        {code ? (
+          <p className="points">
+            Qeydiyyatdan sonra bu kodu Profil → Dostunu dəvət et bölməsində daxil et — <strong>ikiniz də 20 xal</strong> qazanırsınız.
+          </p>
+        ) : null}
+
+        <a className="store-btn" href={APP_STORE_URL}>
+          <svg width="16" height="16" viewBox="0 0 384 512" fill="currentColor">
+            <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z" />
+          </svg>
+          App Store-dan yüklə
+        </a>
+
+        <div className="steps">
+          1. <b>Tətbiqi yüklə</b> yuxarıdakı düymə ilə
+          <br />
+          2. Qeydiyyatdan keç (email, Apple və ya Google ilə)
+          <br />
+          3. Profil → <b>Dostunu dəvət et</b> → kodu yapışdır
+        </div>
+      </div>
+    </>
+  );
+}

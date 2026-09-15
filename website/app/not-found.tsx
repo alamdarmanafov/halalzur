@@ -1,19 +1,14 @@
-<!doctype html>
-<html lang="az">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Səhifə tapılmadı — Halalzur</title>
-<meta name="robots" content="noindex" />
-<meta name="theme-color" content="#0A4D2E" />
-<link rel="icon" href="favicon.png" type="image/png" />
-<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+import type { Metadata } from "next";
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+export const metadata: Metadata = {
+  title: "Səhifə tapılmadı — Halalzur",
+  robots: { index: false, follow: false },
+};
 
-<style>
+export default function NotFound() {
+  return (
+    <>
+      <style>{`
   :root {
     --bg: #F6FAF7;
     --surface: #FFFFFF;
@@ -107,17 +102,17 @@
     padding: 13px 26px;
     border-radius: 999px;
   }
-</style>
-</head>
-<body>
+      `}</style>
 
-<div class="card">
-  <img class="logo" src="logo.png" alt="Halalzur" />
-  <div class="code">404</div>
-  <h1>Bu səhifə tapılmadı</h1>
-  <p>Axtardığın səhifə silinib və ya heç mövcud olmayıb. Ana səhifədən davam edə bilərsən.</p>
-  <a class="btn" href="/">← Ana səhifəyə qayıt</a>
-</div>
-
-</body>
-</html>
+      <div className="card">
+        <img className="logo" src="/logo.png" alt="Halalzur" />
+        <div className="code">404</div>
+        <h1>Bu səhifə tapılmadı</h1>
+        <p>Axtardığın səhifə silinib və ya heç mövcud olmayıb. Ana səhifədən davam edə bilərsən.</p>
+        <a className="btn" href="/">
+          ← Ana səhifəyə qayıt
+        </a>
+      </div>
+    </>
+  );
+}

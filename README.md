@@ -195,21 +195,24 @@ mövzuya abunə olur (`lib/notifications.ts`).
 
 ## Sayt (halalzur.com) və admin panel — Vercel-ə yükləmə
 
-Bu repoda iki ayrı statik sayt var, **ikisi də ayrıca Vercel layihəsi olmalıdır**
+Bu repoda iki ayrı sayt var, **ikisi də ayrıca Vercel layihəsi olmalıdır**
 ki, admin panel əsas domendə (halalzur.com) görünməsin:
 
-| Qovluq | Nə üçündür | Domen |
-| --- | --- | --- |
-| `website/` | halalzur.com marketing saytı, App Store yükləmə düymələri | `halalzur.com` |
-| `admin-panel/` | Məhsul təkliflərinə baxıb təsdiq/rədd etmə paneli | Vercel-in verdiyi default `*.vercel.app` linki (öz domen bağlamayın) |
+| Qovluq | Nə üçündür | Stack | Domen |
+| --- | --- | --- | --- |
+| `website/` | halalzur.com marketing saytı, App Store yükləmə düymələri | Next.js (App Router) | `halalzur.com` |
+| `admin-panel/` | Məhsul təkliflərinə baxıb təsdiq/rədd etmə paneli | Statik HTML (build addımı yoxdur) | Vercel-in verdiyi default `*.vercel.app` linki (öz domen bağlamayın) |
 
-Hər ikisi sırf statik HTML-dir (build addımı yoxdur), ona görə Vercel-də:
+Vercel-də:
 
 1. **Sayt üçün**: vercel.com → **Add New Project** → bu repo-nu seçin →
-   **Root Directory**-ni `website` olaraq təyin edin → Framework Preset:
-   **Other** (build command boş qala bilər) → Deploy.
-   Deploy olduqdan sonra **Settings → Domains**-dən `halalzur.com`-u əlavə
-   edin (domeni aldıqdan sonra).
+   **Root Directory**-ni `website` olaraq təyin edin → Framework Preset
+   avtomatik **Next.js** kimi tanınacaq (build/output ayarlarına toxunmayın)
+   → Deploy. Deploy olduqdan sonra **Settings → Domains**-dən
+   `halalzur.com`-u əlavə edin (domeni aldıqdan sonra) — bu sayt əvvəllər
+   GitHub Pages-də statik HTML olaraq yayımlanırdı, indi isə birbaşa
+   Vercel-in idarə etdiyi Next.js tətbiqidir, ona görə ayrıca GitHub Pages
+   qurmaq/domenini saxlamaq lazım deyil.
 2. **Admin panel üçün**: eyni repo ilə **ikinci, ayrı** bir layihə yaradın →
    **Root Directory**-ni `admin-panel` olaraq təyin edin → Deploy edin.
    Bu layihəyə **heç bir custom domen bağlamayın** — Vercel-in verdiyi
@@ -227,41 +230,13 @@ mənbəyində görünür) — sadəcə panelin təsadüfi tapılmasının qarş�
 SECURITY CAVEAT qeydi) — ictimai buraxılışdan əvvəl bunu real Supabase Auth
 əsaslı admin roluna keçirmək lazımdır.
 
-### Alternativ: sayt üçün GitHub Pages (Vercel ilə yanaşı)
+### GitHub Pages artıq istifadə olunmur
 
-Sayt sırf statik olduğu üçün Vercel-ə əlavə olaraq GitHub Pages üzərindən də
-pulsuz yayımlana bilər. Bu repoda artıq hazırdır:
-
-- `.github/workflows/deploy-pages.yml` — hər `website/` dəyişikliyində
-  `website/` qovluğunu avtomatik GitHub Pages-ə yükləyən GitHub Actions
-  iş axını.
-- `website/CNAME` — `halalzur.com` yazılıb, GitHub-un custom domeni
-  saxlaması üçün lazımdır (əks halda hər deploy-da domen sıfırlanır).
-
-Aktivləşdirmək üçün (bir dəfəlik, GitHub-un öz saytında edilir — git push
-ilə edilə bilməz):
-
-1. `github.com/alamdarmanafov/halalzur` → **Settings → Pages**.
-2. **Build and deployment → Source**-də **GitHub Actions**-ı seçin
-   (Branch üsulunu yox — Actions üsulunu).
-3. `claude/new-app-three-tab-menu-5bfgsd` budağına (və ya bu iş axınına)
-   uyğun push edildikdə iş axını avtomatik işə düşəcək; **Actions** tabında
-   gedişatı izləyə bilərsiniz.
-4. Deploy bitdikdən sonra **Settings → Pages**-də **Custom domain** sahəsinə
-   `halalzur.com` yazıb yadda saxlayın (CNAME faylı artıq repoda olduğu üçün
-   bu sahə avtomatik doldurula bilər).
-5. Domen qeydiyyatçınızda (domeni haradan aldınızsa) bu DNS qeydlərini əlavə
-   edin:
-   - Apex domen (`halalzur.com`) üçün 4 **A** qeydi: `185.199.108.153`,
-     `185.199.109.153`, `185.199.110.153`, `185.199.111.153`.
-   - `www` subdomeni istəyirsinizsə: **CNAME** qeydi →
-     `alamdarmanafov.github.io`.
-6. DNS yayıldıqdan sonra (bir neçə dəqiqədən bir neçə saata qədər) GitHub
-   Pages HTTPS sertifikatını özü avtomatik yaradacaq.
-
-Diqqət: eyni domeni (`halalzur.com`) həm Vercel-ə, həm GitHub Pages-ə DNS
-səviyyəsində eyni anda bağlamaq mümkün deyil — DNS bir vaxtda yalnız bir
-xidmətə işarə edə bilər. İkisini paralel saxlamaq istəyirsinizsə, birini
-əsas domendə (`halalzur.com`), digərini subdomendə (məs. Vercel üçün
-`www.halalzur.com`, GitHub Pages üçün default `alamdarmanafov.github.io`
-linki) saxlaya bilərsiniz.
+Sayt əvvəllər `.github/workflows/deploy-pages.yml` iş axını ilə statik HTML
+olaraq GitHub Pages-ə yayımlanırdı (`website/CNAME` da bunun üçün idi). Sayt
+Next.js-ə keçdikdən sonra bu iş axını silinib — Vercel həm build, həm domen
+idarəetməsini öz üzərinə götürür (yuxarıdakı təlimat). Əgər GitHub
+Pages `halalzur.com` üçün əvvəllər aktivləşdirilmişdisə,
+`github.com/alamdarmanafov/halalzur` → **Settings → Pages**-dən onu
+söndürün ki, domen DNS səviyyəsində Vercel ilə toqquşmasın (eyni domeni
+DNS-də eyni anda iki xidmətə yönləndirmək mümkün deyil).
