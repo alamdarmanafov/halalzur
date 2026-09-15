@@ -315,10 +315,10 @@ export default function HomePage() {
   .compare { margin-top: 8px; }
   .compare-frame-wrap { position: relative; }
   .compare-frame {
-    position: relative; height: 280px; border-radius: 20px; overflow: hidden;
+    position: relative; height: 340px; border-radius: 20px; overflow: hidden;
     border: 1px solid var(--border); background: var(--surface); user-select: none;
   }
-  .compare-pane { position: absolute; inset: 0; padding: 28px; display: flex; flex-direction: column; justify-content: center; }
+  .compare-pane { position: absolute; inset: 0; padding: 52px 26px 24px; display: flex; flex-direction: column; }
   .compare-after { background: linear-gradient(135deg, var(--brand-dark), var(--brand)); color: #fff; }
   .compare-before { background: var(--surface-2); }
   .compare-label {
@@ -327,18 +327,21 @@ export default function HomePage() {
   }
   .compare-label-after { right: 16px; background: rgba(255,255,255,0.18); color: #fff; }
   .compare-label-before { left: 16px; background: var(--surface); color: var(--ink-muted); border: 1px solid var(--border); }
-  .result-mock-badge {
-    display: inline-block; width: fit-content; background: rgba(124,252,0,0.2); color: var(--brand-accent);
-    font-weight: 800; font-size: 12px; padding: 5px 12px; border-radius: 999px; margin-bottom: 12px;
+  .result-overall { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .result-overall-badge { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 12px; padding: 5px 12px; border-radius: 999px; }
+  .result-overall-badge.status-warn { background: rgba(245,196,81,0.22); color: #F5C451; }
+  .result-overall-badge.status-ok { background: rgba(124,252,0,0.2); color: var(--brand-accent); }
+  .result-overall-name { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 16px; }
+  .resolved-mock, .ingredient-mock {
+    list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 11px;
+    font-size: 13.5px;
   }
-  .result-mock-name { font-family: "Manrope", sans-serif; font-weight: 800; font-size: 20px; }
-  .result-mock-brand { opacity: 0.75; font-size: 13.5px; margin-top: 2px; }
-  .result-mock-src { opacity: 0.55; font-size: 12px; margin-top: 14px; }
-  .ingredient-mock {
-    list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 9px;
-    font-size: 13.5px; color: var(--ink-muted); font-family: "Source Sans 3", monospace;
-  }
+  .ingredient-mock { color: var(--ink-muted); font-family: "Source Sans 3", monospace; }
   .ingredient-mock em { color: #C0362C; font-style: normal; font-weight: 700; }
+  .resolved-mock li { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: rgba(255,255,255,0.88); }
+  .resolved-mock b { font-weight: 800; font-size: 12px; white-space: nowrap; }
+  .resolved-mock b.ok { color: var(--brand-accent); }
+  .resolved-mock b.warn { color: #F5C451; }
   .compare-frame.is-animating .compare-before,
   .compare-frame.is-animating .compare-handle {
     transition: clip-path 0.8s cubic-bezier(.4,0,.2,1), left 0.8s cubic-bezier(.4,0,.2,1);
@@ -346,6 +349,7 @@ export default function HomePage() {
   .compare-handle {
     position: absolute; top: 0; bottom: 0; width: 3px; background: #fff; transform: translateX(-50%);
     box-shadow: 0 0 0 1px rgba(0,0,0,0.08); pointer-events: none; display: flex; align-items: center; justify-content: center;
+    z-index: 2;
   }
   .compare-handle span {
     width: 40px; height: 40px; border-radius: 50%; background: #fff; color: var(--brand-dark);
@@ -359,9 +363,10 @@ export default function HomePage() {
     100% { box-shadow: 0 6px 16px -6px rgba(var(--shadow-color), 0.5), 0 0 0 0 rgba(17,158,75,0); }
   }
   .compare-range {
-    position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0;
-    cursor: ew-resize; -webkit-appearance: none; appearance: none;
+    position: absolute; inset: 0; width: 100%; height: 100%; z-index: 3;
+    cursor: ew-resize; touch-action: none; -webkit-tap-highlight-color: transparent;
   }
+  .compare-range:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; border-radius: 20px; }
   .compare-caption { text-align: center; color: var(--ink-muted); font-size: 13.5px; margin-top: 16px; }
 
   /* ---- pricing (mirrors plan-card styles from pricing.html so the two
