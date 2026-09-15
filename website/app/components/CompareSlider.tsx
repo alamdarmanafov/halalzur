@@ -3,8 +3,14 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 const DEFAULT_PERCENT = 50;
-const DEMO_STEPS = [86, 14, DEFAULT_PERCENT];
+const MIN_PERCENT = 18;
+const MAX_PERCENT = 82;
+const DEMO_STEPS = [MAX_PERCENT, MIN_PERCENT, DEFAULT_PERCENT];
 const DEMO_STEP_MS = 800;
+
+function clamp(value: number) {
+  return Math.min(MAX_PERCENT, Math.max(MIN_PERCENT, value));
+}
 
 const BEFORE_ITEMS: { label: string; note?: string }[] = [
   { label: "Şəkər, bitki yağı" },
@@ -64,7 +70,7 @@ export function CompareSlider() {
       if (!frame) return;
       const rect = frame.getBoundingClientRect();
       const ratio = (clientX - rect.left) / rect.width;
-      setPercent(Math.min(100, Math.max(0, Math.round(ratio * 100))));
+      setPercent(clamp(Math.round(ratio * 100)));
     }
 
     function onMove(e: PointerEvent) {
@@ -119,23 +125,23 @@ export function CompareSlider() {
     if (frame) {
       const rect = frame.getBoundingClientRect();
       const ratio = (e.clientX - rect.left) / rect.width;
-      setPercent(Math.min(100, Math.max(0, Math.round(ratio * 100))));
+      setPercent(clamp(Math.round(ratio * 100)));
     }
   }
 
   function handleKeyDown(e: ReactKeyboardEvent<HTMLDivElement>) {
     if (e.key === "ArrowLeft") {
       stopDemo();
-      setPercent((p) => Math.max(0, p - 5));
+      setPercent((p) => clamp(p - 5));
     } else if (e.key === "ArrowRight") {
       stopDemo();
-      setPercent((p) => Math.min(100, p + 5));
+      setPercent((p) => clamp(p + 5));
     } else if (e.key === "Home") {
       stopDemo();
-      setPercent(0);
+      setPercent(MIN_PERCENT);
     } else if (e.key === "End") {
       stopDemo();
-      setPercent(100);
+      setPercent(MAX_PERCENT);
     }
   }
 
@@ -179,8 +185,8 @@ export function CompareSlider() {
             role="slider"
             tabIndex={0}
             aria-label="Tərkib siyahısı ilə Halalzur nəticəsini müqayisə et"
-            aria-valuemin={0}
-            aria-valuemax={100}
+            aria-valuemin={MIN_PERCENT}
+            aria-valuemax={MAX_PERCENT}
             aria-valuenow={percent}
             onPointerDown={handlePointerDown}
             onKeyDown={handleKeyDown}
