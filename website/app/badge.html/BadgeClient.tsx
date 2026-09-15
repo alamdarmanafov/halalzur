@@ -88,7 +88,7 @@ export function BadgeClient() {
       `}</style>
 
       <a className="badge" href={href} target="_blank" rel="noopener">
-        <img className="logo" src="https://halalzur.com/logo.png" alt="Halalzur" />
+        <img className="logo" src="/logo.png" alt="Halalzur" />
         <div className="text">
           <div className="line1">{line1}</div>
           <div className="line2">
